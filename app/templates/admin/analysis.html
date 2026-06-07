@@ -1,0 +1,58 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Análisis Global - {{ settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Análisis Global</h1>
+        <p class="text-sm text-gray-500">Métricas y estadísticas generales de la plataforma multi-tenant.</p>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Card 1: Total Tenants -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <div class="bg-blue-50 p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-blue-600">building</span>
+                </div>
+                <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+12%</span>
+            </div>
+            <h3 class="text-sm font-medium text-gray-500">Tenants Activos</h3>
+            <p class="text-3xl font-bold text-gray-900">--</p>
+        </div>
+
+        <!-- Card 2: Total Usuarios -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <div class="bg-purple-50 p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-purple-600">group</span>
+                </div>
+                <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+5%</span>
+            </div>
+            <h3 class="text-sm font-medium text-gray-500">Usuarios Totales</h3>
+            <p class="text-3xl font-bold text-gray-900">--</p>
+        </div>
+
+        <!-- Card 3: Uptime -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <div class="bg-orange-50 p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-orange-600">timer</span>
+                </div>
+                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">Normal</span>
+            </div>
+            <h3 class="text-sm font-medium text-gray-500">Disponibilidad</h3>
+            <p class="text-3xl font-bold text-gray-900">99.9%</p>
+        </div>
+    </div>
+
+    <!-- Placeholder for charts -->
+    <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center py-20">
+        <span class="material-symbols-outlined text-6xl text-gray-200 mb-4">analytics</span>
+        <h3 class="text-xl font-bold text-gray-400">Métricas en construcción</h3>
+        <p class="text-gray-400">Próximamente: Gráficos de crecimiento, consumo de recursos y actividad por tenant.</p>
+    </div>
+</div>
+{% endblock %}

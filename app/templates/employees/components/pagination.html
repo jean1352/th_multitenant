@@ -1,0 +1,43 @@
+{% if pagination.total_pages > 1 %}
+<div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <p class="text-sm text-gray-700">
+                Mostrando <span class="font-medium">{{ (pagination.page - 1) * pagination.limit + 1 }}</span> a <span class="font-medium">{{ [(pagination.page * pagination.limit), pagination.total] | min }}</span> de <span class="font-medium">{{ pagination.total }}</span>
+            </p>
+        </div>
+        <div>
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <!-- Helper para construir query string -->
+                {% set base_query = "&q=" ~ (filters.q or '') ~ "&area_id=" ~ (filters.area_id or '') ~ "&sede_id=" ~ (filters.sede_id or '') ~ "&limit=" ~ filters.limit ~ "&gender=" ~ (filters.gender or '') ~ "&dietary_id=" ~ (filters.dietary_id or '') ~ "&birth_month=" ~ (filters.birth_month or '') ~ "&is_leader=" ~ (filters.is_leader or '') %}
+
+                {% if pagination.has_prev %}
+                <a href="?page={{ pagination.page - 1 }}{{ base_query }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Anterior</span>
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </a>
+                {% else %}
+                <span class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </span>
+                {% endif %}
+                
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                    Página {{ pagination.page }} de {{ pagination.total_pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                <a href="?page={{ pagination.page + 1 }}{{ base_query }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Siguiente</span>
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+                {% else %}
+                <span class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </span>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+</div>
+{% endif %}

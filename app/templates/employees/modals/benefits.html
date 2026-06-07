@@ -1,0 +1,44 @@
+<div id="benefitModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl w-[450px] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <h3 class="font-bold mb-6 text-xl text-gray-800">Asignar Beneficio</h3>
+
+        <div class="overflow-y-auto flex-1 pr-1">
+            <form id="benefitForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo de Beneficio</label>
+                    <select name="benefit_type_id" id="benefit_type_select" class="w-full border p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-green-500 outline-none" required
+                        onchange="renderDynamicBenefitFields(this.value)">
+                        <option value="">Seleccione un beneficio...</option>
+                        {% for type in benefit_types %}
+                            <option value="{{ type.id }}">{{ type.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Fecha de Inicio</label>
+                        <input type="date" name="start_date" class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Observaciones</label>
+                        <input name="details" placeholder="Notas internas..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- CONTENEDOR DE CAMPOS DINÁMICOS -->
+                <div id="dynamic_fields_container" class="space-y-4 pt-4 border-t border-gray-100">
+                    <!-- JS inyecta aquí según el esquema -->
+                    <p class="text-[10px] text-gray-400 italic text-center py-4">Selecciona un beneficio para ver sus detalles específicos.</p>
+                </div>
+
+                <input type="hidden" name="custom_data" id="custom_data_input">
+            </form>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-4">
+            <button type="button" onclick="closeModal('benefitModal')" class="text-gray-500 px-6 py-2 hover:text-gray-700 text-sm font-medium">Cancelar</button>
+            <button type="submit" form="benefitForm" class="bg-green-600 text-white px-8 py-2 rounded-lg hover:bg-green-700 text-sm font-bold shadow-lg transition-all transform active:scale-95">Asignar Beneficio</button>
+        </div>
+    </div>
+</div>

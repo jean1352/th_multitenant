@@ -1,0 +1,120 @@
+{% extends "layouts/base.html" %}
+{% block title %}Colaboradores: {{ restriction.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/dietary/config" class="text-blue-600 hover:underline text-sm">&larr; Volver a Restricciones</a>
+    <div class="flex items-center gap-3 mt-2">
+        <h1 class="text-2xl font-bold text-gray-800">Colaboradores con: {{ restriction.name }}</h1>
+        <span class="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-full">{{ pagination.total }} Registros</span>
+    </div>
+    <p class="text-gray-500 text-sm mt-1">{{ restriction.description or '' }}</p>
+</div>
+
+<!-- FILTROS -->
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+    <form action="" method="GET" class="flex flex-wrap gap-4 items-center">
+        <!-- Buscador -->
+        <div class="flex-1 min-w-[200px]">
+            <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="Buscar por nombre..." class="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        
+        <!-- Sede -->
+        <div class="w-full md:w-48">
+            <select name="sede_id" class="w-full border p-2 rounded text-sm bg-white" onchange="this.form.submit()">
+                <option value="">Todas las Sedes</option>
+                {% for sede in sedes %}
+                    <option value="{{ sede.id }}" {% if filters.sede_id == sede.id %}selected{% endif %}>{{ sede.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Área -->
+        <div class="w-full md:w-48">
+            <select name="area_id" class="w-full border p-2 rounded text-sm bg-white">
+                <option value="">Todas las Áreas</option>
+                {% for area in areas %}
+                    <option value="{{ area.id }}" {% if filters.area_id == area.id %}selected{% endif %}>{{ area.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800 text-sm font-medium shadow-sm">Filtrar</button>
+        
+        {% if filters.q or filters.sede_id or filters.area_id %}
+            <a href="/dietary/types/{{ restriction.id }}/employees" class="text-red-500 text-sm hover:underline">Limpiar</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- TABLA -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full text-left border-collapse">
+        <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+            <tr>
+                <th class="px-6 py-4">Nombre</th>
+                <th class="px-6 py-4">Cargo</th>
+                <th class="px-6 py-4">Área</th>
+                <th class="px-6 py-4">Sede</th>
+                <th class="px-6 py-4 text-right">Acción</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for emp in pagination.data %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="font-medium text-gray-900">{{ emp.full_name }}</div>
+                    <div class="text-xs text-gray-500">{{ emp.document_id }}</div>
+                </td>
+                <td class="px-6 py-4 text-gray-600 text-sm">{{ emp.position_obj.name }}</td>
+                <td class="px-6 py-4 text-gray-500 text-sm">{{ emp.position_obj.area.name }}</td>
+                <td class="px-6 py-4 text-gray-500 text-sm">
+                    {{ emp.position_obj.area.sede.name if emp.position_obj.area.sede else '-' }}
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <a href="/employees/{{ emp.id }}" class="text-blue-600 hover:text-blue-900 font-medium text-sm">Ver Perfil</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="px-6 py-12 text-center text-gray-500">No se encontraron colaboradores con esta restricción.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- PAGINACIÓN -->
+    {% if pagination.total_pages > 1 %}
+    <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Mostrando <span class="font-medium">{{ (pagination.page - 1) * pagination.limit + 1 }}</span> a <span class="font-medium">{{ [(pagination.page * pagination.limit), pagination.total] | min }}</span> de <span class="font-medium">{{ pagination.total }}</span>
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {% set base_query = "&q=" ~ (filters.q or '') ~ "&area_id=" ~ (filters.area_id or '') ~ "&sede_id=" ~ (filters.sede_id or '') %}
+
+                    {% if pagination.has_prev %}
+                    <a href="?page={{ pagination.page - 1 }}{{ base_query }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <span class="sr-only">Anterior</span>
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </a>
+                    {% endif %}
+                    
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        Página {{ pagination.page }} de {{ pagination.total_pages }}
+                    </span>
+
+                    {% if pagination.has_next %}
+                    <a href="?page={{ pagination.page + 1 }}{{ base_query }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <span class="sr-only">Siguiente</span>
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

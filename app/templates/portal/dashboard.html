@@ -1,0 +1,159 @@
+{% extends "layouts/portal_base.html" %}
+{% block title %}Inicio - Mi Portal{% endblock %}
+
+{% block content %}
+<!-- HEADER BIENVENIDA -->
+<div class="bg-gradient-to-r from-blue-900 to-blue-800 rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
+    <div class="relative z-10 flex flex-col md:flex-row items-center gap-6">
+        <div class="flex-shrink-0">
+            {% if employee.photo_url %}
+                <img src="{{ employee.photo_url }}" class="w-24 h-24 rounded-full object-cover border-4 border-white/30 shadow-md">
+            {% else %}
+                <div class="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-white text-3xl font-bold border-4 border-white/30 shadow-md">
+                    {{ employee.first_name[0] }}{{ employee.last_name[0] }}
+                </div>
+            {% endif %}
+        </div>
+        <div class="text-center md:text-left">
+            <h1 class="text-3xl font-bold">¡Hola, {{ employee.first_name }}!</h1>
+            <p class="text-blue-100 mt-1 text-lg">{{ employee.position_obj.name }} &bull; {{ employee.position_obj.area.name }}</p>
+            <p class="text-blue-200 text-sm mt-2">Bienvenido a tu portal de autogestión.</p>
+        </div>
+        <div class="flex-1"></div>
+        <div class="flex gap-3">
+            <a href="/portal/profile" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg backdrop-blur-sm transition-all text-sm font-medium border border-white/20">
+                Ver Mi Legajo
+            </a>
+        </div>
+    </div>
+    
+    <!-- Decoración de fondo -->
+    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-blue-500/20 rounded-full blur-2xl"></div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- COLUMNA IZQUIERDA: ACCESOS Y RESUMEN -->
+    <div class="lg:col-span-2 space-y-8">
+        
+        <!-- ACCESOS RÁPIDOS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a href="/portal/trainings" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
+                <div class="bg-orange-50 w-14 h-14 rounded-xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg">Capacitaciones</h3>
+                    <p class="text-sm text-gray-500">Mis cursos y asistencia</p>
+                </div>
+            </a>
+
+            <a href="/portal/events" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
+                <div class="bg-purple-50 w-14 h-14 rounded-xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg">Eventos</h3>
+                    <p class="text-sm text-gray-500">Calendario institucional</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- PRÓXIMAS ACTIVIDADES -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800">Próximas Actividades</h3>
+                <span class="text-xs text-gray-500">Eventos y Cursos</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for evt in upcoming_events %}
+                <div class="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex-shrink-0 w-14 text-center bg-blue-50 rounded-lg py-2 border border-blue-100">
+                        <span class="block text-xs font-bold text-blue-600 uppercase">{{ evt.event.date.strftime('%b') }}</span>
+                        <span class="block text-xl font-bold text-blue-900">{{ evt.event.date.day }}</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-gray-800">{{ evt.event.title }}</p>
+                        <p class="text-sm text-gray-500">{{ evt.event.event_type.name }}</p>
+                    </div>
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">Confirmado</span>
+                </div>
+                {% endfor %}
+
+                {% for train in active_trainings %}
+                <div class="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex-shrink-0 w-14 text-center bg-orange-50 rounded-lg py-2 border border-orange-100">
+                        <span class="block text-xs font-bold text-orange-600 uppercase">{{ train.training.start_date.strftime('%b') }}</span>
+                        <span class="block text-xl font-bold text-orange-900">{{ train.training.start_date.day }}</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-gray-800">{{ train.training.name }}</p>
+                        <p class="text-sm text-gray-500">Capacitación {{ 'Interna' if train.training.type.value == 'internal' else 'Externa' }}</p>
+                    </div>
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-800">Inscrito</span>
+                </div>
+                {% endfor %}
+
+                {% if not upcoming_events and not active_trainings %}
+                <div class="p-8 text-center text-gray-400 italic">
+                    No tienes actividades próximas programadas.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESUMEN PERSONAL -->
+    <div class="space-y-6">
+        
+        <!-- BENEFICIOS -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-green-100 text-green-600 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path></svg>
+                </div>
+                <h3 class="font-bold text-gray-800">Mis Beneficios</h3>
+            </div>
+            
+            {% if employee.benefits %}
+            <div class="space-y-3">
+                {% for ben in employee.benefits %}
+                <div class="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0">
+                    <span class="text-gray-700 font-medium">{{ ben.benefit_type.name }}</span>
+                    <span class="text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded">ACTIVO</span>
+                </div>
+                {% endfor %}
+                <a href="/portal/profile#benefits" class="block text-center text-xs text-blue-600 hover:underline mt-4">Ver detalles</a>
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">No tienes beneficios asignados actualmente.</p>
+            {% endif %}
+        </div>
+
+        <!-- INFO ALIMENTICIA -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-red-100 text-red-600 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </div>
+                <h3 class="font-bold text-gray-800">Info. Alimenticia</h3>
+            </div>
+            
+            {% if employee.dietary_restrictions %}
+            <div class="flex flex-wrap gap-2">
+                {% for diet in employee.dietary_restrictions %}
+                <span class="bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-full text-xs font-medium">
+                    {{ diet.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">Sin restricciones registradas.</p>
+            {% endif %}
+            <p class="text-xs text-gray-400 mt-4">Esta información se utiliza para eventos y catering.</p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

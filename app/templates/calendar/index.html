@@ -1,0 +1,237 @@
+{% extends "layouts/base.html" %}
+{% block title %}Calendario - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Calendario Institucional</h1>
+    <div class="flex gap-2">
+        <button onclick="openTypesModal()" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded shadow-sm hover:bg-gray-50 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+            Tipos de Eventos
+        </button>
+        <button onclick="openModal()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 font-medium text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Nuevo Evento
+        </button>
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <div id="calendar"></div>
+</div>
+
+<!-- MODAL DETALLE EVENTO -->
+<div id="eventDetailModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96 max-w-md">
+        <div class="flex justify-between items-start mb-2">
+            <h3 class="text-xl font-bold" id="detailTitle"></h3>
+            <span id="detailCategory" class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 font-bold uppercase"></span>
+        </div>
+        <p class="text-sm text-gray-500 mb-4" id="detailDate"></p>
+        
+        <div id="detailContent" class="text-gray-700 mb-6 text-sm"></div>
+        
+        <div class="flex justify-end gap-2">
+            <button id="btnDeleteEvent" class="text-red-600 hover:text-red-800 text-sm font-medium hidden" onclick="deleteCurrentEvent()">Eliminar</button>
+            <button onclick="closeDetailModal()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200">Cerrar</button>
+            <a id="btnGoLink" href="#" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 hidden">Ver Detalle</a>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL NUEVO EVENTO -->
+<div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4">Nuevo Evento</h3>
+        <form id="createForm" class="space-y-3">
+            <input name="title" placeholder="Título del Evento" class="w-full border p-2 rounded" required>
+            <input name="date" type="date" class="w-full border p-2 rounded" required>
+            
+            <label class="block text-xs font-medium text-gray-700">Tipo de Evento</label>
+            <select name="event_type_id" class="w-full border p-2 rounded bg-white" required>
+                {% for type in event_types %}
+                    <option value="{{ type.id }}">{{ type.name }}</option>
+                {% endfor %}
+            </select>
+            
+            <textarea name="description" placeholder="Descripción (Opcional)" class="w-full border p-2 rounded h-20"></textarea>
+            
+            <label class="flex items-center space-x-2 text-sm text-gray-700">
+                <input type="checkbox" name="is_enrollable" value="true" class="rounded text-blue-600 focus:ring-blue-500">
+                <span>Permitir inscripción de colaboradores</span>
+            </label>
+            
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal()" class="text-gray-500 hover:text-gray-700">Cancelar</button>
+                <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL GESTIÓN TIPOS -->
+<div id="typesModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-[500px]">
+        <h3 class="text-lg font-bold mb-4">Tipos de Eventos</h3>
+        
+        <!-- Form Crear -->
+        <form id="createTypeForm" class="flex gap-2 mb-4 items-end bg-gray-50 p-3 rounded">
+            <div class="flex-1">
+                <label class="text-xs block mb-1">Nombre</label>
+                <input name="name" class="w-full border p-1 rounded text-sm" required>
+            </div>
+            <div>
+                <label class="text-xs block mb-1">Color</label>
+                <input type="color" name="color" value="#3B82F6" class="h-8 w-10 border p-0 rounded cursor-pointer">
+            </div>
+            <div class="flex items-center pb-2">
+                <input type="checkbox" name="affects_sla" id="affects_sla" class="mr-1">
+                <label for="affects_sla" class="text-xs">Afecta SLA</label>
+            </div>
+            <button type="submit" class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">Crear</button>
+        </form>
+
+        <!-- Lista -->
+        <div class="max-h-60 overflow-y-auto border rounded">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100">
+                    <tr><th class="p-2">Nombre</th><th class="p-2">Color</th><th class="p-2">SLA</th><th class="p-2"></th></tr>
+                </thead>
+                <tbody id="typesList">
+                    {% for type in event_types %}
+                    <tr class="border-b">
+                        <td class="p-2">{{ type.name }}</td>
+                        <td class="p-2"><div class="w-4 h-4 rounded-full" style="background-color: {{ type.color }}"></div></td>
+                        <td class="p-2 text-xs">{{ 'SÍ' if type.affects_sla else 'NO' }}</td>
+                        <td class="p-2 text-right">
+                            <button onclick="deleteType({{ type.id }})" class="text-red-500 hover:text-red-700">×</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="flex justify-end mt-4">
+            <button onclick="document.getElementById('typesModal').classList.add('hidden')" class="text-gray-500">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    
+    let calendar;
+    let currentEventId = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'es', // IDIOMA ESPAÑOL
+            buttonText: {
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Semana',
+                day: 'Día',
+                list: 'Lista'
+            },
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+            events: '/calendar/api/events',
+            eventClick: function(info) { showEventDetails(info.event); }
+        });
+        calendar.render();
+    });
+
+    function showEventDetails(event) {
+        const props = event.extendedProps;
+        document.getElementById('detailTitle').innerText = event.title;
+        document.getElementById('detailDate').innerText = event.start.toLocaleDateString();
+        document.getElementById('detailCategory').innerText = props.category;
+        
+        const contentDiv = document.getElementById('detailContent');
+        const btnLink = document.getElementById('btnGoLink');
+        const btnDelete = document.getElementById('btnDeleteEvent');
+        
+        btnLink.classList.add('hidden');
+        btnDelete.classList.add('hidden');
+        currentEventId = null;
+
+        if (props.type === 'birthday') {
+            contentDiv.innerHTML = props.html_content;
+        } else if (props.type === 'training') {
+            contentDiv.innerText = `Horario: ${props.time}`;
+            btnLink.href = props.url;
+            btnLink.innerText = "Ver Capacitación";
+            btnLink.classList.remove('hidden');
+        } else {
+            contentDiv.innerText = props.description || 'Sin descripción';
+            currentEventId = event.id.replace('evt_', '');
+            btnDelete.classList.remove('hidden');
+            
+            if (props.is_enrollable) {
+                btnLink.href = props.url;
+                btnLink.innerText = "Gestionar Inscritos";
+                btnLink.classList.remove('hidden');
+            }
+        }
+        document.getElementById('eventDetailModal').classList.remove('hidden');
+    }
+
+    window.closeDetailModal = () => document.getElementById('eventDetailModal').classList.add('hidden');
+    
+    window.deleteCurrentEvent = async () => {
+        if(!confirm('¿Eliminar este evento?')) return;
+        try {
+            await ApiClient.delete(`/calendar/api/events/${currentEventId}`);
+            showToast('Evento eliminado');
+            closeDetailModal();
+            calendar.refetchEvents();
+        } catch(e) { showToast(e.message, 'error'); }
+    };
+
+    // --- CREATE EVENT ---
+    const createModal = document.getElementById('createModal');
+    window.openModal = () => createModal.classList.remove('hidden');
+    window.closeModal = () => createModal.classList.add('hidden');
+
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        data.is_enrollable = formData.get('is_enrollable') === 'true';
+
+        try {
+            await ApiClient.post('/calendar/api/events', data);
+            showToast('Evento creado');
+            closeModal();
+            calendar.refetchEvents();
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+
+    // --- MANAGE TYPES ---
+    window.openTypesModal = () => document.getElementById('typesModal').classList.remove('hidden');
+    
+    document.getElementById('createTypeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        data.affects_sla = document.getElementById('affects_sla').checked;
+        
+        try {
+            await ApiClient.post('/calendar/api/types', data);
+            showToast('Tipo creado');
+            setTimeout(() => window.location.reload(), 500);
+        } catch(e) { showToast(e.message, 'error'); }
+    });
+
+    window.deleteType = async (id) => {
+        if(!confirm('¿Eliminar tipo?')) return;
+        try {
+            await ApiClient.delete(`/calendar/api/types/${id}`);
+            showToast('Tipo eliminado');
+            setTimeout(() => window.location.reload(), 500);
+        } catch(e) { showToast(e.message, 'error'); }
+    };
+</script>
+{% endblock %}

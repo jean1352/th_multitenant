@@ -1,0 +1,80 @@
+<div id="content-disciplinary" class="hidden space-y-6">
+    
+    <!-- AMONESTACIONES -->
+    <div class="bg-white rounded-xl shadow-sm border border-red-100 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-red-800 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Amonestaciones y Sanciones
+            </h3>
+            <button onclick="openModal('sanctionModal')" class="bg-red-50 text-red-700 px-3 py-1 rounded text-sm font-medium hover:bg-red-100 border border-red-200">+ Registrar Sanción</button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-red-50 text-red-900 border-b border-red-100">
+                    <tr><th class="p-3">Fecha</th><th class="p-3">Tipo</th><th class="p-3">Motivo</th><th class="p-3 text-center">Ministerio</th><th class="p-3 text-right">Acción</th></tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for s in employee.sanctions %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 text-gray-600">{{ s.date.strftime('%d/%m/%Y') }}</td>
+                        <td class="p-3 font-bold uppercase text-xs">
+                            {% if s.type.value == 'verbal' %}<span class="text-yellow-600">Verbal</span>
+                            {% elif s.type.value == 'written' %}<span class="text-orange-600">Escrita</span>
+                            {% elif s.type.value == 'suspension' %}<span class="text-red-600">Suspensión</span>
+                            {% else %}<span class="text-red-800">Despido</span>{% endif %}
+                        </td>
+                        <td class="p-3">{{ s.reason }}</td>
+                        <td class="p-3 text-center">
+                            {% if s.sent_to_ministry %}
+                                <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">SÍ</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 text-right">
+                            <button onclick="deleteSanction({{ s.id }})" class="text-red-500 hover:text-red-700 text-xs font-bold uppercase">Eliminar</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="p-4 text-center text-gray-400">Sin sanciones registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- RECONOCIMIENTOS -->
+    <div class="bg-white rounded-xl shadow-sm border border-yellow-100 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-yellow-800 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                Reconocimientos y Méritos
+            </h3>
+            <button onclick="openModal('recognitionModal')" class="bg-yellow-50 text-yellow-700 px-3 py-1 rounded text-sm font-medium hover:bg-yellow-100 border border-yellow-200">+ Agregar Reconocimiento</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for r in employee.recognitions %}
+            <div class="border border-yellow-200 bg-yellow-50 rounded-lg p-4 relative group">
+                <button onclick="deleteRecognition({{ r.id }})" class="absolute top-2 right-2 text-yellow-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <div class="flex items-start gap-3">
+                    <div class="bg-white p-2 rounded-full shadow-sm text-yellow-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-900">{{ r.title }}</h4>
+                        <p class="text-xs text-yellow-700 font-medium uppercase mb-1">{{ r.type.value }} • {{ r.date.strftime('%d/%m/%Y') }}</p>
+                        <p class="text-sm text-gray-600">{{ r.description or '' }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-2 text-center py-8 text-gray-400">Sin reconocimientos registrados.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

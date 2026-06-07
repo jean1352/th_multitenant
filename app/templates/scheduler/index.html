@@ -1,0 +1,238 @@
+{% extends "layouts/base.html" %}
+{% block title %}Automatización - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Reglas de Automatización</h1>
+    <p class="text-gray-500 text-sm">Configura las políticas globales de envío de notificaciones y alertas.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- COLUMNA IZQUIERDA: REGLAS CON TABS -->
+    <div class="lg:col-span-2">
+        
+        <!-- TABS NAVIGATION -->
+        <div class="mb-4 border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button onclick="switchTab('recruitment')" id="tab-recruitment" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Reclutamiento
+                </button>
+                <button onclick="switchTab('events')" id="tab-events" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Eventos y Capacitación
+                </button>
+                <button onclick="switchTab('system')" id="tab-system" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Gestión de Personal
+                </button>
+            </nav>
+        </div>
+
+        <!-- TAB CONTENT: RECLUTAMIENTO -->
+        <div id="content-recruitment" class="space-y-4 tab-content">
+            {% for rule in rules if rule.rule_type in ['vacancy_weekly_report', 'vacancy_stagnation', 'sla_daily_check'] %}
+                {% include "scheduler/rule_card.html" %}
+            {% else %}
+                <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de reclutamiento configuradas.</p>
+            {% endfor %}
+        </div>
+
+        <!-- TAB CONTENT: EVENTOS -->
+        <div id="content-events" class="space-y-4 tab-content hidden">
+            {% for rule in rules if rule.rule_type in ['event_reminder'] %}
+                {% include "scheduler/rule_card.html" %}
+            {% else %}
+                <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de eventos configuradas.</p>
+            {% endfor %}
+        </div>
+
+        <!-- TAB CONTENT: GESTIÓN PERSONAL (NUEVO) -->
+        <div id="content-system" class="space-y-4 tab-content hidden">
+            {% for rule in rules if rule.rule_type in ['contract_expiration', 'probation_end'] %}
+                {% include "scheduler/rule_card.html" %}
+            {% else %}
+                <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de gestión configuradas.</p>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: LOGS -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 h-fit sticky top-6">
+        <h3 class="font-bold text-gray-800 mb-4 border-b pb-2 flex justify-between items-center">
+            Historial de Ejecución
+            <button onclick="window.location.reload()" class="text-gray-400 hover:text-blue-600" title="Actualizar">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+        </h3>
+        <div class="space-y-3 max-h-[600px] overflow-y-auto text-sm pr-2 custom-scrollbar">
+            {% for log in logs %}
+            <div class="flex justify-between items-start pb-3 border-b border-gray-50 last:border-0">
+                <div>
+                    <p class="font-medium text-gray-700">{{ log.task_name }}</p>
+                    <p class="text-xs text-gray-500">{{ log.executed_at.strftime('%d/%m %H:%M') }}</p>
+                    {% if log.message and log.message != 'Ejecución exitosa' %}
+                        <p class="text-xs text-gray-600 mt-1 italic">{{ log.message }}</p>
+                    {% endif %}
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 rounded {{ 'bg-green-100 text-green-800' if log.status == 'SUCCESS' else 'bg-red-100 text-red-800' }}">
+                    {{ log.status }}
+                </span>
+            </div>
+            {% else %}
+            <p class="text-gray-400 text-xs text-center py-4">Sin registros recientes.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CONFIGURACIÓN -->
+<div id="configModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-[450px] shadow-xl">
+        <h3 class="font-bold mb-4 text-lg" id="modalTitle">Configurar Regla</h3>
+        <form id="configForm" class="space-y-4">
+            <input type="hidden" name="id" id="ruleId">
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Frecuencia</label>
+                <select name="frequency" id="frequency" class="w-full border p-2 rounded text-sm bg-white" onchange="toggleFields()">
+                    <option value="daily">Diario</option>
+                    <option value="weekly">Semanal</option>
+                    <option value="monthly">Mensual</option>
+                    <option value="custom">Personalizado (Días)</option>
+                </select>
+            </div>
+
+            <div id="dayOfWeekField" class="hidden">
+                <label class="block text-sm font-medium mb-1">Día de la Semana</label>
+                <select name="day_of_week" id="day_of_week" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="0">Lunes</option>
+                    <option value="1">Martes</option>
+                    <option value="2">Miércoles</option>
+                    <option value="3">Jueves</option>
+                    <option value="4">Viernes</option>
+                    <option value="5">Sábado</option>
+                    <option value="6">Domingo</option>
+                </select>
+            </div>
+
+            <div id="dayOfMonthField" class="hidden">
+                <label class="block text-sm font-medium mb-1">Día del Mes</label>
+                <input type="number" name="day_of_month" id="day_of_month" min="1" max="31" class="w-full border p-2 rounded text-sm">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Hora de Ejecución</label>
+                <input type="time" name="execution_time" id="execution_time" class="w-full border p-2 rounded text-sm">
+            </div>
+
+            <div id="paramField">
+                <label class="block text-sm font-medium mb-1" id="paramLabel">Parámetro Adicional</label>
+                <input type="number" name="param_value" id="param_value" class="w-full border p-2 rounded text-sm">
+                <p class="text-xs text-gray-400 mt-1" id="paramHelp"></p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4 border-t mt-4">
+                <button type="button" onclick="document.getElementById('configModal').classList.add('hidden')" class="text-gray-500 px-4 py-2 text-sm">Cancelar</button>
+                <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">Guardar Configuración</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    // --- TABS LOGIC ---
+    window.switchTab = (tabName) => {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('nav button').forEach(btn => {
+            btn.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors";
+        });
+        document.getElementById(`content-${tabName}`).classList.remove('hidden');
+        document.getElementById(`tab-${tabName}`).className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors";
+    };
+
+    // --- CONFIG MODAL LOGIC ---
+    const modal = document.getElementById('configModal');
+    let currentRuleType = null;
+    
+    window.openConfigModal = (rule) => {
+        currentRuleType = rule.rule_type;
+        document.getElementById('ruleId').value = rule.id;
+        document.getElementById('modalTitle').innerText = `Configurar: ${rule.name}`;
+        document.getElementById('frequency').value = rule.frequency;
+        document.getElementById('execution_time').value = rule.execution_time;
+        document.getElementById('day_of_week').value = rule.day_of_week !== null ? rule.day_of_week : 0;
+        document.getElementById('day_of_month').value = rule.day_of_month || 1;
+        document.getElementById('param_value').value = rule.param_value || '';
+
+        toggleFields();
+        modal.classList.remove('hidden');
+    };
+
+    window.toggleFields = () => {
+        const freq = document.getElementById('frequency').value;
+        const paramDiv = document.getElementById('paramField');
+        const paramLabel = document.getElementById('paramLabel');
+        const paramHelp = document.getElementById('paramHelp');
+
+        document.getElementById('dayOfWeekField').classList.toggle('hidden', freq !== 'weekly');
+        document.getElementById('dayOfMonthField').classList.toggle('hidden', freq !== 'monthly');
+
+        if (freq === 'custom') {
+            paramDiv.classList.remove('hidden');
+            paramLabel.innerText = "Intervalo (Días)";
+            paramHelp.innerText = "Ejecutar cada X días.";
+        } else {
+            // Lógica para labels dinámicos
+            if (currentRuleType === 'vacancy_stagnation') {
+                paramDiv.classList.remove('hidden');
+                paramLabel.innerText = "Días sin movimiento";
+                paramHelp.innerText = "Enviar alerta si pasan estos días desde la creación.";
+            } else if (currentRuleType === 'event_reminder') {
+                paramDiv.classList.remove('hidden');
+                paramLabel.innerText = "Días antes del evento";
+                paramHelp.innerText = "Enviar recordatorio X días antes.";
+            } else if (currentRuleType === 'contract_expiration') {
+                paramDiv.classList.remove('hidden');
+                paramLabel.innerText = "Días de anticipación";
+                paramHelp.innerText = "Avisar X días antes del vencimiento.";
+            } else if (currentRuleType === 'probation_end') {
+                paramDiv.classList.remove('hidden');
+                paramLabel.innerText = "Duración Periodo Prueba";
+                paramHelp.innerText = "Días totales del periodo (ej: 90). Se avisa 15 días antes.";
+            } else {
+                paramDiv.classList.add('hidden');
+            }
+        }
+    };
+
+    document.getElementById('configForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const id = formData.get('id');
+        
+        try {
+            await ApiClient.post(`/scheduler/api/rules/${id}/update`, Object.fromEntries(formData));
+            showToast('Configuración guardada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.toggleRule = async (id) => {
+        try {
+            await ApiClient.post(`/scheduler/api/rules/${id}/toggle`, {});
+            showToast('Estado actualizado');
+            setTimeout(() => window.location.reload(), 500);
+        } catch(err) { showToast(err.message, 'error'); }
+    };
+
+    window.runRule = async (id) => {
+        try {
+            await ApiClient.post(`/scheduler/api/rules/${id}/run`, {});
+            showToast('Ejecución iniciada en segundo plano');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    };
+</script>
+{% endblock %}

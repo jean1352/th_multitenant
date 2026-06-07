@@ -1,0 +1,158 @@
+{% extends "layouts/portal_base.html" %}
+{% block title %}Mi Legajo - UP{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/portal/dashboard" class="text-blue-600 hover:underline text-sm">&larr; Volver al Inicio</a>
+    <h1 class="text-2xl font-bold text-gray-900 mt-2">Mi Legajo Personal</h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- COLUMNA IZQUIERDA: DATOS PERSONALES -->
+    <div class="lg:col-span-2 space-y-6">
+        
+        <!-- INFO BÁSICA -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                Información Personal
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Nombre Completo</span>
+                    <span class="font-medium text-gray-900 text-base">{{ employee.full_name }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Documento ID</span>
+                    <span class="font-medium text-gray-900">{{ employee.document_id }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Fecha Nacimiento</span>
+                    <span class="font-medium text-gray-900">{{ employee.birthday.strftime('%d/%m/%Y') if employee.birthday else '-' }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Nacionalidad</span>
+                    <span class="font-medium text-gray-900">{{ employee.nationality or '-' }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Dirección</span>
+                    <span class="font-medium text-gray-900">{{ employee.address or '-' }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Teléfono</span>
+                    <span class="font-medium text-gray-900">{{ employee.phone or '-' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- INFO LABORAL -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                Información Laboral
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Cargo Actual</span>
+                    <span class="font-medium text-gray-900">{{ employee.position_obj.name }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Área / Departamento</span>
+                    <span class="font-medium text-gray-900">{{ employee.position_obj.area.name }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Sede</span>
+                    <span class="font-medium text-gray-900">{{ employee.position_obj.area.sede.name }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Email Institucional</span>
+                    <span class="font-medium text-gray-900">{{ employee.institutional_email }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Interno</span>
+                    <span class="font-medium text-gray-900">{{ employee.internal_extension or '-' }}</span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Ubicación Oficina</span>
+                    <span class="font-medium text-gray-900">{{ employee.office_location or '-' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BENEFICIOS (NUEVO) -->
+        <div id="benefits" class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path></svg>
+                Mis Beneficios Activos
+            </h3>
+            
+            {% if employee.benefits %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for ben in employee.benefits %}
+                <div class="border border-green-100 bg-green-50 rounded-lg p-4 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mt-2 -mr-2 w-12 h-12 bg-green-200 rounded-full opacity-50"></div>
+                    <h4 class="font-bold text-green-900">{{ ben.benefit_type.name }}</h4>
+                    <p class="text-sm text-green-800 mt-1">{{ ben.details or 'Sin detalles adicionales' }}</p>
+                    <p class="text-xs text-green-600 mt-2 font-medium">Desde: {{ ben.start_date.strftime('%d/%m/%Y') }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm italic">No tienes beneficios asignados actualmente.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: DOCUMENTOS Y DIETA -->
+    <div class="lg:col-span-1 space-y-6">
+        
+        <!-- RESTRICCIONES ALIMENTICIAS (NUEVO) -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z"></path></svg>
+                Restricciones Alimenticias
+            </h3>
+            
+            {% if employee.dietary_restrictions %}
+            <div class="flex flex-wrap gap-2">
+                {% for diet in employee.dietary_restrictions %}
+                <span class="bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm">
+                    {{ diet.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                <p class="text-gray-500 text-sm">No registras restricciones.</p>
+            </div>
+            {% endif %}
+            <p class="text-xs text-gray-400 mt-3">Si necesitas actualizar esto, contacta a RRHH.</p>
+        </div>
+
+        <!-- DOCUMENTOS -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Mis Documentos
+            </h3>
+            <div class="space-y-3">
+                {% for doc in employee.documents %}
+                <div class="flex items-start gap-3 p-3 bg-gray-50 rounded border border-gray-100 hover:bg-blue-50 transition-colors group">
+                    <div class="text-blue-500 mt-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">{{ doc.name }}</p>
+                        <p class="text-xs text-gray-500">{{ doc.category.value }}</p>
+                    </div>
+                    <a href="{{ doc.file_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Ver</a>
+                </div>
+                {% else %}
+                <p class="text-gray-400 text-sm italic text-center py-4">No hay documentos disponibles.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

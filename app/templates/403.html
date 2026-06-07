@@ -1,0 +1,25 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Acceso Denegado - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+    <div class="bg-red-50 rounded-full p-6 mb-6">
+        <svg class="w-16 h-16 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+    </div>
+    
+    <h1 class="text-4xl font-bold text-gray-900 mb-2">403 - Acceso Denegado</h1>
+    <h2 class="text-xl font-medium text-gray-600 mb-6">No tienes los permisos necesarios para ver esta página.</h2>
+    
+    <div class="flex gap-4">
+        <a href="javascript:history.back()" class="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium shadow-sm">
+            Volver atrás
+        </a>
+        <a href="/recruitment/dashboard" class="px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition font-medium shadow-lg">
+            Ir al Inicio
+        </a>
+    </div>
+</div>
+{% endblock %}

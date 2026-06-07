@@ -1,0 +1,287 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script type="module">
+    import { ApiClient } from '/static/js/api_client.js';
+
+    const metrics = {{ metrics.charts | tojson }};
+    
+    // Registrar Plugin de Etiquetas
+    Chart.register(ChartDataLabels);
+
+    // --- FUNCIÓN DE DESCARGA ---
+    window.downloadChart = (id, filename) => {
+        const canvas = document.getElementById(id);
+        const link = document.createElement('a');
+        link.download = `${filename}_${new Date().toISOString().slice(0,10)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+
+    // --- GRÁFICO MENSUAL (DINÁMICO) ---
+    let monthlyChart = null;
+    let currentYear = new Date().getFullYear();
+
+    window.changeYear = (delta) => {
+        currentYear += delta;
+        loadMonthlyChart(currentYear);
+    };
+
+    async function loadMonthlyChart(year) {
+        document.getElementById('currentYear').innerText = year;
+        
+        try {
+            const data = await ApiClient.get(`/recruitment/api/dashboard/chart-data?year=${year}`);
+            const ctx = document.getElementById('chartMonthly').getContext('2d');
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+            if (monthlyChart) monthlyChart.destroy();
+
+            monthlyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Abiertas',
+                            data: data.opened,
+                            borderColor: '#3B82F6', // Blue
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Cerradas',
+                            data: data.closed,
+                            borderColor: '#10B981', // Green
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Inicios',
+                            data: data.starts,
+                            borderColor: '#8B5CF6', // Purple
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: false
+                        },
+                        {
+                            label: 'Aumento Dotación',
+                            type: 'bar',
+                            data: data.growth,
+                            backgroundColor: '#F59E0B', // Orange
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                    plugins: {
+                        datalabels: { display: false } // No mostrar etiquetas en el de líneas para no saturar
+                    }
+                }
+            });
+        } catch (e) {
+            console.error("Error cargando gráfico mensual:", e);
+        }
+    }
+
+    // Cargar gráfico inicial
+    loadMonthlyChart(currentYear);
+
+    // --- OTROS GRÁFICOS (ESTÁTICOS) ---
+
+    // 2. Tipo de Cobertura (Dona con Porcentajes)
+    new Chart(document.getElementById('chartType').getContext('2d'), {
+        type: 'doughnut',
+        data: { 
+            labels: Object.keys(metrics.by_type).map(k => k.toUpperCase()), 
+            datasets: [{ 
+                data: Object.values(metrics.by_type), 
+                backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'], 
+                borderWidth: 0 
+            }] 
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { position: 'right' },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: (value, ctx) => {
+                        let sum = 0;
+                        let dataArr = ctx.chart.data.datasets[0].data;
+                        dataArr.map(data => { sum += data; });
+                        if (sum === 0) return "0%";
+                        let percentage = (value * 100 / sum).toFixed(1) + "%";
+                        return percentage;
+                    }
+                }
+            } 
+        }
+    });
+
+    // 3a. Cumplimiento SLA ETAPAS (Pie con Porcentajes)
+    new Chart(document.getElementById('chartSlaStages').getContext('2d'), {
+        type: 'pie',
+        data: { 
+            labels: Object.keys(metrics.sla_stages_pie), 
+            datasets: [{ 
+                data: Object.values(metrics.sla_stages_pie), 
+                backgroundColor: ['#10B981', '#EF4444'], 
+                borderWidth: 0 
+            }] 
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { position: 'bottom' },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 12 },
+                    formatter: (value, ctx) => {
+                        let sum = 0;
+                        let dataArr = ctx.chart.data.datasets[0].data;
+                        dataArr.map(data => { sum += data; });
+                        if (sum === 0) return "0%";
+                        let percentage = (value * 100 / sum).toFixed(1) + "%";
+                        return percentage;
+                    }
+                }
+            } 
+        }
+    });
+
+    // 3b. Cumplimiento SLA VACANTE (Pie con Porcentajes)
+    new Chart(document.getElementById('chartSlaVacancy').getContext('2d'), {
+        type: 'pie',
+        data: { 
+            labels: Object.keys(metrics.sla_vacancy_pie), 
+            datasets: [{ 
+                data: Object.values(metrics.sla_vacancy_pie), 
+                backgroundColor: ['#3B82F6', '#F59E0B'], 
+                borderWidth: 0 
+            }] 
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { position: 'bottom' },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 12 },
+                    formatter: (value, ctx) => {
+                        let sum = 0;
+                        let dataArr = ctx.chart.data.datasets[0].data;
+                        dataArr.map(data => { sum += data; });
+                        if (sum === 0) return "0%";
+                        let percentage = (value * 100 / sum).toFixed(1) + "%";
+                        return percentage;
+                    }
+                }
+            } 
+        }
+    });
+
+    // 4. Cuellos de Botella
+    new Chart(document.getElementById('chartBottleneck').getContext('2d'), {
+        type: 'bar',
+        data: { 
+            labels: Object.keys(metrics.bottleneck), 
+            datasets: [{ 
+                label: 'Días Promedio', 
+                data: Object.values(metrics.bottleneck), 
+                backgroundColor: '#8B5CF6', 
+                borderRadius: 4 
+            }] 
+        },
+        options: { 
+            indexAxis: 'y',
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: { x: { beginAtZero: true } },
+            plugins: { datalabels: { display: false } }
+        }
+    });
+
+    // 5. Rotación
+    new Chart(document.getElementById('chartTurnover').getContext('2d'), {
+        type: 'line',
+        data: { 
+            labels: Object.keys(metrics.turnover), 
+            datasets: [{ 
+                label: 'Salidas', 
+                data: Object.values(metrics.turnover), 
+                borderColor: '#EF4444', 
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                fill: true,
+                tension: 0.4
+            }] 
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            plugins: { datalabels: { display: false } }
+        }
+    });
+
+    // 6. Top 5 Incumplimientos (NUEVO)
+    new Chart(document.getElementById('chartTopBreaches').getContext('2d'), {
+        type: 'bar',
+        data: { 
+            labels: Object.keys(metrics.top_breaches), 
+            datasets: [{ 
+                label: 'Etapas Vencidas', 
+                data: Object.values(metrics.top_breaches), 
+                backgroundColor: '#EF4444', // Rojo Alerta
+                borderRadius: 4 
+            }] 
+        },
+        options: { 
+            indexAxis: 'y',
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            plugins: { 
+                legend: { display: false },
+                datalabels: { 
+                    color: '#fff',
+                    anchor: 'end',
+                    align: 'start',
+                    formatter: (value) => value > 0 ? value : ''
+                } 
+            }
+        }
+    });
+
+    // Export Modal Logic
+    const exportModal = document.getElementById('exportModal');
+    window.openExportModal = () => exportModal.classList.remove('hidden');
+    window.closeExportModal = () => exportModal.classList.add('hidden');
+
+    window.downloadReport = (type) => {
+        const areaId = document.getElementById('exportArea').value;
+        const status = document.getElementById('exportStatus').value;
+        const start = document.getElementById('exportStart').value;
+        const end = document.getElementById('exportEnd').value;
+
+        let params = new URLSearchParams();
+        if (areaId) params.append('area_id', areaId);
+        if (status) params.append('status', status);
+        if (start) params.append('start_date', start);
+        if (end) params.append('end_date', end);
+
+        let url = type === 'excel' ? '/recruitment/api/reports/export' : '/recruitment/api/reports/pdf';
+        window.location.href = `${url}?${params.toString()}`;
+        
+        closeExportModal();
+    };
+</script>

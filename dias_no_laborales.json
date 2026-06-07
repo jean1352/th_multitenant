@@ -1,0 +1,298 @@
+{
+    "status": "success",
+    "code": 200,
+    "data": {
+        "data": [
+            {
+                "id": "19ab36b1-6702-4ff3-9ecd-9677a5e38a04",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Año nuevo",
+                "fecha": "2024-01-01",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.233Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.233Z"
+            },
+            {
+                "id": "753cb28e-b8ca-4d90-8b20-f3ba497885f7",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Día de los héroes",
+                "fecha": "2024-03-01",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.237Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.237Z"
+            },
+            {
+                "id": "421c30b8-041e-498d-a7c3-7ffc99b539b1",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Jueves Santo",
+                "fecha": "2024-03-28",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.240Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.240Z"
+            },
+            {
+                "id": "e66902f5-b0d7-4dd2-949b-25fb2c70cd11",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Viernes Santo",
+                "fecha": "2024-03-29",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.242Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.242Z"
+            },
+            {
+                "id": "b9426a3d-f999-4540-9845-55d88a822981",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Día del trabajador",
+                "fecha": "2024-05-01",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.244Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.244Z"
+            },
+            {
+                "id": "ee1bea57-c32c-4f3a-9b61-3037aaec9880",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Día de la madre",
+                "fecha": "2024-05-15",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.247Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.247Z"
+            },
+            {
+                "id": "3d3d6056-741d-47c4-9335-26a8875c6207",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Paz del Chaco",
+                "fecha": "2024-06-10",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.250Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.250Z"
+            },
+            {
+                "id": "2e2d51e3-7776-417e-a7aa-05e0136ff188",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Fundación de Asunción",
+                "fecha": "2024-08-15",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.252Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.252Z"
+            },
+            {
+                "id": "f53cfa51-83b3-4db6-8c5a-3e3ceed82cf7",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Batalla de Boquerón",
+                "fecha": "2024-09-30",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.254Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.254Z"
+            },
+            {
+                "id": "3197a93a-7fc6-4c76-8e0e-ec276496f0d4",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Noche Buena",
+                "fecha": "2024-12-24",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.256Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.256Z"
+            },
+            {
+                "id": "6a66f8b8-84d2-4e40-a5dc-9b45ac1411fa",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Navidad",
+                "fecha": "2024-12-25",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.258Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.258Z"
+            },
+            {
+                "id": "4806b393-748a-424b-b71d-87e937094dd0",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2024 - Último día del año",
+                "fecha": "2024-12-31",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.259Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.259Z"
+            },
+            {
+                "id": "f37bca34-670d-4cee-a8a4-27cf722fafa3",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Año nuevo",
+                "fecha": "2025-01-01",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.261Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.261Z"
+            },
+            {
+                "id": "90e2781e-ea10-46a4-9a25-c859163e4b68",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Día de los héroes",
+                "fecha": "2025-03-03",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.263Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.263Z"
+            },
+            {
+                "id": "3fd66845-a3ab-4cc2-a9b9-56ea2463de46",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Jueves Santo",
+                "fecha": "2025-04-17",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.265Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.265Z"
+            },
+            {
+                "id": "9967021b-0979-4314-8c10-ae0c1cd11872",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Viernes Santo",
+                "fecha": "2025-04-18",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.267Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.267Z"
+            },
+            {
+                "id": "81d81421-3840-4b0d-9b4b-0727c691c6ff",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Día del trabajador",
+                "fecha": "2025-05-01",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.269Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.269Z"
+            },
+            {
+                "id": "cc7142f2-6a01-48a4-93d1-8c0e7307f869",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Día de la madre",
+                "fecha": "2025-05-15",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.271Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.271Z"
+            },
+            {
+                "id": "7bfce7c9-a570-428f-86ac-7c955521c2b3",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Paz del Chaco",
+                "fecha": "2025-06-16",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.273Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.273Z"
+            },
+            {
+                "id": "14c8610b-f4b9-4e4b-b7ce-37a7ac550f81",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Fundación de Asunción",
+                "fecha": "2025-08-15",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.274Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.274Z"
+            },
+            {
+                "id": "b1302985-8605-45ed-9055-1788a8eed156",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Clasificación Paraguay",
+                "fecha": "2025-09-05",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.276Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.276Z"
+            },
+            {
+                "id": "d417823e-c4c2-4f19-b86d-c45ab1e19937",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "Batalla de Boquerón",
+                "fecha": "2025-09-29",
+                "uc": "e9f01461-f2bc-4e34-ad0a-a87acb8fca58",
+                "fc": "2025-09-23T12:41:33.587Z",
+                "um": "e9f01461-f2bc-4e34-ad0a-a87acb8fca58",
+                "fm": "2025-09-23T12:41:33.587Z"
+            },
+            {
+                "id": "b3a1f139-002e-47bc-a483-522f7d01e548",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Virgen de Caacupé",
+                "fecha": "2025-12-08",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.279Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.279Z"
+            },
+            {
+                "id": "af05f9cf-9667-45fa-ae5d-bde28a045136",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Noche Buena",
+                "fecha": "2025-12-24",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.281Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.281Z"
+            },
+            {
+                "id": "96990b23-89ec-4442-ad82-a3ac6425e380",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Navidad",
+                "fecha": "2025-12-25",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.282Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.282Z"
+            },
+            {
+                "id": "2ff8396f-6670-4da1-978d-b34fe4e31ad1",
+                "tipo": "nacional",
+                "empresaId": "8b53461a-a79d-478a-902f-a95ba46137e6",
+                "nombre": "2025 - Último día del año",
+                "fecha": "2025-12-31",
+                "uc": "seed",
+                "fc": "2025-10-01T14:42:02.285Z",
+                "um": null,
+                "fm": "2025-10-01T14:42:02.285Z"
+            }
+        ],
+        "meta": {
+            "total": 26
+        }
+    },
+    "message": "Días no laborales listados correctamente"
+}

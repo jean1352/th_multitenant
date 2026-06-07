@@ -1,0 +1,21 @@
+<!-- CHARTS ROW 3: Cuellos de Botella y Rotación -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Cuellos de Botella (Días Promedio)</h3>
+            <button onclick="downloadChart('chartBottleneck', 'Cuellos_Botella')" class="text-gray-400 hover:text-blue-600 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+        <div class="relative h-64"><canvas id="chartBottleneck"></canvas></div>
+    </div>
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Rotación de Personal</h3>
+            <button onclick="downloadChart('chartTurnover', 'Rotacion_Personal')" class="text-gray-400 hover:text-blue-600 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+        <div class="relative h-64"><canvas id="chartTurnover"></canvas></div>
+    </div>
+</div>

@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+{% block title %}Log de Notificaciones{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Historial de Notificaciones</h1>
+<div class="bg-white rounded shadow overflow-hidden">
+    <table class="w-full text-left text-sm">
+        <thead class="bg-gray-50 border-b">
+            <tr><th class="p-3">Fecha</th><th class="p-3">Destinatario</th><th class="p-3">Asunto</th><th class="p-3">Estado</th></tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-3">{{ log.created_at.strftime('%d/%m %H:%M') }}</td>
+                <td class="p-3">{{ log.recipient }}</td>
+                <td class="p-3">{{ log.subject }}</td>
+                <td class="p-3">
+                    {% if log.status == 'sent' %}<span class="text-green-600 font-bold">ENVIADO</span>
+                    {% elif log.status == 'failed' %}<span class="text-red-600 font-bold" title="{{ log.error_message }}">FALLÓ</span>
+                    {% else %}PENDIENTE{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

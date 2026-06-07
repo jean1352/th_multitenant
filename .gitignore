@@ -1,0 +1,82 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Environment Variables (Security) ---
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# --- IDE & Editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Testing & Coverage ---
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Application Data & Uploads ---
+# Ignorar contenido de uploads pero permitir archivos .gitkeep si existen para mantener estructura
+app/static/uploads/**/*
+!app/static/uploads/**/.gitkeep
+
+# --- Local Data Files ---
+# Ignorar excels de carga local o bases de datos locales
+*.xlsx
+*.csv
+*.db
+*.sqlite3
+*.log
+
+# --- WeasyPrint / PDF generation artifacts ---
+*.pdf
+
+# --- Migrations
+*.sql
+
+# --- Scripts
+scripts/
+
+steps.md
+
+*.md

@@ -1,0 +1,47 @@
+<!-- FILTRO GLOBAL DE RENDIMIENTO -->
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+    <div>
+        <h3 class="text-lg font-bold text-gray-800">Análisis de Rendimiento</h3>
+        <p class="text-sm text-gray-500">Filtra los indicadores de SLA y Tiempos por área.</p>
+    </div>
+    <div class="flex items-center gap-3 mt-3 md:mt-0">
+        <label for="slaAreaFilter" class="text-sm font-medium text-gray-700">Área:</label>
+        <select id="slaAreaFilter" class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors w-64" onchange="updateStageCharts(this.value)">
+            <option value="">Todas las Áreas</option>
+            {% for area in areas %}
+                <option value="{{ area.id }}">{{ area.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- ROW 2: SLA Comparativo -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <!-- CUMPLIMIENTO SLA POR ETAPAS -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">SLA por Etapas</h3>
+                <p class="text-xs text-gray-500">Eficiencia individual de cada paso</p>
+            </div>
+            <button onclick="downloadChart('chartSlaStages', 'SLA_Etapas')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            </button>
+        </div>
+        <div class="relative h-64"><canvas id="chartSlaStages"></canvas></div>
+    </div>
+
+    <!-- CUMPLIMIENTO SLA POR VACANTE (GLOBAL) -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">SLA Global por Vacante</h3>
+                <p class="text-xs text-gray-500">Tiempo total del proceso vs Planificado</p>
+            </div>
+            <button onclick="downloadChart('chartSlaVacancy', 'SLA_Vacante')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            </button>
+        </div>
+        <div class="relative h-64"><canvas id="chartSlaVacancy"></canvas></div>
+    </div>
+</div>

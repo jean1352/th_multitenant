@@ -1,0 +1,101 @@
+<div id="content-history" class="hidden space-y-6">
+
+    <!-- CAPACITACIONES -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+            Capacitaciones
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                        <th class="px-4 py-3 font-semibold">Curso</th>
+                        <th class="px-4 py-3 font-semibold">Fecha</th>
+                        <th class="px-4 py-3 font-semibold">Estado</th>
+                        <th class="px-4 py-3 font-semibold text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm divide-y divide-gray-100">
+                    {% for enroll in employee.trainings %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium">
+                            <a href="/trainings/{{ enroll.training.id }}" class="text-blue-600 hover:underline">{{ enroll.training.name }}</a>
+                        </td>
+                        <td class="px-4 py-3 text-gray-500">{{ enroll.training.start_date }}</td>
+                        <td class="px-4 py-3">
+                            {% if enroll.status.value == 'enrolled' %}
+                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Inscrito</span>
+                            {% elif enroll.status.value == 'attended' %}
+                                <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Asistió</span>
+                            {% elif enroll.status.value == 'no_show' %}
+                                <span class="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded">No Asistió</span>
+                            {% else %}
+                                <span class="bg-gray-100 text-gray-800 text-xs px-2 py-0.5 rounded">{{ enroll.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right space-x-2">
+                            <button onclick="viewAttendance({{ enroll.id }}, '{{ enroll.training.name }}')" class="text-gray-500 hover:text-blue-600 text-xs font-medium">Ver Asistencia</button>
+                            <button onclick="confirmRemoveTraining({{ enroll.id }})" class="text-red-500 hover:text-red-700 text-xs font-medium">Desvincular</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="px-4 py-4 text-center text-gray-400 text-sm">No hay capacitaciones registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- HISTORIAL LABORAL -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Historial Laboral
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-600 border-b">
+                    <tr><th class="p-3">Fecha</th><th class="p-3">Movimiento</th><th class="p-3">Empresa</th><th class="p-3">Detalle</th><th class="p-3">Notas</th></tr>
+                </thead>
+                <tbody>
+                    {% for h in employee.history %}
+                    <tr class="border-b last:border-0">
+                        <td class="p-3 text-gray-500">{{ h.date }}</td>
+                        <td class="p-3 font-medium">
+                            {% if h.movement_type.value == 'entry' %}<span class="text-green-600">Ingreso</span>
+                            {% elif h.movement_type.value == 'promotion' %}<span class="text-blue-600">Promoción</span>
+                            {% elif h.movement_type.value == 'exit' %}<span class="text-red-600">Salida</span>
+                            {% elif h.movement_type.value == 'add_role' %}<span class="text-purple-600">Nuevo Rol</span>
+                            {% elif h.movement_type.value == 'remove_role' %}<span class="text-gray-500">Fin Rol</span>
+                            {% elif h.movement_type.value == 'rehire' %}<span class="text-green-600">Reingreso</span>
+                            {% elif h.movement_type.value == 'contract_change' %}<span class="text-indigo-600">Cambio Contrato</span>
+                            {% else %}{{ h.movement_type.value }}{% endif %}
+                        </td>
+                        <td class="p-3 text-sm text-gray-600">
+                            {{ h.company.name if h.company else '-' }}
+                        </td>
+                        <td class="p-3">
+                            {% if h.movement_type.value == 'promotion' %}
+                                <div class="text-xs text-gray-500">De: {{ h.previous_position_name }}</div>
+                                <div class="font-medium">A: {{ h.new_position.name }}</div>
+                            {% elif h.new_position %}
+                                {{ h.new_position.name }}
+                            {% else %}
+                                {{ h.previous_position_name }}
+                            {% endif %}
+                            
+                            {% if h.contract_type %}
+                                <div class="text-xs text-purple-600 mt-1">Contrato: {{ h.contract_type.name }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 text-gray-500 italic">{{ h.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="p-4 text-center text-gray-400">Sin historial registrado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

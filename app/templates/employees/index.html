@@ -1,0 +1,12 @@
+{% extends "layouts/base.html" %}
+{% block title %}Colaboradores - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block content %}
+    {% include "employees/components/index_header.html" %}
+    {% include "employees/components/filters.html" %}
+    {% include "employees/components/list.html" %}
+    {% include "employees/modals/create.html" %}
+{% endblock %}
+
+{% block scripts %}
+    {% include "employees/components/index_scripts.html" %}
+{% endblock %}

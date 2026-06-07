@@ -1,0 +1,108 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Configuraciones - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Panel de Configuraciones</h1>
+    <p class="text-gray-500">Administre los catálogos y parámetros maestros del sistema.</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    
+    {# --- SECCIÓN: ORGANIZACIÓN --- #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                <span class="material-symbols-outlined text-[28px]">account_tree</span>
+            </div>
+            <h2 class="font-bold text-gray-800">Estructura</h2>
+        </div>
+        <ul class="space-y-2">
+            <li><a href="/organization/sedes" class="text-sm text-gray-600 hover:text-blue-600 flex items-center justify-between group">Sedes <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/areas" class="text-sm text-gray-600 hover:text-blue-600 flex items-center justify-between group">Áreas <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/companies" class="text-sm text-gray-600 hover:text-blue-600 flex items-center justify-between group">Razones Sociales <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+        </ul>
+    </div>
+
+    {# --- SECCIÓN: CONTRATACIÓN --- #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
+                <span class="material-symbols-outlined text-[28px]">contract</span>
+            </div>
+            <h2 class="font-bold text-gray-800">Contratación</h2>
+        </div>
+        <ul class="space-y-2">
+            <li><a href="/organization/contract-types" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Tipos de Contrato <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/working-day-types" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Tipos de Jornada <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/salary-types" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Tipos de Salario <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/probation-durations" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Periodo de Prueba <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+        </ul>
+    </div>
+
+    {# --- SECCIÓN: RECLUTAMIENTO --- #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+                <span class="material-symbols-outlined text-[28px]">manage_accounts</span>
+            </div>
+            <h2 class="font-bold text-gray-800">Reclutamiento</h2>
+        </div>
+        <ul class="space-y-2">
+            <li><a href="/recruitment/config/hiring-reasons" class="text-sm text-gray-600 hover:text-indigo-600 flex items-center justify-between group">Motivos de Contratación <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/recruitment/config/stage-edit-reasons" class="text-sm text-gray-600 hover:text-indigo-600 flex items-center justify-between group">Motivos de Edición <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+        </ul>
+    </div>
+
+    {# --- SECCIÓN: PAGOS Y BANCOS --- #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+                <span class="material-symbols-outlined text-[28px]">account_balance</span>
+            </div>
+            <h2 class="font-bold text-gray-800">Finanzas y Otros</h2>
+        </div>
+        <ul class="space-y-2">
+            <li><a href="/organization/currencies" class="text-sm text-gray-600 hover:text-amber-600 flex items-center justify-between group">Monedas <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/payment-methods" class="text-sm text-gray-600 hover:text-amber-600 flex items-center justify-between group">Formas de Pago <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/banks" class="text-sm text-gray-600 hover:text-amber-600 flex items-center justify-between group">Bancos <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/cost-centers" class="text-sm text-gray-600 hover:text-amber-600 flex items-center justify-between group">Centros de Costo <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/relationship-types" class="text-sm text-gray-600 hover:text-amber-600 flex items-center justify-between group">Vínculos Fliar. <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+        </ul>
+    </div>
+
+    {# --- SECCIÓN: BENEFICIOS --- #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
+                <span class="material-symbols-outlined text-[28px]">redeem</span>
+            </div>
+            <h2 class="font-bold text-gray-800">Beneficios</h2>
+        </div>
+        <ul class="space-y-2">
+            <li><a href="/benefits/config" class="text-sm text-gray-800 font-bold hover:text-purple-600 flex items-center justify-between border-b pb-2 mb-2 border-gray-100 group">Catálogo de Beneficios <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">open_in_new</span></a></li>
+            <li><a href="/benefits/config/request-types" class="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-between group">Tipos de Solicitud <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/benefits/config/subtypes" class="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-between group">Subtipos <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/benefits/config/grant-reasons" class="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-between group">Motivos Otorgamiento <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/benefits/config/authorization-levels" class="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-between group">Niveles Autorización <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/benefits/config/benefit-modalities" class="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-between group">Modalidades <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/benefits/config/benefit-frequencies" class="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-between group">Frecuencias <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+        </ul>
+    </div>
+
+    {# --- SECCIÓN: SALUD Y BIENESTAR --- #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-pink-50 text-pink-600 rounded-lg flex items-center justify-center">
+                <span class="material-symbols-outlined text-[28px]">health_and_safety</span>
+            </div>
+            <h2 class="font-bold text-gray-800">Salud y Bienestar</h2>
+        </div>
+        <ul class="space-y-2">
+            <li><a href="/dietary/config" class="text-sm text-gray-600 hover:text-pink-600 flex items-center justify-between group">Restricciones Alimenticias <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+        </ul>
+    </div>
+
+</div>
+{% endblock %}

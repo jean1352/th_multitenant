@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Gestión - {{ tenant.name if tenant else settings.PROJECT_NAME }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Helvetica', sans-serif;
+            color: #333;
+            font-size: 12px;
+        }
+
+        /* Header */
+        .header {
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #003366;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 0;
+            color: #666;
+        }
+
+        .filter-info {
+            font-size: 10px;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        /* KPIs */
+        .kpi-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .kpi-box {
+            text-align: center;
+            width: 24%;
+        }
+
+        .kpi-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #003366;
+            display: block;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #666;
+        }
+
+        /* Charts */
+        .charts-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+
+        .chart-box {
+            width: 48%;
+            text-align: center;
+        }
+
+        .chart-box img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+        }
+
+        .chart-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* Centered Chart (Single) */
+        .chart-box-full {
+            width: 60%;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        /* Area Section */
+        .area-section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .area-title {
+            background: #003366;
+            color: white;
+            padding: 5px 10px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        th {
+            text-align: left;
+            border-bottom: 1px solid #ccc;
+            padding: 5px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        td {
+            border-bottom: 1px solid #eee;
+            padding: 6px 5px;
+        }
+
+        /* Status Badges */
+        .badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .badge-ok {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-overdue {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .progress-bar {
+            width: 60px;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #2563eb;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div>
+            <h1>Reporte de Gestión de Talento</h1>
+            <p>{{ settings.BUSINESS_NAME }}</p>
+            <p class="filter-info">Filtro: {{ filter_text }}</p>
+        </div>
+        <div style="text-align: right;">
+            <p>Fecha: {{ date }}</p>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-container">
+        <div class="kpi-box">
+            <span class="kpi-value">{{ metrics.total }}</span>
+            <span class="kpi-label">Total Registros</span>
+        </div>
+        <div class="kpi-box">
+            <span class="kpi-value">{{ metrics.open }}</span>
+            <span class="kpi-label">Abiertas</span>
+        </div>
+        <div class="kpi-box">
+            <span class="kpi-value">{{ metrics.closed }}</span>
+            <span class="kpi-label">Cerradas</span>
+        </div>
+        <div class="kpi-box">
+            <span class="kpi-value">{{ metrics.sla_rate }}%</span>
+            <span class="kpi-label">Cumplimiento SLA</span>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-container">
+        {% if charts.area %}
+        <!-- Dos gráficos -->
+        <div class="chart-box">
+            <span class="chart-title">Distribución por Área</span>
+            <img src="data:image/png;base64,{{ charts.area }}" alt="Chart Area">
+        </div>
+        <div class="chart-box">
+            <span class="chart-title">Cumplimiento SLA (Etapas)</span>
+            <img src="data:image/png;base64,{{ charts.sla }}" alt="Chart SLA">
+        </div>
+        {% else %}
+        <!-- Solo gráfico SLA (Centrado) -->
+        <div class="chart-box-full">
+            <span class="chart-title">Cumplimiento SLA (Etapas)</span>
+            <img src="data:image/png;base64,{{ charts.sla }}" alt="Chart SLA">
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Details by Area -->
+    <h2>Detalle por Área</h2>
+
+    {% for area in areas %}
+    <div class="area-section">
+        <div class="area-title">{{ area.name }}</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Vacante</th>
+                    <th style="width: 15%;">Estado</th>
+                    <th style="width: 15%;">Fecha Inicio</th>
+                    <th style="width: 15%;">SLA Global</th>
+                    <th style="width: 15%;">Progreso</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vac in area.vacancies %}
+                <tr>
+                    <td>{{ vac.title }}</td>
+                    <td>{{ vac.status|upper }}</td>
+                    <td>{{ vac.created_at.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        {% if vac.sla_status == 'ok' %}
+                        <span class="badge badge-ok">EN TIEMPO</span>
+                        {% else %}
+                        <span class="badge badge-overdue">RETRASADO</span>
+                        {% endif %}
+                        <br>
+                        <span style="font-size: 9px; color: #666;">{{ vac.days_elapsed }}/{{ vac.sla_total }}
+                            días</span>
+                    </td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ vac.progress }}%;"></div>
+                        </div>
+                        <span style="font-size: 9px; margin-left: 5px;">{{ vac.progress }}%</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+
+    <div style="margin-top: 50px; text-align: center; color: #999; font-size: 10px;">
+        Generado automáticamente por el Sistema de Gestión de Talento Humano UP
+    </div>
+</body>
+
+</html>

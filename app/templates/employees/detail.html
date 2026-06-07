@@ -1,0 +1,38 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ employee.full_name }} - Perfil{% endblock %}
+
+{% block content %}
+    {# --- HEADER Y RESUMEN --- #}
+    {% include "employees/components/header.html" %}
+
+    {# --- NAVEGACIÓN DE PESTAÑAS --- #}
+    {% include "employees/tabs/navigation.html" %}
+
+    {# --- CONTENIDO DE PESTAÑAS --- #}
+    {% include "employees/tabs/info.html" %}
+    {% include "employees/tabs/hiring.html" %}
+    {% include "employees/tabs/documents.html" %}
+    {% include "employees/tabs/benefits.html" %}
+    {% include "employees/tabs/history.html" %}
+    {% include "employees/tabs/disciplinary.html" %}
+
+    {# --- COMPONENTE EXTERNO (TIMELINE) --- #}
+    {% include "components/time_line_employee.html" %}
+
+    {# --- MODALES --- #}
+    {% include "employees/modals/edit_info.html" %}
+    {% include "employees/modals/edit_hiring.html" %}
+    {% include "employees/modals/edit_contact.html" %}
+    {% include "employees/modals/salary_change.html" %}
+    {% include "employees/modals/documents.html" %}
+    {% include "employees/modals/benefits.html" %}
+    {% include "employees/modals/movements.html" %}
+    {% include "employees/modals/disciplinary.html" %}
+    {% include "employees/modals/training.html" %}
+    {% include "employees/modals/confirm.html" %}
+{% endblock %}
+
+{% block scripts %}
+    {# --- LÓGICA JAVASCRIPT --- #}
+    {% include "employees/components/scripts.html" %}
+{% endblock %}

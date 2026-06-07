@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - {{ tenant.name if tenant else "Administración Global" }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #003366;
+        }
+
+        #d3-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex items-center justify-center relative">
+
+    <!-- Contenedor de la animación D3 -->
+    <div id="d3-background"></div>
+
+    <!-- Tarjeta de Login -->
+    <div
+        class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10 transform transition-all hover:scale-[1.01] duration-300">
+        <div class="text-center mb-8">
+            <div class="mx-auto h-16 w-16 bg-blue-900 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                <span class="text-white font-bold text-2xl">{{ tenant.name[:2]|upper if tenant else "AD" }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-blue-900 tracking-tight">{{ tenant.name if tenant else "Acceso Global" }}</h1>
+            <p class="text-gray-500 text-sm mt-1">{{ "Gestión de Tenants y Plataforma" if not tenant else "Sistema de Gestión de Talento Humano" }}</p>
+        </div>
+
+        <form id="loginForm" class="space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Correo
+                    Institucional</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207">
+                            </path>
+                        </svg>
+                    </div>
+                    <input type="email" id="email" required placeholder="usuario@up.edu.pe"
+                        class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Contraseña</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                            </path>
+                        </svg>
+                    </div>
+                    <input type="password" id="password" required placeholder="••••••••"
+                        class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white">
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="button" onclick="document.getElementById('forgotModal').classList.remove('hidden')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    ¿Olvidaste tu contraseña?
+                </button>
+            </div>
+
+            <div id="errorMessage"
+                class="text-red-500 text-sm text-center font-medium hidden bg-red-50 p-2 rounded border border-red-100">
+            </div>
+
+            <button type="submit"
+                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-gradient-to-r from-blue-900 to-blue-800 hover:from-blue-800 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:-translate-y-0.5">
+                Iniciar Sesión
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-xs text-gray-400">&copy; 2026 {{ tenant.name if tenant else settings.BUSINESS_NAME }}</p>
+        </div>
+    </div>
+
+    <!-- MODAL OLVIDÉ CONTRASEÑA -->
+    <div id="forgotModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Recuperar Contraseña</h3>
+            <p class="text-sm text-gray-500 mb-4">Ingresa tu correo institucional y te enviaremos un enlace para restablecerla.</p>
+            
+            <form id="forgotForm" class="space-y-4">
+                <input type="email" name="email" placeholder="Correo Institucional" required class="w-full border p-2 rounded text-sm">
+                
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="document.getElementById('forgotModal').classList.add('hidden')" class="text-gray-500 px-4 py-2 text-sm hover:text-gray-700">Cancelar</button>
+                    <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">Enviar Enlace</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lógica del Login -->
+    <script type="module">
+        import { ApiClient, showToast } from '/static/js/api_client.js';
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            // Loading state
+            const originalText = btn.innerText;
+            btn.innerText = 'Verificando...';
+            btn.disabled = true;
+            btn.classList.add('opacity-75');
+            errorDiv.classList.add('hidden');
+
+            try {
+                const data = await ApiClient.login(email, password);
+                showToast('Credenciales correctas. Ingresando...', 'success');
+                
+                // --- REDIRECCIÓN INTELIGENTE BASADA EN ROL ---
+                setTimeout(() => {
+                    const hasTenant = {{ 'true' if tenant else 'false' }};
+                    
+                    if (!hasTenant && data.is_superadmin) {
+                        // SuperAdmin en dominio principal
+                        window.location.href = '/admin/tenants';
+                    } else if (data.role === 'employee') {
+                        // Empleado en su portal
+                        window.location.href = '/portal/dashboard';
+                    } else {
+                        // Admin de tenant o reclutador -> Dashboard de TH
+                        window.location.href = '/recruitment/dashboard';
+                    }
+                }, 800);
+
+            } catch (error) {
+                errorDiv.innerText = error.message || "Error de conexión";
+                errorDiv.classList.remove('hidden');
+                btn.innerText = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-75');
+
+                const card = document.querySelector('.glass-panel');
+                card.classList.add('animate-pulse');
+                setTimeout(() => card.classList.remove('animate-pulse'), 500);
+            }
+        });
+
+        // Lógica Forgot Password
+        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const btn = e.target.querySelector('button[type="submit"]');
+            
+            btn.disabled = true;
+            btn.innerText = "Enviando...";
+
+            try {
+                await ApiClient.post('/api/auth/forgot-password', { email });
+                showToast('Si el correo existe, recibirás instrucciones.', 'success');
+                document.getElementById('forgotModal').classList.add('hidden');
+                e.target.reset();
+            } catch (err) {
+                showToast('Error al procesar la solicitud.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Enviar Enlace";
+            }
+        });
+    </script>
+
+    <!-- Animación D3.js (Sin cambios) -->
+    <script>
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const particleCount = 60;
+        const connectionDistance = 150;
+        const mouseDistance = 200;
+
+        const svg = d3.select("#d3-background")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .style("background", "radial-gradient(circle at center, #004080 0%, #003366 100%)");
+
+        const nodes = d3.range(particleCount).map(() => ({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: (Math.random() - 0.5) * 0.8,
+            r: Math.random() * 2 + 1
+        }));
+
+        const linesGroup = svg.append("g");
+        const circles = svg.append("g")
+            .selectAll("circle")
+            .data(nodes)
+            .enter()
+            .append("circle")
+            .attr("r", d => d.r)
+            .attr("fill", "#D4AF37")
+            .attr("opacity", 0.6);
+
+        let mouse = { x: null, y: null };
+        d3.select("body").on("mousemove", (event) => {
+            mouse.x = event.pageX;
+            mouse.y = event.pageY;
+        });
+        d3.select("body").on("mouseleave", () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        d3.timer(() => {
+            nodes.forEach(node => {
+                node.x += node.vx;
+                node.y += node.vy;
+                if (node.x < 0 || node.x > width) node.vx *= -1;
+                if (node.y < 0 || node.y > height) node.vy *= -1;
+                if (mouse.x) {
+                    const dx = mouse.x - node.x;
+                    const dy = mouse.y - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < mouseDistance) {
+                        const force = (mouseDistance - dist) / mouseDistance;
+                        node.x -= dx * force * 0.03;
+                        node.y -= dy * force * 0.03;
+                    }
+                }
+            });
+            circles.attr("cx", d => d.x).attr("cy", d => d.y);
+            const links = [];
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < connectionDistance) {
+                        links.push({
+                            source: nodes[i],
+                            target: nodes[j],
+                            opacity: 1 - dist / connectionDistance
+                        });
+                    }
+                }
+            }
+            const lines = linesGroup.selectAll("line").data(links);
+            lines.enter().append("line").merge(lines)
+                .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+                .attr("stroke", "#ffffff").attr("stroke-width", 0.5)
+                .attr("opacity", d => d.opacity * 0.3);
+            lines.exit().remove();
+        });
+        window.addEventListener("resize", () => {
+            svg.attr("width", window.innerWidth).attr("height", window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>

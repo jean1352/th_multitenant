@@ -1,0 +1,44 @@
+<div id="docModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-96 shadow-xl">
+        <h3 class="font-bold mb-4 text-lg">Subir Documento</h3>
+        <form id="docForm" class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Nombre del Documento</label>
+                <input name="name" placeholder="Ej: Contrato 2025" class="w-full border p-2 rounded text-sm" required>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Categoría</label>
+                <select name="category" class="w-full border p-2 rounded bg-white text-sm">
+                    <option value="contract">Contrato / Adenda</option>
+                    <option value="id">Documento Identidad</option>
+                    <option value="education">Título / Certificado</option>
+                    <option value="medical">Médico / IPS</option>
+                    <option value="other">Otro</option>
+                </select>
+            </div>
+
+            <!-- NUEVO CAMPO VENCIMIENTO -->
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Fecha de Vencimiento (Opcional)</label>
+                <input type="date" name="expiration_date" class="w-full border p-2 rounded text-sm bg-gray-50">
+                <p class="text-[10px] text-gray-400 mt-1">Útil para alertas de renovación de contratos.</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Archivo</label>
+                <input type="file" name="file" class="w-full text-sm" required>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Notas</label>
+                <textarea name="notes" placeholder="Observaciones..." class="w-full border p-2 rounded text-sm"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal('docModal')" class="text-gray-500 text-sm px-3 py-2">Cancelar</button>
+                <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">Subir</button>
+            </div>
+        </form>
+    </div>
+</div>

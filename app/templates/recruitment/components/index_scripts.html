@@ -1,0 +1,117 @@
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
+    window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+
+    // --- LOGICA DE CASCADA (MODAL CREAR) ---
+    window.loadAreas = async (sedeId) => {
+        const areaSelect = document.getElementById('area_select');
+        const posSelect = document.getElementById('position_select');
+        
+        // Resetear dependientes
+        areaSelect.innerHTML = '<option>Cargando...</option>';
+        areaSelect.disabled = true;
+        areaSelect.classList.add('bg-gray-50');
+        
+        posSelect.innerHTML = '<option value="">Primero seleccione Área</option>';
+        posSelect.disabled = true;
+        posSelect.classList.add('bg-gray-50');
+
+        if (!sedeId) {
+            areaSelect.innerHTML = '<option value="">Primero seleccione Sede</option>';
+            return;
+        }
+
+        try {
+            const areas = await ApiClient.get(`/organization/api/areas?sede_id=${sedeId}`);
+            areaSelect.innerHTML = '<option value="">Seleccione Área...</option>';
+            
+            if (areas.length > 0) {
+                areas.forEach(area => {
+                    areaSelect.innerHTML += `<option value="${area.id}">${area.name}</option>`;
+                });
+                areaSelect.disabled = false;
+                areaSelect.classList.remove('bg-gray-50');
+            } else {
+                areaSelect.innerHTML = '<option value="">Sin áreas registradas</option>';
+            }
+        } catch (e) {
+            console.error(e);
+            areaSelect.innerHTML = '<option>Error al cargar</option>';
+        }
+    };
+
+    // --- LOGICA DE CASCADA (FILTROS) ---
+    window.loadFilterAreas = async (sedeId) => {
+        const areaSelect = document.getElementById('filter_area');
+        areaSelect.innerHTML = '<option>Cargando...</option>';
+        areaSelect.disabled = true;
+
+        if (!sedeId) {
+            areaSelect.innerHTML = '<option value="">Todas las Áreas</option>';
+            areaSelect.disabled = false;
+            // Recargar todas las áreas si se limpia la sede (opcional, o dejar vacío)
+            // Para simplificar, dejamos que el usuario filtre de nuevo o recargue
+            return;
+        }
+
+        try {
+            const areas = await ApiClient.get(`/organization/api/areas?sede_id=${sedeId}`);
+            areaSelect.innerHTML = '<option value="">Todas las Áreas</option>';
+            
+            areas.forEach(area => {
+                areaSelect.innerHTML += `<option value="${area.id}">${area.name}</option>`;
+            });
+            areaSelect.disabled = false;
+        } catch (e) {
+            console.error(e);
+            areaSelect.innerHTML = '<option>Error al cargar</option>';
+        }
+    };
+
+    window.loadPositions = async (areaId) => {
+        const posSelect = document.getElementById('position_select');
+        posSelect.innerHTML = '<option>Cargando...</option>';
+        posSelect.disabled = true;
+        posSelect.classList.add('bg-gray-50');
+
+        if (!areaId) {
+            posSelect.innerHTML = '<option value="">Primero seleccione Área</option>';
+            return;
+        }
+
+        try {
+            // Usamos el endpoint de detalle de área que incluye los cargos
+            const area = await ApiClient.get(`/organization/api/areas/${areaId}`);
+            posSelect.innerHTML = '<option value="">Seleccione Cargo...</option>';
+            
+            if (area.positions && area.positions.length > 0) {
+                area.positions.forEach(pos => {
+                    posSelect.innerHTML += `<option value="${pos.id}">${pos.name}</option>`;
+                });
+                posSelect.disabled = false;
+                posSelect.classList.remove('bg-gray-50');
+            } else {
+                posSelect.innerHTML = '<option value="">Sin cargos registrados</option>';
+            }
+        } catch (e) {
+            console.error(e);
+            posSelect.innerHTML = '<option>Error al cargar</option>';
+        }
+    };
+
+    document.getElementById('btnSaveVacancy').addEventListener('click', async () => {
+        const form = document.getElementById('createVacancyForm');
+        const formData = new FormData(form);
+        
+        // Checkbox handling
+        const isHeadcount = document.getElementById('is_headcount_increase').checked;
+        formData.set('is_headcount_increase', isHeadcount);
+
+        try {
+            await ApiClient.post('/recruitment/api/vacancies', Object.fromEntries(formData));
+            showToast('Vacante creada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+</script>

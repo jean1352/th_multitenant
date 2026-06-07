@@ -1,0 +1,271 @@
+<!-- AGREGAR CARGO SECUNDARIO -->
+<div id="addPosModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="p-6 border-b border-gray-100 bg-white z-10 shrink-0">
+            <h3 class="text-xl font-bold text-gray-800">Agregar Cargo Secundario</h3>
+        </div>
+        
+        <div class="p-6 overflow-y-auto flex-1">
+            <form id="addPosForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-100 pb-6">
+                <div class="col-span-1 md:col-span-2">
+                    <p class="text-xs font-bold text-purple-700 uppercase tracking-wider mb-2">Asignación de Cargo</p>
+                </div>
+                <select id="add_pos_area" class="w-full border p-2 rounded bg-white"
+                    onchange="loadPositions(this.value, 'add_pos_id')">
+                    <option value="">Seleccione Área...</option>
+                    {% for area in areas %}<option value="{{ area.id }}">{{ area.name }} ({{ area.sede.name }})</option>{% endfor %}
+                </select>
+                <select name="position_id" id="add_pos_id" class="w-full border p-2 rounded bg-gray-50" disabled required>
+                    <option value="">Primero seleccione área</option>
+                </select>
+                <select name="company_id" class="w-full border p-2 rounded bg-white" required>
+                    <option value="">Seleccione Empresa...</option>
+                    {% for company in companies %}<option value="{{ company.id }}">{{ company.name }}</option>{% endfor %}
+                </select>
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-400 font-bold uppercase ml-1">Fecha Inicio</label>
+                    <input type="date" name="start_date" class="w-full border p-2 rounded" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-100 pb-6">
+                <div class="col-span-1 md:col-span-2">
+                    <p class="text-xs font-bold text-purple-700 uppercase tracking-wider mb-2">Condiciones Contractuales</p>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Contrato</label>
+                    <select name="contract_type_id" class="w-full border p-2 rounded bg-white">
+                        <option value="">Seleccionar...</option>
+                        {% for ct in contract_types %}<option value="{{ ct.id }}">{{ ct.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Fecha Fin Contrato</label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" id="add_pos_is_indefinite" class="w-3 h-3 text-purple-600 rounded border-gray-300 focus:ring-purple-500" checked
+                                onchange="document.getElementById('add_pos_contract_end_date').disabled = this.checked; if(this.checked) document.getElementById('add_pos_contract_end_date').value = '';">
+                            <span class="text-[10px] text-gray-500 font-bold uppercase">Indefinido</span>
+                        </label>
+                    </div>
+                    <input type="date" name="contract_end_date" id="add_pos_contract_end_date" class="w-full border p-2 rounded disabled:bg-gray-50 disabled:text-gray-400" disabled>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Jornada</label>
+                    <select name="working_day_type_id" class="w-full border p-2 rounded">
+                        <option value="">Seleccionar...</option>
+                        {% for x in working_day_types %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col col-span-2 mt-2">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1 mb-1">Horario Semanal (Días y Modalidad)</label>
+                    <input type="hidden" name="work_schedule" id="add_pos_work_schedule">
+                    <input type="hidden" name="work_days" id="add_pos_work_days">
+                    <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 font-bold w-28 border-b border-gray-200">Día</th>
+                                    <th class="px-3 py-2 font-bold border-b border-gray-200">Horario</th>
+                                    <th class="px-3 py-2 font-bold border-b border-gray-200">Modalidad</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100" id="add_pos_schedule_grid">
+                                <!-- JS fills this -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="col-span-1 md:col-span-2">
+                    <p class="text-xs font-bold text-purple-700 uppercase tracking-wider mb-2">Remuneración</p>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Salario</label>
+                    <select name="salary_type_id" class="w-full border p-2 rounded">
+                        <option value="">Seleccionar...</option>
+                        {% for x in salary_types %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Monto y Moneda</label>
+                    <div class="flex gap-2">
+                        <select name="currency_id" class="w-24 border p-2 rounded">
+                            {% for x in currencies %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                        </select>
+                        <input type="number" name="base_salary" placeholder="0.00" class="flex-1 border p-2 rounded" step="0.01">
+                    </div>
+                </div>
+
+                <select name="payment_method_id" class="w-full border p-2 rounded">
+                    <option value="">Forma de Pago...</option>
+                    {% for x in payment_methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                </select>
+
+                <select name="bank_id" class="w-full border p-2 rounded">
+                    <option value="">Banco...</option>
+                    {% for x in banks %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                </select>
+            </div>
+            </form>
+        </div>
+
+        <div class="p-6 border-t border-gray-100 bg-gray-50 shrink-0 rounded-b-2xl flex justify-end gap-3 z-10">
+            <button type="button" onclick="closeModal('addPosModal')" 
+                class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">Cancelar</button>
+            <button type="submit" form="addPosForm"
+                class="bg-purple-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg shadow-purple-600/20 hover:bg-purple-700 transition-all transform active:scale-95">Asignar Cargo</button>
+        </div>
+    </div>
+</div>
+
+<!-- PROMOCIÓN -->
+
+<div id="promoteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4">Registrar Promoción</h3>
+        <form id="promoteForm" class="space-y-3">
+
+            <!-- Selector de qué cargo promocionar -->
+            <label class="block text-sm font-medium">Cargo a Promocionar</label>
+            <select name="previous_employee_position_id" id="promo_source"
+                class="w-full border p-2 rounded bg-white mb-2" onchange="togglePromoType()">
+                <option value="primary" selected>Cargo Principal: {{ employee.position_obj.name }}</option>
+                {% for pos in employee.positions_history if not pos.end_date and not pos.is_primary %}
+                <option value="{{ pos.id }}">Secundario: {{ pos.position.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="is_primary_promotion" id="is_primary_promo" value="true">
+
+            <label class="block text-sm font-medium">Nuevo Cargo</label>
+            <select id="promote_area" class="w-full border p-2 rounded bg-white mb-2"
+                onchange="loadPositions(this.value, 'promote_position')">
+                <option value="">Seleccione Área...</option>
+                {% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}
+            </select>
+            <select name="new_position_id" id="promote_position" class="w-full border p-2 rounded bg-gray-50" disabled
+                required>
+                <option value="">Primero seleccione área</option>
+            </select>
+            <select name="new_company_id" class="w-full border p-2 rounded bg-white mt-2" required>
+                <option value="">Seleccione Empresa...</option>
+                {% for company in companies %}<option value="{{ company.id }}" {% if employee.company and
+                    employee.company.id==company.id %}selected{% endif %}>{{ company.name }}</option>{% endfor %}
+            </select>
+
+            <!-- TIPO CONTRATO -->
+            <select name="new_contract_type_id" class="w-full border p-2 rounded bg-white mt-2">
+                <option value="">Nuevo Tipo de Contrato...</option>
+                {% for ct in contract_types %}
+                    <option value="{{ ct.id }}">{{ ct.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label class="block text-sm font-medium">Fecha Efectiva</label>
+            <input type="date" name="date" class="w-full border p-2 rounded" required>
+
+            <label class="block text-sm font-medium">Notas</label>
+            <textarea name="notes" class="w-full border p-2 rounded"></textarea>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('promoteModal')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SALIDA -->
+<div id="exitModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4 text-red-600">Registrar Salida</h3>
+        <form id="exitForm" class="space-y-3">
+            <label class="block text-sm font-medium">Fecha de Salida</label>
+            <input type="date" name="date" class="w-full border p-2 rounded" required>
+            <label class="block text-sm font-medium">Motivo / Detalles de Liquidación</label>
+            <textarea name="notes" class="w-full border p-2 rounded h-24" required
+                placeholder="Indique motivo de baja, detalles de liquidación, etc."></textarea>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('exitModal')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Confirmar Salida</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- REINGRESO -->
+<div id="rehireModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4 text-green-600">Registrar Reingreso</h3>
+        <form id="rehireForm" class="space-y-3">
+            <label class="block text-sm font-medium">Cargo de Reingreso</label>
+            <select id="rehire_area" class="w-full border p-2 rounded bg-white mb-2"
+                onchange="loadPositions(this.value, 'rehire_position')">
+                <option value="">Seleccione Área...</option>
+                {% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}
+            </select>
+            <select name="new_position_id" id="rehire_position" class="w-full border p-2 rounded bg-gray-50" disabled
+                required>
+                <option value="">Primero seleccione área</option>
+            </select>
+            <select name="new_company_id" class="w-full border p-2 rounded bg-white mt-2" required>
+                <option value="">Seleccione Empresa...</option>
+                {% for company in companies %}<option value="{{ company.id }}">{{ company.name }}</option>{% endfor %}
+            </select>
+
+            <!-- TIPO CONTRATO -->
+            <select name="new_contract_type_id" class="w-full border p-2 rounded bg-white mt-2">
+                <option value="">Tipo de Contrato...</option>
+                {% for ct in contract_types %}
+                    <option value="{{ ct.id }}">{{ ct.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label class="block text-sm font-medium">Fecha Reingreso</label>
+            <input type="date" name="date" class="w-full border p-2 rounded" required>
+            <label class="block text-sm font-medium">Notas</label>
+            <textarea name="notes" class="w-full border p-2 rounded"></textarea>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('rehireModal')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Confirmar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- CAMBIO DE CONTRATO (NUEVO) -->
+<div id="contractModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4 text-blue-800">Cambio de Contrato</h3>
+        <p class="text-xs text-gray-500 mb-4">Cambia la modalidad contractual manteniendo el cargo actual.</p>
+        <form id="contractForm" class="space-y-3">
+            <label class="block text-sm font-medium">Nuevo Tipo de Contrato</label>
+            <select name="new_contract_type_id" class="w-full border p-2 rounded bg-white" required>
+                <option value="">Seleccione...</option>
+                {% for ct in contract_types %}
+                    <option value="{{ ct.id }}">{{ ct.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label class="block text-sm font-medium">Fecha de Cambio</label>
+            <input type="date" name="date" class="w-full border p-2 rounded" required>
+
+            <label class="block text-sm font-medium">Notas</label>
+            <textarea name="notes" class="w-full border p-2 rounded" placeholder="Motivo del cambio..."></textarea>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('contractModal')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>

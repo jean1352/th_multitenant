@@ -1,0 +1,139 @@
+<div id="editHiringModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="p-6 border-b border-gray-100 bg-white z-10 shrink-0">
+            <h2 class="text-xl font-bold text-gray-800">Editar Información de Contratación</h2>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <form id="editHiringForm" class="space-y-6">
+                <input type="hidden" name="employee_position_id" id="edit_hiring_pos_id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Contrato</label>
+                    <select name="contract_type_id" id="edit_contract_type_id" class="w-full border p-2 rounded bg-white">
+                        <option value="">Tipo de Contrato...</option>
+                        {% for ct in contract_types %}
+                            <option value="{{ ct.id }}">{{ ct.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Fecha Fin Contrato</label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" id="edit_is_indefinite" class="w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                onchange="document.getElementById('edit_contract_end_date').disabled = this.checked; if(this.checked) document.getElementById('edit_contract_end_date').value = '';">
+                            <span class="text-[10px] text-gray-500 font-bold uppercase">Indefinido</span>
+                        </label>
+                    </div>
+                    <input type="date" name="contract_end_date" id="edit_contract_end_date" class="w-full border p-2 rounded disabled:bg-gray-50 disabled:text-gray-400">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Jornada *</label>
+                    <select name="working_day_type_id" id="edit_working_day_type_id" class="w-full border p-2 rounded" required>
+                        <option value="">Seleccionar...</option>
+                        {% for x in working_day_types %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col col-span-2 mt-2">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1 mb-1">Horario Semanal (Días y Modalidad)</label>
+                    <input type="hidden" name="work_schedule" id="edit_work_schedule">
+                    <input type="hidden" name="work_days" id="edit_work_days">
+                    <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 font-bold w-28 border-b border-gray-200">Día</th>
+                                    <th class="px-3 py-2 font-bold border-b border-gray-200">Horario</th>
+                                    <th class="px-3 py-2 font-bold border-b border-gray-200">Modalidad</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100" id="edit_schedule_grid">
+                                <!-- Generado dinámicamente por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex flex-col mt-4">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Salario *</label>
+                    <select name="salary_type_id" id="edit_salary_type_id" class="w-full border p-2 rounded" required>
+                        <option value="">Seleccionar...</option>
+                        {% for x in salary_types %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Salario Base *</label>
+                    <div class="flex gap-2">
+                        <select name="currency_id" id="edit_currency_id" class="w-24 border p-2 rounded" required>
+                            {% for x in currencies %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                        </select>
+                        <input type="number" name="base_salary" id="edit_base_salary" class="flex-1 border p-2 rounded" required step="0.01">
+                    </div>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Forma de Pago *</label>
+                    <select name="payment_method_id" id="edit_payment_method_id" class="w-full border p-2 rounded" required>
+                        <option value="">Forma de Pago...</option>
+                        {% for x in payment_methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Banco *</label>
+                    <select name="bank_id" id="edit_bank_id" class="w-full border p-2 rounded" required>
+                        <option value="">Banco...</option>
+                        {% for x in banks %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                    <div class="flex flex-col col-span-1 md:col-span-2">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Centro de Costo</label>
+                        <select name="cost_center_id" id="edit_cost_center_id" class="w-full border p-2 rounded">
+                            <option value="">Centro de Costo (Opcional)...</option>
+                            {% for x in cost_centers %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-span-1 md:col-span-2 pt-4 border-t border-gray-50">
+                        <p class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-3">Seguimiento: Periodo de Prueba</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="flex flex-col">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Duración</label>
+                                <select name="probation_duration_id" id="edit_probation_duration_id" class="w-full border p-2 rounded bg-white">
+                                    <option value="">Sin Periodo de Prueba...</option>
+                                    {% for x in probation_durations %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Fecha Inicio Prueba</label>
+                                <input type="date" name="probation_start_date" id="edit_probation_start_date" class="w-full border p-2 rounded">
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Evaluación / Resultado</label>
+                                <select name="probation_evaluation" id="edit_probation_evaluation" class="w-full border p-2 rounded bg-white">
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="Aprobado">Aprobado</option>
+                                    <option value="No aprobado">No aprobado</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- Cierra el div class="grid grid-cols-1 md:grid-cols-2 gap-5" -->
+            </form>
+        </div>
+        <div class="p-6 border-t border-gray-100 bg-gray-50 shrink-0 rounded-b-2xl flex justify-end gap-3 z-10">
+            <button type="button" onclick="closeEditHiringModal()"
+                class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">Cancelar</button>
+            <button type="submit" form="editHiringForm"
+                class="bg-blue-900 text-white px-8 py-2 rounded-lg shadow-lg hover:bg-blue-800 font-bold transition-all transform active:scale-95">
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>

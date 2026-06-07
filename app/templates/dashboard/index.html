@@ -1,0 +1,45 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Dashboard - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+    {# --- HEADER --- #}
+    {% include "dashboard/components/header.html" %}
+
+    {# --- KPI CARDS --- #}
+    {% include "dashboard/components/kpi_cards.html" %}
+
+    {# --- CHARTS ROW 1 (Mensual & Cobertura) --- #}
+    {% include "dashboard/components/charts_row_1.html" %}
+
+    {# --- CHARTS ROW 2 (SLA) --- #}
+    {% include "dashboard/components/charts_row_2.html" %}
+
+    {# --- CHARTS ROW 3 (Cuellos de Botella & Rotación) --- #}
+    {% include "dashboard/components/charts_row_3.html" %}
+
+    {# --- CHARTS ROW 4 (Incumplimientos) --- #}
+    {% include "dashboard/components/charts_row_4.html" %}
+
+    {# --- ACCESOS DIRECTOS --- #}
+    {% include "dashboard/components/actions.html" %}
+
+    {# --- MODALES --- #}
+    {% include "dashboard/components/export_modal.html" %}
+{% endblock %}
+
+{% block scripts %}
+    {# 1. Inicialización de Datos y Librerías #}
+    {% include "dashboard/scripts/init.html" %}
+
+    {# 2. Utilidades (Descargas, Modales) #}
+    {% include "dashboard/scripts/utils.html" %}
+
+    {# 3. Lógica de Gráficos Específicos #}
+    {% include "dashboard/scripts/chart_monthly.html" %}
+    {% include "dashboard/scripts/chart_coverage.html" %}
+    {% include "dashboard/scripts/chart_sla.html" %}
+    {% include "dashboard/scripts/chart_bottleneck.html" %}
+    {% include "dashboard/scripts/chart_turnover.html" %}
+    {% include "dashboard/scripts/chart_breaches.html" %}
+{% endblock %}

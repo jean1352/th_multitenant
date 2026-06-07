@@ -1,0 +1,660 @@
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    // --- UTILIDADES GLOBALES (GRILLAS) ---
+    const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+    function buildScheduleGrid(containerId, scheduleDataStr) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        
+        let parsed = null;
+        try { parsed = JSON.parse(scheduleDataStr); } catch(e) {}
+
+        DAYS_OF_WEEK.forEach(day => {
+            const dayData = parsed && parsed[day] ? parsed[day] : { active: ['Lunes','Martes','Miércoles','Jueves','Viernes'].includes(day), start: '08:00', end: '17:00', modality: 'Oficina' };
+            
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-blue-50/20 transition-colors";
+            tr.innerHTML = `
+                <td class="px-3 py-2 border-r border-gray-50">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="day-active rounded text-blue-600 focus:ring-blue-500 w-4 h-4" data-day="${day}" ${dayData.active ? 'checked' : ''}>
+                        <span class="text-xs font-bold text-gray-700">${day}</span>
+                    </label>
+                </td>
+                <td class="px-3 py-2 border-r border-gray-50">
+                    <div class="flex items-center gap-2 ${dayData.active ? '' : 'opacity-40 pointer-events-none'}" id="time_wrapper_${containerId}_${day}">
+                        <input type="time" class="day-start border border-gray-200 rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 w-24" value="${dayData.start}">
+                        <span class="text-[10px] text-gray-400 font-bold uppercase">a</span>
+                        <input type="time" class="day-end border border-gray-200 rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 w-24" value="${dayData.end}">
+                    </div>
+                </td>
+                <td class="px-3 py-2">
+                    <select class="day-modality border border-gray-200 rounded px-2 py-1.5 text-xs w-full focus:ring-1 focus:ring-blue-500 ${dayData.active ? '' : 'opacity-40 pointer-events-none'}" id="modality_wrapper_${containerId}_${day}">
+                        <option value="Oficina" ${dayData.modality === 'Oficina' ? 'selected' : ''}>Oficina</option>
+                        <option value="Home Office" ${dayData.modality === 'Home Office' ? 'selected' : ''}>Home Office</option>
+                        <option value="Híbrido" ${dayData.modality === 'Híbrido' ? 'selected' : ''}>Híbrido</option>
+                    </select>
+                </td>
+            `;
+            
+            const checkbox = tr.querySelector('.day-active');
+            checkbox.addEventListener('change', (e) => {
+                const active = e.target.checked;
+                tr.querySelector(`#time_wrapper_${containerId}_${day}`).className = `flex items-center gap-2 ${active ? '' : 'opacity-40 pointer-events-none'}`;
+                tr.querySelector(`#modality_wrapper_${containerId}_${day}`).className = `day-modality border border-gray-200 rounded px-2 py-1.5 text-xs w-full focus:ring-1 focus:ring-blue-500 ${active ? '' : 'opacity-40 pointer-events-none'}`;
+            });
+
+            container.appendChild(tr);
+        });
+    }
+
+    function serializeScheduleGrid(containerId) {
+        const container = document.getElementById(containerId);
+        const result = {};
+        let activeDays = [];
+        container.querySelectorAll('tr').forEach(tr => {
+            const day = tr.querySelector('.day-active').dataset.day;
+            const active = tr.querySelector('.day-active').checked;
+            const start = tr.querySelector('.day-start').value;
+            const end = tr.querySelector('.day-end').value;
+            const modality = tr.querySelector('.day-modality').value;
+            result[day] = { active, start, end, modality };
+            if (active) activeDays.push(day);
+        });
+        return {
+            json: JSON.stringify(result),
+            text: activeDays.join(', ')
+        };
+    }
+
+    // IDs de restricciones actuales del empleado (inyectado por Jinja)
+    const currentDietIds = [
+        {% for r in employee.dietary_restrictions %}
+            {{ r.id }},
+        {% endfor %}
+    ];
+
+    window.openModal = (id) => {
+        document.getElementById(id).classList.remove('hidden');
+        if (id === 'addPosModal') {
+            buildScheduleGrid('add_pos_schedule_grid', null);
+            document.getElementById('add_pos_contract_end_date').value = '';
+            document.getElementById('add_pos_contract_end_date').disabled = true;
+            document.getElementById('add_pos_is_indefinite').checked = true;
+        }
+    };
+    window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+
+    
+    const editModal = document.getElementById('editModal');
+    
+    window.openEditModal = async () => {
+        // 1. Cargar cargos
+        const areaId = document.getElementById('edit_area_select').value;
+        const currentPosId = {{ employee.position_id }};
+        await loadPositions(areaId, 'edit_position_id', currentPosId);
+        
+        // 2. Cargar restricciones alimenticias
+        await loadEditDietaryOptions();
+
+        editModal.classList.remove('hidden');
+    };
+    window.closeEditModal = () => editModal.classList.add('hidden');
+
+    async function loadEditDietaryOptions() {
+        const container = document.getElementById('edit_dietary_container');
+        try {
+            const restrictions = await ApiClient.get('/dietary/api');
+            container.innerHTML = '';
+            if (restrictions.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 col-span-2">No hay opciones configuradas.</p>';
+                return;
+            }
+            restrictions.forEach(r => {
+                const isChecked = currentDietIds.includes(r.id) ? 'checked' : '';
+                container.innerHTML += `
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="dietary_restriction_ids" value="${r.id}" ${isChecked} class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <span class="ml-2 text-sm text-gray-700">${r.name}</span>
+                    </label>
+                `;
+            });
+        } catch (e) {
+            container.innerHTML = '<p class="text-xs text-red-400 col-span-2">Error cargando opciones.</p>';
+        }
+    }
+
+    window.switchTab = (tab) => {
+        ['info', 'hiring', 'docs', 'benefits', 'history', 'disciplinary'].forEach(t => {
+            document.getElementById(`content-${t}`).classList.add('hidden');
+            document.getElementById(`tab-${t}`).className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+        });
+        document.getElementById(`content-${tab}`).classList.remove('hidden');
+        document.getElementById(`tab-${tab}`).className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+    };
+
+    // --- CONTRATACIÓN Y SALARIO POR ROL ---
+
+    const allPositions = [
+        {% for pos in employee.positions_history %}
+            {{ pos.model_dump(mode="json") | tojson | safe }},
+        {% endfor %}
+    ];
+
+    const probationDurations = {{ probation_durations | tojson | safe }};
+    const relationshipTypes = {{ relationship_types | tojson | safe }};
+
+    // --- CONTACTOS DE EMERGENCIA ---
+    const emergencyContactsData = [
+        {% for c in employee.emergency_contacts %}
+            {
+                name: "{{ c.name }}",
+                relationship_id: "{{ c.relationship_id or '' }}",
+                phone: "{{ c.phone }}"
+            },
+        {% endfor %}
+    ];
+
+    window.addEmergencyContactRow = (containerId, initialData = null) => {
+        const container = document.getElementById(containerId);
+        const div = document.createElement('div');
+        div.className = "flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-200";
+        
+        let relOptions = '<option value="">Vínculo...</option>';
+        relationshipTypes.forEach(rt => {
+            relOptions += `<option value="${rt.id}" ${initialData && initialData.relationship_id == rt.id ? 'selected' : ''}>${rt.name}</option>`;
+        });
+
+        div.innerHTML = `
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <input type="text" class="ec-name border p-2 rounded text-xs" placeholder="Nombre completo" value="${initialData ? initialData.name : ''}" required>
+                <select class="ec-rel border p-2 rounded text-xs bg-white">${relOptions}</select>
+                <input type="text" class="ec-phone border p-2 rounded text-xs" placeholder="Teléfono" value="${initialData ? initialData.phone : ''}" required>
+            </div>
+            <button type="button" class="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg border border-red-200 transition-colors shrink-0" onclick="this.parentElement.remove()" title="Quitar contacto">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        `;
+        container.appendChild(div);
+    };
+
+    function serializeEmergencyContacts(containerId) {
+        const container = document.getElementById(containerId);
+        const contacts = [];
+        container.querySelectorAll('div.flex-1').forEach(row => {
+            const name = row.querySelector('.ec-name').value.trim();
+            const relId = row.querySelector('.ec-rel').value;
+            const phone = row.querySelector('.ec-phone').value.trim();
+            if (name && phone) {
+                contacts.push({ name, relationship_id: relId, phone });
+            }
+        });
+        return JSON.stringify(contacts);
+    }
+
+    window.openEditContactModal = () => {
+        document.getElementById('edit_contact_address').value = "{{ employee.address or '' }}";
+        document.getElementById('edit_contact_email').value = "{{ employee.personal_email or '' }}";
+        document.getElementById('edit_contact_phone').value = "{{ employee.phone or '' }}";
+        
+        const container = document.getElementById('edit_contact_container');
+        container.innerHTML = '';
+        if (emergencyContactsData.length > 0) {
+            emergencyContactsData.forEach(c => addEmergencyContactRow('edit_contact_container', c));
+        } else {
+            addEmergencyContactRow('edit_contact_container');
+        }
+        
+        document.getElementById('editContactModal').classList.remove('hidden');
+    };
+
+    window.closeEditContactModal = () => document.getElementById('editContactModal').classList.add('hidden');
+
+    document.getElementById('editContactForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Serializar contactos
+        document.getElementById('edit_emergency_contacts_json').value = serializeEmergencyContacts('edit_contact_container');
+        
+        const formData = new FormData(e.target);
+        try {
+            const response = await fetch('/employees/api/{{ employee.id }}', { method: 'PUT', body: formData });
+            if (!response.ok) throw new Error('Error al actualizar contactos');
+            showToast('Información de contacto actualizada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    window.openEditHiringModal = (posId) => {
+        const pos = allPositions.find(p => p.id === posId);
+        if (pos) {
+            document.getElementById('edit_hiring_pos_id').value = pos.id;
+            document.getElementById('edit_contract_type_id').value = pos.contract_type ? pos.contract_type.id : '';
+            
+            const endDateInput = document.getElementById('edit_contract_end_date');
+            const indefiniteCheck = document.getElementById('edit_is_indefinite');
+            if (pos.contract_end_date) {
+                endDateInput.value = pos.contract_end_date;
+                indefiniteCheck.checked = false;
+                endDateInput.disabled = false;
+            } else {
+                endDateInput.value = '';
+                indefiniteCheck.checked = true;
+                endDateInput.disabled = true;
+            }
+
+            document.getElementById('edit_working_day_type_id').value = pos.working_day_type ? pos.working_day_type.id : '';
+            document.getElementById('edit_salary_type_id').value = pos.salary_type ? pos.salary_type.id : '';
+            document.getElementById('edit_currency_id').value = pos.currency ? pos.currency.id : '';
+            document.getElementById('edit_base_salary').value = pos.base_salary || '';
+            document.getElementById('edit_payment_method_id').value = pos.payment_method ? pos.payment_method.id : '';
+            document.getElementById('edit_bank_id').value = pos.bank ? pos.bank.id : '';
+            document.getElementById('edit_cost_center_id').value = pos.cost_center ? pos.cost_center.id : '';
+            
+            // PERIODO DE PRUEBA
+            document.getElementById('edit_probation_duration_id').value = pos.probation_duration_id || '';
+            document.getElementById('edit_probation_start_date').value = pos.probation_start_date || '';
+            document.getElementById('edit_probation_evaluation').value = pos.probation_evaluation || 'Pendiente';
+
+            buildScheduleGrid('edit_schedule_grid', pos.work_schedule);
+        }
+        document.getElementById('editHiringModal').classList.remove('hidden');
+    };
+
+    window.closeEditHiringModal = () => document.getElementById('editHiringModal').classList.add('hidden');
+
+    document.getElementById('editHiringForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Extraer grid y guardar en inputs ocultos antes de serializar todo
+        const scheduleData = serializeScheduleGrid('edit_schedule_grid');
+        document.getElementById('edit_work_schedule').value = scheduleData.json;
+        document.getElementById('edit_work_days').value = scheduleData.text;
+
+        const formData = new FormData(e.target);
+        
+        try {
+            await fetch('/employees/api/{{ employee.id }}', { method: 'PUT', body: formData });
+            showToast('Información actualizada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    window.openSalaryModal = (posId) => {
+        const pos = allPositions.find(p => p.id === posId);
+        if (pos) {
+            document.getElementById('sal_employee_position_id').value = pos.id;
+            document.getElementById('sal_currency_id').value = pos.currency ? pos.currency.id : '';
+            document.getElementById('sal_base_salary').value = pos.base_salary || '';
+        }
+        document.getElementById('sal_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('salaryModal').classList.remove('hidden');
+    };
+
+    window.closeSalaryModal = () => document.getElementById('salaryModal').classList.add('hidden');
+
+    document.getElementById('salaryForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        data.new_base_salary = parseFloat(data.new_base_salary);
+        data.new_currency_id = parseInt(data.new_currency_id);
+        data.employee_position_id = parseInt(data.employee_position_id);
+        
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/change-salary', data);
+            showToast('Cambio de salario registrado');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    // --- CONFIRM MODAL LOGIC ---
+    let confirmCallback = null;
+    window.openConfirmModal = (message, callback) => {
+        document.getElementById('confirmMessage').innerText = message;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    };
+    window.closeConfirmModal = () => {
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmCallback = null;
+    };
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+        if (confirmCallback) confirmCallback();
+        closeConfirmModal();
+    });
+
+    // --- EDICIÓN DE DATOS ---
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        // Manejo especial para checkboxes (dietary_restrictions)
+        const dietIds = Array.from(e.target.querySelectorAll('input[name="dietary_restriction_ids"]:checked')).map(cb => parseInt(cb.value));
+        formData.delete('dietary_restriction_ids'); 
+        formData.append('dietary_restrictions', JSON.stringify(dietIds));
+
+        try {
+            const response = await fetch('/employees/api/{{ employee.id }}', { method: 'PUT', body: formData });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error desconocido al actualizar');
+            }
+
+            showToast('Perfil actualizado');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) { 
+            console.error(e);
+            showToast(e.message, 'error'); 
+        }
+    });
+
+    // --- DOCUMENTOS ---
+    document.getElementById('docForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/documents', new FormData(e.target));
+            showToast('Documento subido');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.deleteDoc = async (id) => {
+        openConfirmModal('¿Eliminar documento?', async () => {
+            try {
+                await ApiClient.delete(`/employees/api/documents/${id}`);
+                window.location.reload();
+            } catch(err) { showToast(err.message, 'error'); }
+        });
+    };
+
+    // --- BENEFICIOS ---
+    window.removeBenefit = async (id) => {
+        openConfirmModal('¿Quitar beneficio?', async () => {
+            try {
+                await ApiClient.delete(`/benefits/api/assign/${id}`);
+                window.location.reload();
+            } catch(err) { showToast(err.message, 'error'); }
+        });
+    };
+
+    // --- CARGOS Y MOVIMIENTOS ---
+    window.loadPositions = async (areaId, targetSelectId, selectedId = null) => {
+        const posSelect = document.getElementById(targetSelectId);
+        posSelect.innerHTML = '<option>Cargando...</option>';
+        posSelect.disabled = true;
+        if (!areaId) return;
+        try {
+            const area = await ApiClient.get(`/organization/api/areas/${areaId}`);
+            posSelect.innerHTML = '';
+            if (area.positions && area.positions.length > 0) {
+                area.positions.forEach(pos => {
+                    const selected = (pos.id === selectedId) ? 'selected' : '';
+                    posSelect.innerHTML += `<option value="${pos.id}" ${selected}>${pos.name}</option>`;
+                });
+                posSelect.disabled = false;
+                posSelect.classList.remove('bg-gray-50');
+                posSelect.classList.add('bg-white');
+            } else {
+                posSelect.innerHTML = '<option value="">Sin cargos</option>';
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    document.getElementById('addPosForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const scheduleData = serializeScheduleGrid('add_pos_schedule_grid');
+        document.getElementById('add_pos_work_schedule').value = scheduleData.json;
+        document.getElementById('add_pos_work_days').value = scheduleData.text;
+        
+        const data = Object.fromEntries(new FormData(e.target));
+        
+        // Limpieza de campos opcionales numéricos que pueden venir como string vacío
+        const intFields = ['company_id', 'contract_type_id', 'working_day_type_id', 'salary_type_id', 'currency_id', 'payment_method_id', 'bank_id'];
+        intFields.forEach(f => {
+            if (data[f] === "") delete data[f];
+            else data[f] = parseInt(data[f]);
+        });
+        if (data.base_salary === "") delete data.base_salary;
+        else data.base_salary = parseFloat(data.base_salary);
+
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/positions', data);
+            showToast('Cargo agregado correctamente');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.confirmRemovePosition = (id) => {
+        openConfirmModal('¿Finalizar este cargo secundario?', async () => {
+            try {
+                await ApiClient.delete(`/employees/api/positions/${id}`);
+                showToast('Cargo finalizado');
+                setTimeout(() => window.location.reload(), 1000);
+            } catch(err) { showToast(err.message, 'error'); }
+        });
+    };
+
+    window.togglePromoType = () => {
+        const val = document.getElementById('promo_source').value;
+        const isPrimaryInput = document.getElementById('is_primary_promo');
+        if (val === 'primary') {
+            isPrimaryInput.value = 'true';
+        } else {
+            isPrimaryInput.value = 'false';
+        }
+    };
+
+    document.getElementById('promoteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        data.is_primary_promotion = (data.is_primary_promotion === 'true');
+        if (!data.is_primary_promotion) {
+            data.previous_employee_position_id = parseInt(data.previous_employee_position_id);
+        } else {
+            delete data.previous_employee_position_id;
+        }
+        
+        // Limpieza de campos vacíos
+        if (!data.new_contract_type_id) delete data.new_contract_type_id;
+
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/promote', data);
+            showToast('Promoción registrada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    // --- BENEFICIOS DINÁMICOS ---
+    const benefitTypes = [
+        {% for bt in benefit_types %}
+            {{ bt | tojson | safe }},
+        {% endfor %}
+    ];
+
+    window.renderDynamicBenefitFields = (typeId) => {
+        const container = document.getElementById('dynamic_fields_container');
+        const benefit = benefitTypes.find(b => b.id == typeId);
+
+        if (!benefit || !benefit.fields_schema || !benefit.fields_schema.fields) {
+            container.innerHTML = '<p class="text-[10px] text-gray-400 italic text-center py-4">Este beneficio no requiere datos adicionales.</p>';
+            return;
+        }
+
+        let html = '<div class="grid grid-cols-1 gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">';
+        benefit.fields_schema.fields.forEach(f => {
+            html += `<div class="flex flex-col">
+                <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 mb-1">${f.name}</label>`;
+
+            if (f.type === 'select') {
+                html += `<select class="dynamic-field border p-2 rounded-lg text-sm bg-white" data-name="${f.name}" required>`;
+                html += '<option value="">Seleccionar...</option>';
+                f.options.forEach(opt => {
+                    html += `<option value="${opt}">${opt}</option>`;
+                });
+                html += `</select>`;
+            } else {
+                html += `<input type="${f.type}" class="dynamic-field border p-2 rounded-lg text-sm bg-white" data-name="${f.name}" placeholder="${f.name}..." required>`;
+            }
+            html += `</div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    };
+
+    function serializeCustomData() {
+        const container = document.getElementById('dynamic_fields_container');
+        if (!container) return null;
+
+        const data = {};
+        const fields = container.querySelectorAll('.dynamic-field');
+        
+        if (fields.length === 0) return null;
+
+        fields.forEach(field => {
+            const name = field.dataset.name;
+            if (name) {
+                data[name] = field.value;
+            }
+        });
+        
+        return data; // Retornamos el objeto directamente
+    }
+
+    document.getElementById('benefitForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const customData = serializeCustomData();
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
+        
+        // Inyectamos el objeto de datos dinámicos si existe
+        if (customData) {
+            payload.custom_data = customData;
+        } else {
+            delete payload.custom_data;
+        }
+
+        try {
+            // Usamos la URL correcta (/benefits/api/assign/...)
+            await ApiClient.post(`/benefits/api/assign/{{ employee.id }}`, payload);
+            showToast('Beneficio asignado correctamente');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { 
+            showToast(err.message, 'error'); 
+            console.error("Error asignando beneficio:", err);
+        }
+    });
+
+
+    document.getElementById('rehireForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        if (!data.new_contract_type_id) delete data.new_contract_type_id;
+
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/rehire', data);
+            showToast('Reingreso registrado');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    document.getElementById('exitForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/terminate', data);
+            showToast('Salida registrada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    // NUEVO: Manejo de Cambio de Contrato
+    document.getElementById('contractForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/change-contract', data);
+            showToast('Contrato actualizado');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    // --- CAPACITACIONES ---
+    window.confirmRemoveTraining = (id) => {
+        openConfirmModal('¿Desvincular de esta capacitación?', async () => {
+            try {
+                await ApiClient.delete(`/employees/api/enrollments/${id}`);
+                showToast('Desvinculado');
+                setTimeout(() => window.location.reload(), 500);
+            } catch(err) { showToast(err.message, 'error'); }
+        });
+    };
+
+    window.viewAttendance = async (enrollmentId, trainingName) => {
+        document.getElementById('attTitle').innerText = `Asistencia: ${trainingName}`;
+        const content = document.getElementById('attContent');
+        content.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Cargando...</td></tr>';
+        document.getElementById('attendanceModal').classList.remove('hidden');
+        try {
+            const data = await ApiClient.get(`/employees/api/enrollments/${enrollmentId}/attendance`);
+            content.innerHTML = '';
+            if (data.length === 0) {
+                content.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">No hay sesiones registradas.</td></tr>';
+                return;
+            }
+            data.forEach(item => {
+                const statusBadge = item.is_present 
+                    ? '<span class="text-green-600 font-bold text-xs">✔ Presente</span>' 
+                    : '<span class="text-red-500 font-bold text-xs">✘ Ausente</span>';
+                content.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-2 text-gray-600">${item.session_date}</td><td class="p-2 font-medium text-gray-800">${item.session_topic}</td><td class="p-2 text-center">${statusBadge}</td></tr>`;
+            });
+        } catch(err) { content.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-red-500">Error: ${err.message}</td></tr>`; }
+    };
+
+    // --- DISCIPLINA Y MÉRITOS ---
+    document.getElementById('sanctionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        data.sent_to_ministry = document.getElementById('sent_to_ministry').checked;
+        
+        try {
+            await ApiClient.post('/disciplinary/api/sanctions', data);
+            showToast('Sanción registrada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.deleteSanction = async (id) => {
+        openConfirmModal('¿Eliminar esta sanción?', async () => {
+            try {
+                await ApiClient.delete(`/disciplinary/api/sanctions/${id}`);
+                window.location.reload();
+            } catch(err) { showToast(err.message, 'error'); }
+        });
+    };
+
+    document.getElementById('recognitionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await ApiClient.post('/disciplinary/api/recognitions', data);
+            showToast('Reconocimiento agregado');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.deleteRecognition = async (id) => {
+        openConfirmModal('¿Eliminar este reconocimiento?', async () => {
+            try {
+                await ApiClient.delete(`/disciplinary/api/recognitions/${id}`);
+                window.location.reload();
+            } catch(err) { showToast(err.message, 'error'); }
+        });
+    };
+</script>

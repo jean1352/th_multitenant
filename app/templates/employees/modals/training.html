@@ -1,0 +1,18 @@
+<!-- ASISTENCIA (DINÁMICO) -->
+<div id="attendanceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-[500px]">
+        <h3 class="text-lg font-bold mb-2" id="attTitle">Asistencia</h3>
+        <p class="text-sm text-gray-500 mb-4">Detalle de sesiones para esta capacitación.</p>
+        <div class="overflow-y-auto max-h-60 border rounded">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr><th class="p-2 font-medium">Fecha</th><th class="p-2 font-medium">Tema</th><th class="p-2 font-medium text-center">Asistencia</th></tr>
+                </thead>
+                <tbody id="attContent" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+        <div class="flex justify-end mt-4">
+            <button onclick="document.getElementById('attendanceModal').classList.add('hidden')" class="bg-gray-100 px-4 py-2 rounded text-gray-700 hover:bg-gray-200">Cerrar</button>
+        </div>
+    </div>
+</div>

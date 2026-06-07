@@ -1,0 +1,41 @@
+<div id="salaryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-[60]">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96 transform transition-all">
+        <h2 class="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
+            <i class="fas fa-hand-holding-usd text-emerald-600"></i>
+            Registrar Cambio de Salario
+        </h2>
+        <form id="salaryForm" class="space-y-4">
+            <input type="hidden" name="employee_position_id" id="sal_employee_position_id">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nuevo Salario Base</label>
+                <div class="flex gap-2">
+                    <select name="new_currency_id" id="sal_currency_id" class="w-24 border p-2 rounded bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none" required>
+                        {% for x in currencies %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                    <input type="number" name="new_base_salary" id="sal_base_salary" placeholder="Monto" 
+                        class="flex-1 border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none" required step="0.01">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha de Aplicación</label>
+                <input type="date" name="date" id="sal_date" class="w-full border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none" required>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Notas / Motivo</label>
+                <textarea name="notes" id="sal_notes" rows="3" placeholder="Ej: Ajuste anual, Promoción, etc."
+                    class="w-full border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none text-sm"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <button type="button" onclick="closeSalaryModal()"
+                    class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium">Cancelar</button>
+                <button type="submit"
+                    class="bg-emerald-600 text-white px-6 py-2 rounded shadow-lg hover:bg-emerald-700 font-bold transition-all transform active:scale-95">
+                    Guardar Cambio
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

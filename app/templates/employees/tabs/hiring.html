@@ -1,0 +1,215 @@
+<div id="content-hiring" class="tab-content hidden animate-fade-in">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h3 class="text-xl font-bold text-gray-800">Cargos y Roles Activos</h3>
+            <p class="text-sm text-gray-500">Gestione las condiciones contractuales de cada rol</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="openModal('contractModal')" class="bg-white border border-purple-200 text-purple-700 hover:bg-purple-50 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-1">
+                <i class="fas fa-file-signature"></i> Cambiar Contrato
+            </button>
+            <button onclick="openModal('addPosModal')" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-1">
+                <i class="fas fa-plus"></i> Agregar Cargo Secundario
+            </button>
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        
+        {% for pos in employee.positions_history %}
+            {% if not pos.end_date %}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                {# HEADER DEL CARGO #}
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                            <i class="fas fa-briefcase text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gray-800 font-bold text-lg leading-tight">{{ pos.position.name }}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider"><i class="fas fa-building mr-1"></i> {{ pos.company.name if pos.company else 'Sin Empresa' }}</span>
+                                {% if pos.is_primary %}
+                                    <span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-black uppercase border border-blue-200">Principal</span>
+                                {% else %}
+                                    <span class="bg-gray-200 text-gray-700 text-[9px] px-1.5 py-0.5 rounded font-black uppercase border border-gray-300">Secundario</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        {% if not pos.is_primary %}
+                        <button onclick="confirmRemovePosition({{ pos.id }})" 
+                            class="bg-white border border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600 hover:text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors shadow-sm flex items-center gap-1" title="Finalizar Cargo">
+                            <i class="fas fa-times-circle"></i> Finalizar
+                        </button>
+                        {% endif %}
+                        <button onclick='openEditHiringModal({{ pos.id }})' 
+                            class="bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-gray-600 hover:text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors shadow-sm flex items-center gap-1" title="Editar Condiciones">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {# COLUMNA 1: CONDICIONES #}
+                    <div>
+                        <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <div class="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                            Condiciones Laborales
+                        </h4>
+                        <div class="grid grid-cols-2 gap-y-4 gap-x-2">
+                            <div>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">Tipo de Contrato</p>
+                                <p class="text-sm font-semibold text-gray-700">{{ pos.contract_type.name if pos.contract_type else 'No definido' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">Fin de Contrato</p>
+                                <p class="text-sm font-semibold text-gray-700">{{ pos.contract_end_date if pos.contract_end_date else 'Indefinido' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">Tipo de Jornada</p>
+                                <p class="text-sm font-semibold text-gray-700">{{ pos.working_day_type.name if pos.working_day_type else 'No definido' }}</p>
+                            </div>
+                            <div class="col-span-2">
+                                <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Horario y Modalidad Semanal</p>
+                                <div class="schedule-display" data-schedule="{{ pos.work_schedule }}">
+                                    <p class="text-sm font-semibold text-gray-700">{{ pos.work_schedule or 'No definido' }}</p>
+                                    {% if pos.work_days %}
+                                    <p class="text-xs text-gray-500">{{ pos.work_days }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# COLUMNA 2: PAGOS #}
+                    <div class="bg-gray-50/50 rounded-xl p-5 border border-gray-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <div class="w-1.5 h-4 bg-emerald-500 rounded-full"></div>
+                                Remuneración y Pagos
+                            </h4>
+                            <button onclick='openSalaryModal({{ pos.id }})' 
+                                class="bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-colors shadow-sm flex items-center gap-1">
+                                <i class="fas fa-hand-holding-usd"></i> Ajustar Salario
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-end justify-between border-b border-gray-200 pb-3">
+                                <div>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase">Salario Base</p>
+                                    <p class="text-2xl font-black text-emerald-700">
+                                        {{ pos.currency.symbol if pos.currency else '' }} {{ "{:,.0f}".format(pos.base_salary or 0) }}
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase">Tipo</p>
+                                    <span class="bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">
+                                        {{ pos.salary_type.name if pos.salary_type else 'Fijo' }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4 pt-1">
+                                <div>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase">Forma de Pago</p>
+                                    <p class="text-xs font-semibold text-gray-600">{{ pos.payment_method.name if pos.payment_method else 'No definido' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase">Banco</p>
+                                    <p class="text-xs font-semibold text-gray-600">{{ pos.bank.name if pos.bank else 'No definido' }}</p>
+                                </div>
+                            <div class="col-span-2">
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">Centro de Costo</p>
+                                <p class="text-xs font-semibold text-gray-600">{{ pos.cost_center.name if pos.cost_center else 'Sin Centro de Costo' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# COLUMNA 3: PERIODO DE PRUEBA (NUEVO BLOQUE) #}
+                    <div class="col-span-1 md:col-span-2 lg:col-span-2 border-t border-gray-100 pt-6">
+                        <div class="bg-blue-50/30 rounded-xl p-5 border border-blue-100/50">
+                            <h4 class="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <i class="fas fa-history"></i>
+                                Periodo de Prueba
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div>
+                                    <p class="text-[10px] font-bold text-blue-400 uppercase">Tiempo / Días</p>
+                                    <p class="text-sm font-bold text-blue-900">{{ pos.probation_duration.name if pos.probation_duration else 'No definido' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-blue-400 uppercase">Vencimiento</p>
+                                    <p class="text-sm font-bold text-blue-900">{{ pos.probation_end_date or '-' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-blue-400 uppercase">Evaluación</p>
+                                    {% if pos.probation_evaluation == 'Aprobado' %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+                                            <i class="fas fa-check-circle mr-1"></i> APROBADO
+                                        </span>
+                                    {% elif pos.probation_evaluation == 'No aprobado' %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+                                            <i class="fas fa-times-circle mr-1"></i> NO APROBADO
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                            <i class="fas fa-clock mr-1"></i> PENDIENTE
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-blue-400 uppercase">Status Proceso</p>
+                                    <p class="text-sm font-black uppercase {{ 'text-blue-600' if pos.probation_status == 'Pendiente' else 'text-gray-400' }}">
+                                        {{ pos.probation_status }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.schedule-display').forEach(container => {
+        const raw = container.getAttribute('data-schedule');
+        if (!raw) return;
+        try {
+            const data = JSON.parse(raw);
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">';
+            const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            let hasActiveDays = false;
+            
+            days.forEach(day => {
+                const info = data[day];
+                if (info && info.active) {
+                    hasActiveDays = true;
+                    const icon = info.modality === 'Home Office' ? 'fa-home text-blue-500' : (info.modality === 'Híbrido' ? 'fa-laptop-house text-purple-500' : 'fa-building text-gray-500');
+                    html += `
+                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors">
+                        <span class="text-xs font-bold text-gray-700 w-20">${day}</span>
+                        <span class="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-0.5 rounded">${info.start} - ${info.end}</span>
+                        <span class="text-[10px] text-gray-500 uppercase flex items-center gap-1 w-20 justify-end font-semibold"><i class="fas ${icon}"></i> ${info.modality}</span>
+                    </div>`;
+                }
+            });
+            html += '</div>';
+            
+            if (hasActiveDays) {
+                container.innerHTML = html;
+            }
+        } catch(e) {
+            // Not a JSON string, retain the old plain text format
+        }
+    });
+});
+</script>

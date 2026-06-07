@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+
+{% block page_title %}Gestión del Proceso{% endblock %}
+{% block title %}{{ vacancy.title }} - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+    {# --- HEADER Y ACCIONES --- #}
+    {% include "recruitment/components/header.html" %}
+
+    {# --- TABLA DE ETAPAS --- #}
+    {% include "recruitment/components/stages.html" %}
+
+    {# --- HISTORIAL DE AUDITORÍA --- #}
+    {% include "recruitment/components/audit.html" %}
+
+    {# --- MODALES --- #}
+    {% include "recruitment/modals/stage.html" %}
+    {% include "recruitment/modals/edit_vacancy.html" %}
+    {% include "recruitment/modals/close_vacancy.html" %}
+    {% include "recruitment/modals/confirm.html" %}
+{% endblock %}
+
+{% block scripts %}
+    {# --- LÓGICA JAVASCRIPT --- #}
+    {% include "recruitment/components/scripts.html" %}
+{% endblock %}

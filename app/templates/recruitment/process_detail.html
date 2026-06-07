@@ -1,0 +1,176 @@
+{% extends "layouts/base.html" %}
+{% block title %}Configurar {{ process.name }} - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/recruitment/processes" class="text-blue-600 hover:underline text-sm">&larr; Volver a Procesos</a>
+    <h1 class="text-2xl font-bold text-gray-900 mt-2">{{ process.name }}</h1>
+    <p class="text-gray-500">{{ process.description }}</p>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold text-gray-800">Flujo de Etapas</h2>
+        <button onclick="openStageModal()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 font-medium text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Agregar Etapa
+        </button>
+    </div>
+
+    <div class="space-y-3">
+        {% for stage in process.stages_config %}
+        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors group">
+            <div class="flex items-center gap-4">
+                <div class="bg-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-gray-500 border border-gray-300">
+                    {{ stage.order_index + 1 }}
+                </div>
+                <div>
+                    <p class="font-semibold text-gray-900">{{ stage.name }}</p>
+                    <div class="flex gap-2 text-xs mt-1">
+                        <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">SLA: {{ stage.sla_days }} días</span>
+                        {% if stage.responsible %}
+                            <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                {{ stage.responsible.full_name }}
+                            </span>
+                        {% else %}
+                            <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">
+                                {% if stage.owner == 'reclutador' %}Reclutador{% elif stage.owner == 'area' %}Área Solicitante{% else %}{{ stage.owner }}{% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ACCIONES -->
+            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onclick='editStage({{ stage|tojson }})' class="text-blue-500 hover:text-blue-700 p-1" title="Editar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+                <button onclick="deleteStage({{ stage.id }})" class="text-red-500 hover:text-red-700 p-1" title="Eliminar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-center text-gray-400 py-4">Este proceso no tiene etapas configuradas.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- MODAL STAGE -->
+<div id="stageModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeStageModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">Agregar Etapa</h3>
+                <form id="stageForm" class="mt-4 space-y-4">
+                    <input type="hidden" name="id" id="stageId">
+                    <input type="hidden" name="order_index" id="orderIndex" value="{{ process.stages_config|length }}">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nombre de la Etapa</label>
+                        <input type="text" name="name" id="stageName" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">SLA (Días)</label>
+                            <input type="number" name="sla_days" id="stageSla" required min="1" value="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Rol Genérico</label>
+                            <select name="owner" id="stageOwner" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
+                                <option value="reclutador">Reclutador</option>
+                                <option value="area">Área Solicitante</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Asignar a Persona (Opcional)</label>
+                        <select name="responsible_id" id="stageResponsible" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
+                            <option value="">-- Usar Rol Genérico --</option>
+                            {% for sede_group in users|groupby('sede_name') %}
+                                {% for area_group in sede_group.list|groupby('area_name') %}
+                                    <optgroup label="{{ sede_group.grouper }} - {{ area_group.grouper }}">
+                                        {% for user in area_group.list %}
+                                            <option value="{{ user.id }}">{{ user.full_name }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="btnSaveStage" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-900 text-base font-medium text-white hover:bg-blue-800 sm:ml-3 sm:w-auto sm:text-sm">Guardar</button>
+                <button type="button" onclick="closeStageModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    const modal = document.getElementById('stageModal');
+    const form = document.getElementById('stageForm');
+    const title = document.getElementById('modalTitle');
+
+    window.openStageModal = () => {
+        form.reset();
+        document.getElementById('stageId').value = '';
+        document.getElementById('orderIndex').value = {{ process.stages_config|length }};
+        title.innerText = 'Agregar Etapa';
+        modal.classList.remove('hidden');
+    };
+
+    window.editStage = (stage) => {
+        document.getElementById('stageId').value = stage.id;
+        document.getElementById('stageName').value = stage.name;
+        document.getElementById('stageSla').value = stage.sla_days;
+        document.getElementById('stageOwner').value = stage.owner;
+        document.getElementById('stageResponsible').value = stage.responsible_id || '';
+        document.getElementById('orderIndex').value = stage.order_index;
+        title.innerText = 'Editar Etapa';
+        modal.classList.remove('hidden');
+    };
+
+    window.closeStageModal = () => modal.classList.add('hidden');
+
+    window.deleteStage = async (id) => {
+        // ADVERTENCIA FUERTE
+        if(!confirm('⚠️ ADVERTENCIA CRÍTICA ⚠️\n\nEsta acción eliminará la etapa de la plantilla Y TAMBIÉN de todas las vacantes activas que usen este proceso.\n\nEsto recalculará los tiempos de SLA de las vacantes afectadas.\n\n¿Estás seguro de continuar?')) return;
+        
+        try {
+            await ApiClient.delete(`/recruitment/api/processes/stages/${id}`);
+            showToast('Etapa eliminada y vacantes actualizadas');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(e) { showToast(e.message, 'error'); }
+    };
+
+    document.getElementById('btnSaveStage').addEventListener('click', async () => {
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        const id = data.id;
+        delete data.id;
+        
+        if (!data.responsible_id) delete data.responsible_id;
+
+        try {
+            if (id) {
+                await ApiClient.put(`/recruitment/api/processes/stages/${id}`, data);
+                showToast('Etapa actualizada');
+            } else {
+                await ApiClient.post('/recruitment/api/processes/{{ process.id }}/stages', data);
+                showToast('Etapa creada');
+            }
+            window.location.reload();
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,199 @@
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    
+    const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+    function buildScheduleGrid(containerId, scheduleDataStr) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        
+        let parsed = null;
+        try { parsed = JSON.parse(scheduleDataStr); } catch(e) {}
+
+        DAYS_OF_WEEK.forEach(day => {
+            const dayData = parsed && parsed[day] ? parsed[day] : { active: ['Lunes','Martes','Miércoles','Jueves','Viernes'].includes(day), start: '08:00', end: '17:00', modality: 'Oficina' };
+            
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-blue-50/20 transition-colors";
+            tr.innerHTML = `
+                <td class="px-3 py-2 border-r border-gray-50">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="day-active rounded text-blue-600 focus:ring-blue-500 w-4 h-4" data-day="${day}" ${dayData.active ? 'checked' : ''}>
+                        <span class="text-xs font-bold text-gray-700">${day}</span>
+                    </label>
+                </td>
+                <td class="px-3 py-2 border-r border-gray-50">
+                    <div class="flex items-center gap-2 ${dayData.active ? '' : 'opacity-40 pointer-events-none'}" id="time_wrapper_${containerId}_${day}">
+                        <input type="time" class="day-start border border-gray-200 rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 w-24" value="${dayData.start}">
+                        <span class="text-[10px] text-gray-400 font-bold uppercase">a</span>
+                        <input type="time" class="day-end border border-gray-200 rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 w-24" value="${dayData.end}">
+                    </div>
+                </td>
+                <td class="px-3 py-2">
+                    <select class="day-modality border border-gray-200 rounded px-2 py-1.5 text-xs w-full focus:ring-1 focus:ring-blue-500 ${dayData.active ? '' : 'opacity-40 pointer-events-none'}" id="modality_wrapper_${containerId}_${day}">
+                        <option value="Oficina" ${dayData.modality === 'Oficina' ? 'selected' : ''}>Oficina</option>
+                        <option value="Home Office" ${dayData.modality === 'Home Office' ? 'selected' : ''}>Home Office</option>
+                        <option value="Híbrido" ${dayData.modality === 'Híbrido' ? 'selected' : ''}>Híbrido</option>
+                    </select>
+                </td>
+            `;
+            
+            const checkbox = tr.querySelector('.day-active');
+            checkbox.addEventListener('change', (e) => {
+                const active = e.target.checked;
+                tr.querySelector(`#time_wrapper_${containerId}_${day}`).className = `flex items-center gap-2 ${active ? '' : 'opacity-40 pointer-events-none'}`;
+                tr.querySelector(`#modality_wrapper_${containerId}_${day}`).className = `day-modality border border-gray-200 rounded px-2 py-1.5 text-xs w-full focus:ring-1 focus:ring-blue-500 ${active ? '' : 'opacity-40 pointer-events-none'}`;
+            });
+
+            container.appendChild(tr);
+        });
+    }
+
+    function serializeScheduleGrid(containerId) {
+        const container = document.getElementById(containerId);
+        const result = {};
+        let activeDays = [];
+        container.querySelectorAll('tr').forEach(tr => {
+            const day = tr.querySelector('.day-active').dataset.day;
+            const active = tr.querySelector('.day-active').checked;
+            const start = tr.querySelector('.day-start').value;
+            const end = tr.querySelector('.day-end').value;
+            const modality = tr.querySelector('.day-modality').value;
+            result[day] = { active, start, end, modality };
+            if (active) activeDays.push(day);
+        });
+        return {
+            json: JSON.stringify(result),
+            text: activeDays.join(', ')
+        };
+    }
+
+    // Cargar restricciones al abrir la página o el modal
+    async function loadDietaryOptions() {
+        const container = document.getElementById('create_dietary_container');
+        try {
+            const restrictions = await ApiClient.get('/dietary/api');
+            container.innerHTML = '';
+            if (restrictions.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 col-span-2">No hay opciones configuradas.</p>';
+                return;
+            }
+            restrictions.forEach(r => {
+                container.innerHTML += `
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="dietary_restriction_ids" value="${r.id}" class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <span class="ml-2 text-sm text-gray-700">${r.name}</span>
+                    </label>
+                `;
+            });
+        } catch (e) {
+            container.innerHTML = '<p class="text-xs text-red-400 col-span-2">Error cargando opciones.</p>';
+        }
+    }
+
+    // --- CONTACTOS DE EMERGENCIA ---
+    const relationshipTypes = {{ relationship_types | tojson | safe }};
+    
+    window.addEmergencyContactRow = (containerId) => {
+        const container = document.getElementById(containerId);
+        const div = document.createElement('div');
+        div.className = "flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-200";
+        
+        let relOptions = '<option value="">Vínculo...</option>';
+        relationshipTypes.forEach(rt => {
+            relOptions += `<option value="${rt.id}">${rt.name}</option>`;
+        });
+
+        div.innerHTML = `
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <input type="text" class="ec-name border p-2 rounded text-xs" placeholder="Nombre completo" required>
+                <select class="ec-rel border p-2 rounded text-xs bg-white">${relOptions}</select>
+                <input type="text" class="ec-phone border p-2 rounded text-xs" placeholder="Teléfono" required>
+            </div>
+            <button type="button" class="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg border border-red-200 transition-colors shrink-0" onclick="this.parentElement.remove()" title="Quitar contacto">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        `;
+        container.appendChild(div);
+    };
+
+    function serializeEmergencyContacts(containerId) {
+        const container = document.getElementById(containerId);
+        const contacts = [];
+        container.querySelectorAll('div.flex-1').forEach(row => {
+            const name = row.querySelector('.ec-name').value.trim();
+            const relId = row.querySelector('.ec-rel').value;
+            const phone = row.querySelector('.ec-phone').value.trim();
+            if (name && phone) {
+                contacts.push({ name, relationship_id: relId, phone });
+            }
+        });
+        return JSON.stringify(contacts);
+    }
+
+    // Cargar al inicio
+    loadDietaryOptions();
+    buildScheduleGrid('create_schedule_grid', null);
+
+    window.openCreateModal = () => {
+        document.getElementById('empForm').reset();
+        document.getElementById('create_contract_end_date').value = '';
+        document.getElementById('create_contract_end_date').disabled = true;
+        document.getElementById('create_is_indefinite').checked = true;
+        buildScheduleGrid('create_schedule_grid', null);
+        
+        document.getElementById('create_contact_container').innerHTML = '';
+        addEmergencyContactRow('create_contact_container'); // Mostrar un primer campo vacío
+        
+        document.getElementById('empModal').classList.remove('hidden');
+    };
+
+    window.closeCreateModal = () => {
+        document.getElementById('empModal').classList.add('hidden');
+    };
+
+    window.loadPositions = async (areaId) => {
+        const posSelect = document.getElementById('position_id');
+        posSelect.innerHTML = '<option>Cargando...</option>';
+        posSelect.disabled = true;
+        if (!areaId) return;
+        try {
+            const area = await ApiClient.get(`/organization/api/areas/${areaId}`);
+            posSelect.innerHTML = '<option value="">Seleccione Cargo...</option>';
+            if (area.positions && area.positions.length > 0) {
+                area.positions.forEach(pos => {
+                    posSelect.innerHTML += `<option value="${pos.id}">${pos.name}</option>`;
+                });
+                posSelect.disabled = false;
+                posSelect.classList.remove('bg-gray-50');
+                posSelect.classList.add('bg-white');
+            } else {
+                posSelect.innerHTML = '<option value="">Sin cargos</option>';
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    document.getElementById('empForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Extraer grid y guardar en inputs ocultos antes de serializar
+        const scheduleData = serializeScheduleGrid('create_schedule_grid');
+        document.getElementById('create_work_schedule').value = scheduleData.json;
+        document.getElementById('create_work_days').value = scheduleData.text;
+        
+        document.getElementById('create_emergency_contacts_json').value = serializeEmergencyContacts('create_contact_container');
+
+        const formData = new FormData(e.target);
+        
+        // Manejo de restricciones (checkboxes a JSON array)
+        const dietIds = Array.from(e.target.querySelectorAll('input[name="dietary_restriction_ids"]:checked')).map(cb => parseInt(cb.value));
+        formData.delete('dietary_restriction_ids'); 
+        formData.append('dietary_restrictions', JSON.stringify(dietIds));
+
+        try {
+            await ApiClient.post('/employees/api', formData);
+            showToast('Colaborador creado');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+</script>

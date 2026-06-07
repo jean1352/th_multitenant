@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmar Asistencia - UP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden" id="card">
+        <div class="bg-blue-900 p-6 text-center">
+            <h1 class="text-white text-xl font-bold">{{ settings.BUSINESS_NAME }}</h1>
+            <p class="text-blue-200 text-sm">Gestión de Eventos</p>
+        </div>
+
+        <div class="p-8 text-center" id="content">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">{{ event.title }}</h2>
+            <p class="text-gray-500 mb-6">{{ event.date.strftime('%d de %B de %Y') }}</p>
+
+            <p class="text-gray-600 mb-8 text-sm">
+                {{ event.description or 'Sin descripción adicional.' }}
+            </p>
+
+            <div class="space-y-3">
+                <button onclick="respond('confirm')"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Sí, asistiré
+                </button>
+
+                <button onclick="respond('decline')"
+                    class="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-3 px-4 rounded-lg transition-colors">
+                    No podré asistir
+                </button>
+            </div>
+        </div>
+
+        <!-- Estado de Éxito -->
+        <div class="p-8 text-center hidden" id="success">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900">¡Gracias por tu respuesta!</h3>
+            <p class="text-sm text-gray-500 mt-2">Hemos registrado tu elección correctamente.</p>
+        </div>
+    </div>
+
+    <script>
+        async function respond(action) {
+            const btn = event.target.closest('button');
+            const originalText = btn.innerText;
+            btn.innerText = 'Procesando...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/calendar/public/respond/{{ token }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action })
+                });
+
+                if (response.ok) {
+                    document.getElementById('content').classList.add('hidden');
+                    document.getElementById('success').classList.remove('hidden');
+
+                    // Cambiar mensaje si rechazó
+                    if (action === 'decline') {
+                        document.querySelector('#success h3').innerText = 'Respuesta Registrada';
+                        document.querySelector('#success p').innerText = 'Lamentamos que no puedas asistir.';
+                        document.querySelector('#success div').classList.replace('bg-green-100', 'bg-gray-100');
+                        document.querySelector('#success svg').classList.replace('text-green-600', 'text-gray-500');
+                    }
+                } else {
+                    alert('Hubo un error al registrar tu respuesta. El enlace podría haber expirado.');
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert('Error de conexión.');
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,56 @@
+<!-- MODAL EXPORTAR -->
+<div id="exportModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeExportModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Exportar Reporte de Gestión</h3>
+                <p class="text-sm text-gray-500 mt-2">Selecciona los criterios para generar el archivo.</p>
+                
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Filtrar por Área</label>
+                        <select id="exportArea" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
+                            <option value="">Todas las Áreas</option>
+                            {% for area in areas %}
+                                <option value="{{ area.id }}">{{ area.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Estado</label>
+                        <select id="exportStatus" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
+                            <option value="all">Todos</option>
+                            <option value="open">Solo Abiertas</option>
+                            <option value="closed">Solo Cerradas</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Desde (Actividad)</label>
+                            <input type="date" id="exportStart" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Hasta</label>
+                            <input type="date" id="exportEnd" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                <button type="button" onclick="downloadReport('excel')" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">
+                    Excel (Datos)
+                </button>
+                <button type="button" onclick="downloadReport('pdf')" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm">
+                    PDF (Ejecutivo)
+                </button>
+                <button type="button" onclick="closeExportModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

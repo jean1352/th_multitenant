@@ -1,0 +1,49 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Historial de Actividad
+    </h3>
+    
+    <div class="relative border-l-2 border-gray-200 ml-3 space-y-6">
+        {% for audit in vacancy.audits %}
+        <div class="mb-8 ml-6 relative">
+            <!-- Punto en la línea de tiempo -->
+            <span class="absolute -left-[33px] flex items-center justify-center w-4 h-4 bg-blue-100 rounded-full ring-4 ring-white">
+                <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
+            </span>
+            
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">
+                        {% if audit.user %}
+                            <span class="font-bold text-blue-900">{{ audit.user.full_name }}</span>
+                        {% else %}
+                            <span class="italic text-gray-500">Sistema</span>
+                        {% endif %}
+                        
+                        <span class="text-gray-500 mx-1">-</span>
+                        
+                        {% if audit.action == 'CREATED' %}
+                            <span class="text-green-600 font-bold">Creación</span>
+                        {% elif audit.action == 'UPDATE' %}
+                            <span class="text-blue-600 font-bold">Actualización</span>
+                        {% elif audit.action == 'STAGE_UPDATE' %}
+                            <span class="text-purple-600 font-bold">Cambio en Etapa</span>
+                        {% elif audit.action == 'STATUS_CHANGE' %}
+                            <span class="text-orange-600 font-bold">Cambio de Estado</span>
+                        {% else %}
+                            <span class="text-gray-600">{{ audit.action }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="text-sm text-gray-600 mt-1">{{ audit.details }}</p>
+                </div>
+                <span class="text-xs text-gray-400 whitespace-nowrap mt-1 sm:mt-0">
+                    {{ audit.timestamp | format_date('%d/%m/%Y %H:%M') }}
+                </span>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500 ml-6 italic">No hay registros de auditoría disponibles.</p>
+        {% endfor %}
+    </div>
+</div>

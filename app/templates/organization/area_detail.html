@@ -1,0 +1,185 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ area.name }} - Detalles{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="/organization/areas" class="text-blue-600 hover:underline text-sm">&larr; Volver a Áreas</a>
+    <h1 class="text-3xl font-bold text-gray-900 mt-2">{{ area.name }}</h1>
+    <div class="flex gap-4 text-sm text-gray-500 mt-1">
+        <span>Sede: {{ area.sede.name if area.sede else 'Sin Sede' }}</span>
+        <span>•</span>
+        <span>Responsable: {{ area.responsible_email }}</span>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800">Cargos / Puestos</h2>
+        <button onclick="openPositionModal()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 font-medium text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Agregar Cargo
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                <tr>
+                    <th class="px-4 py-3 font-semibold">Nombre del Cargo</th>
+                    <th class="px-4 py-3 font-semibold text-center">Es Líder</th>
+                    <th class="px-4 py-3 font-semibold">Reporta a (Jefe)</th>
+                    <th class="px-4 py-3 font-semibold text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for pos in area.positions %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium text-gray-900">{{ pos.name }}</td>
+                    <td class="px-4 py-3 text-center">
+                        {% if pos.is_leader %}
+                            <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-bold">SÍ</span>
+                        {% else %}
+                            <span class="text-gray-400 text-xs">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-gray-500 text-sm">
+                        {% if pos.parent %}
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs">{{ pos.parent.name }}</span>
+                        {% else %}
+                            <span class="text-gray-400 italic">Sin jefe directo</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                        <button onclick='editPosition({{ pos|tojson }})' class="text-blue-600 hover:text-blue-800 text-sm font-medium">Editar</button>
+                        <button onclick="deletePosition({{ pos.id }})" class="text-red-500 hover:text-red-700 text-sm font-medium">Eliminar</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">No hay cargos registrados en esta área.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL CARGO -->
+<div id="posModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4" id="modalTitle">Nuevo Cargo</h3>
+        <form id="posForm" class="space-y-3">
+            <input type="hidden" name="id" id="posId">
+            <input type="hidden" name="area_id" value="{{ area.id }}">
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Nombre del Cargo</label>
+                <input name="name" id="posName" placeholder="Ej: Analista Senior" class="w-full border p-2 rounded mt-1" required>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Reporta a (Jefe Inmediato)</label>
+                <select name="parent_id" id="posParent" class="w-full border p-2 rounded mt-1 bg-white text-sm">
+                    <option value="">-- Es un cargo raíz (Sin Jefe) --</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+                <p class="text-xs text-gray-400 mt-1">El jefe puede ser de otra área.</p>
+            </div>
+
+            <div class="flex items-center mt-2">
+                <input type="checkbox" name="is_leader" id="posIsLeader" class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4">
+                <label for="posIsLeader" class="ml-2 block text-sm text-gray-900">
+                    Es cargo de liderazgo
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="document.getElementById('posModal').classList.add('hidden')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    
+    const modal = document.getElementById('posModal');
+    const form = document.getElementById('posForm');
+    const title = document.getElementById('modalTitle');
+    const parentSelect = document.getElementById('posParent');
+
+    // Cargar todos los cargos para el selector de jefe
+    async function loadAllPositions() {
+        try {
+            const areas = await ApiClient.get('/organization/api/areas');
+            parentSelect.innerHTML = '<option value="">-- Es un cargo raíz (Sin Jefe) --</option>';
+            
+            areas.forEach(area => {
+                if(area.positions && area.positions.length > 0) {
+                    const group = document.createElement('optgroup');
+                    group.label = area.name;
+                    area.positions.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.id;
+                        option.text = p.name;
+                        group.appendChild(option);
+                    });
+                    parentSelect.appendChild(group);
+                }
+            });
+        } catch (e) { console.error("Error cargando cargos", e); }
+    }
+
+    window.openPositionModal = async () => {
+        form.reset();
+        document.getElementById('posId').value = '';
+        document.getElementById('posIsLeader').checked = false;
+        title.innerText = 'Nuevo Cargo';
+        await loadAllPositions();
+        modal.classList.remove('hidden');
+    };
+
+    window.editPosition = async (pos) => {
+        document.getElementById('posId').value = pos.id;
+        document.getElementById('posName').value = pos.name;
+        document.getElementById('posIsLeader').checked = pos.is_leader;
+        
+        title.innerText = 'Editar Cargo';
+        await loadAllPositions();
+        
+        // Seleccionar padre
+        document.getElementById('posParent').value = pos.parent_id || '';
+        
+        // Deshabilitar el propio ID en el select para evitar ciclos simples
+        const selfOption = document.querySelector(`#posParent option[value="${pos.id}"]`);
+        if(selfOption) selfOption.disabled = true;
+
+        modal.classList.remove('hidden');
+    };
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        const id = data.id; 
+        delete data.id;
+        
+        if (!data.parent_id) data.parent_id = null;
+        
+        // Manejo explícito del checkbox
+        data.is_leader = document.getElementById('posIsLeader').checked;
+
+        try {
+            if (id) await ApiClient.put(`/organization/api/positions/${id}`, data);
+            else await ApiClient.post('/organization/api/positions', data);
+            window.location.reload();
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.deletePosition = async (id) => {
+        if(!confirm('¿Eliminar cargo?')) return;
+        try {
+            await ApiClient.delete(`/organization/api/positions/${id}`);
+            window.location.reload();
+        } catch(err) { showToast(err.message, 'error'); }
+    };
+</script>
+{% endblock %}

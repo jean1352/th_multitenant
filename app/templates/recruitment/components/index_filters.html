@@ -1,0 +1,106 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-6 flex flex-col sm:flex-row justify-between items-center gap-4 py-2">
+        <!-- Scope Toggle -->
+        <div class="flex bg-gray-100 p-1 rounded-lg">
+            <a href="?scope=mine&status={{ filters.status }}&q={{ filters.q or '' }}&sede_id={{ filters.sede_id or '' }}&area_id={{ filters.area_id or '' }}&sla_status={{ filters.sla_status or '' }}&sort={{ filters.sort }}&order={{ filters.order }}"
+                class="{{ 'bg-white text-blue-600 shadow-sm' if filters.scope == 'mine' else 'text-gray-500 hover:text-gray-700' }} px-3 py-1.5 rounded-md text-sm font-medium transition-all">
+                Mis Vacantes
+            </a>
+            <a href="?scope=all&status={{ filters.status }}&q={{ filters.q or '' }}&sede_id={{ filters.sede_id or '' }}&area_id={{ filters.area_id or '' }}&sla_status={{ filters.sla_status or '' }}&sort={{ filters.sort }}&order={{ filters.order }}"
+                class="{{ 'bg-white text-blue-600 shadow-sm' if filters.scope == 'all' else 'text-gray-500 hover:text-gray-700' }} px-3 py-1.5 rounded-md text-sm font-medium transition-all">
+                Todas
+            </a>
+        </div>
+
+        <nav class="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+            <a href="?status=open&q={{ filters.q or '' }}&scope={{ filters.scope }}&sede_id={{ filters.sede_id or '' }}&area_id={{ filters.area_id or '' }}&sla_status={{ filters.sla_status or '' }}&sort={{ filters.sort }}&order={{ filters.order }}"
+                class="{{ 'border-blue-500 text-blue-600' if filters.status == 'open' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                Abiertas
+                <span class="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs font-bold">{{ counts.open
+                    }}</span>
+            </a>
+            <a href="?status=closed&q={{ filters.q or '' }}&scope={{ filters.scope }}&sede_id={{ filters.sede_id or '' }}&area_id={{ filters.area_id or '' }}&sla_status={{ filters.sla_status or '' }}&sort={{ filters.sort }}&order={{ filters.order }}"
+                class="{{ 'border-blue-500 text-blue-600' if filters.status == 'closed' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                Cerradas
+                <span class="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs font-bold">{{ counts.closed
+                    }}</span>
+            </a>
+            <a href="?status=cancelled&q={{ filters.q or '' }}&scope={{ filters.scope }}&sede_id={{ filters.sede_id or '' }}&area_id={{ filters.area_id or '' }}&sla_status={{ filters.sla_status or '' }}&sort={{ filters.sort }}&order={{ filters.order }}"
+                class="{{ 'border-blue-500 text-blue-600' if filters.status == 'cancelled' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                Canceladas
+                <span class="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs font-bold">{{ counts.cancelled
+                    }}</span>
+            </a>
+            <a href="?status=all&q={{ filters.q or '' }}&scope={{ filters.scope }}&sede_id={{ filters.sede_id or '' }}&area_id={{ filters.area_id or '' }}&sla_status={{ filters.sla_status or '' }}&sort={{ filters.sort }}&order={{ filters.order }}"
+                class="{{ 'border-blue-500 text-blue-600' if filters.status == 'all' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                Todas
+                <span class="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs font-bold">{{ counts.all
+                    }}</span>
+            </a>
+        </nav>
+    </div>
+    <div class="p-4 bg-gray-50 border-b border-gray-200">
+        <form action="" method="GET" class="flex flex-wrap gap-4 items-center">
+            <input type="hidden" name="status" value="{{ filters.status or 'open' }}">
+            <input type="hidden" name="scope" value="{{ filters.scope or 'mine' }}">
+
+            <!-- Buscador -->
+            <div class="relative flex-1 min-w-[200px]">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <input type="text" name="q" value="{{ filters.q or '' }}"
+                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Buscar por título...">
+            </div>
+
+            <!-- Filtro Sede -->
+            <div class="w-full md:w-48">
+                <select name="sede_id" id="filter_sede"
+                    class="w-full border border-gray-300 rounded-md py-2 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onchange="loadFilterAreas(this.value)">
+                    <option value="">Todas las Sedes</option>
+                    {% for sede in sedes %}
+                    <option value="{{ sede.id }}" {% if filters.sede_id==sede.id|int %}selected{% endif %}>{{ sede.name
+                        }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtro Área -->
+            <div class="w-full md:w-48">
+                <select name="area_id" id="filter_area"
+                    class="w-full border border-gray-300 rounded-md py-2 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Todas las Áreas</option>
+                    {% for area in areas %}
+                    <option value="{{ area.id }}" {% if filters.area_id==area.id|int %}selected{% endif %}>{{ area.name
+                        }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtro SLA -->
+            <div class="w-full md:w-40">
+                <select name="sla_status"
+                    class="w-full border border-gray-300 rounded-md py-2 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Estado SLA</option>
+                    <option value="ok" {% if filters.sla_status=='ok' %}selected{% endif %}>En Tiempo</option>
+                    <option value="overdue" {% if filters.sla_status=='overdue' %}selected{% endif %}>Vencido</option>
+                </select>
+            </div>
+
+            <button type="submit"
+                class="bg-blue-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-800 shadow-sm">
+                Filtrar
+            </button>
+
+            {% if filters.q or filters.sede_id or filters.area_id or filters.sla_status %}
+            <a href="?status={{ filters.status }}&scope={{ filters.scope }}"
+                class="text-red-500 text-sm hover:underline">Limpiar</a>
+            {% endif %}
+        </form>
+    </div>
+</div>

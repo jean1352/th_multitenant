@@ -1,0 +1,47 @@
+Quiero un sistema WEB que cumpla con estos requerimientos:
+
+Desarrollo de un Sistema de Gestión de Talento Humano, diseñado específicamente para optimizar los procesos internos de la Universidad del Pacífico. Esta solución permitirá una gestión más eficiente de los procesos de selección, administración de usuarios, control de etapas, métricas de desempeño y comunicación interna, con el objetivo de mejorar la trazabilidad y reducir tiempos administrativos.
+
+MÓDULOS DEL SISTEMA
+MÓDULO 1: Reclutamiento y Selección
+Funcionalidades principales:
+1. Módulo de Gestión de Sedes y Áreas
+Registro y administración de sedes institucionales.
+Asignación de áreas o departamentos por sede.
+Control jerárquico y vinculación con usuarios.
+2. Módulo de Gestión de Usuarios
+Creación, edición y desactivación de usuarios.
+Definición de roles y permisos por perfil.
+Asociación de usuarios a sedes y áreas correspondientes.
+3. Configuración de Días No Hábiles
+Calendario institucional para gestión de feriados y días no laborables.
+Exclusión automática de días no hábiles en los cálculos de plazos y SLA.
+4. Gestión de Procesos y Vacantes
+Registro y seguimiento de procesos de selección activos.
+Definición de etapas personalizadas (recepción de CV, entrevistas, evaluaciones, dictamen final).
+Control de avance por etapa con estados configurables.
+5. Cálculo de SLA (Service Level Agreement)
+Definición de tiempos máximos por etapa del proceso.
+Cálculo automático del cumplimiento de SLA según los plazos establecidos.
+Reporte de desviaciones y alertas en tiempo real.
+6. Notificación Automática por Correo Electrónico
+Envío de notificaciones automáticas a los responsables de cada etapa.
+Mensajes configurables con recordatorios, vencimientos o retrasos en el proceso.
+7. Dashboard de Métricas y Reportes
+Visualización de indicadores clave de desempeño (KPI).
+Métricas por sede, área, responsable y estado del proceso.
+Gráficos interactivos de tiempos, cantidad de vacantes, etapas completadas y cumplimiento de SLA.
+Reportes de vacantes cerradas dentro y fuera del plazo establecido.
+Análisis de cobertura de vacantes (promoción interna, traslado, contratación externa).
+Resumen mensual de vacantes abiertas, finalizadas y aumentos de dotación.
+Tiempo promedio de cobertura de vacantes.
+8. Gestión de capacitaciones 
+Registro y seguimiento automático de capacitaciones.
+Sistema de alertas automáticas configurables por correo electrónico.
+Gestión de correos y trazabilidad de notificaciones.
+Monitoreo de transferencia de conocimientos post-capacitación.
+Cálculo automático de fechas y parametrización administrativa.
+Funcionalidades adicionales:
+Auditoría de Actividades: Registro histórico de acciones realizadas por los usuarios y control de modificaciones en procesos y estados.
+Exportación de Datos: Generación de reportes descargables en formato Excel o PDF.
+Diseño Adaptativo y Acceso Web: Interfaz moderna, responsive y compatible con navegadores actuales, con acceso protegido mediante autenticación de usuarios.

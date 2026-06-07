@@ -1,0 +1,128 @@
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+    <form action="" method="GET" id="filterForm">
+        <!-- FILTROS PRINCIPALES -->
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" name="q" value="{{ filters.q or '' }}"
+                    placeholder="Buscar por nombre, documento o email..."
+                    class="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div class="w-full md:w-48">
+                <select name="company_id" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Todas las Empresas</option>
+                    {% for company in companies %}
+                    <option value="{{ company.id }}" {% if filters.company_id==company.id|int %}selected{% endif %}>{{
+                        company.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="w-full md:w-48">
+                <select name="sede_id" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Todas las Sedes</option>
+                    {% for sede in sedes %}
+                        <option value="{{ sede.id }}" {% if filters.sede_id==sede.id|int %}selected{% endif %}>{{ sede.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="w-full md:w-48">
+                <select name="area_id" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Todas las Áreas</option>
+                    {% for area in areas %}
+                    <option value="{{ area.id }}" {% if filters.area_id==area.id|int %}selected{% endif %}>{{ area.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="w-full md:w-auto">
+                <select name="limit" class="w-full border p-2 rounded text-sm bg-white" onchange="this.form.submit()">
+                    <option value="10" {% if filters.limit == 10 %}selected{% endif %}>10 por página</option>
+                    <option value="25" {% if filters.limit == 25 %}selected{% endif %}>25 por página</option>
+                    <option value="50" {% if filters.limit == 50 %}selected{% endif %}>50 por página</option>
+                    <option value="100" {% if filters.limit == 100 %}selected{% endif %}>100 por página</option>
+                </select>
+            </div>
+
+            <button type="submit"
+                class="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800 text-sm font-medium shadow-sm">Filtrar</button>
+
+            <button type="button" onclick="toggleAdvanced()"
+                class="bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 text-sm font-medium flex items-center gap-1 border border-gray-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                    </path>
+                </svg>
+                Avanzado
+            </button>
+
+            {% if filters.q or filters.area_id or filters.sede_id or filters.gender or filters.dietary_id or filters.birth_month or filters.is_leader %}
+            <a href="/employees/" class="text-red-500 text-sm hover:underline">Limpiar</a>
+            {% endif %}
+        </div>
+
+        <!-- FILTROS AVANZADOS (EXPANDIBLE) -->
+        <div id="advancedFilters" class="hidden mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">Sexo</label>
+                <select name="gender" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Todos</option>
+                    <option value="M" {% if filters.gender == 'M' %}selected{% endif %}>Masculino</option>
+                    <option value="F" {% if filters.gender == 'F' %}selected{% endif %}>Femenino</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">Restricción Alimenticia</label>
+                <select name="dietary_id" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Cualquiera</option>
+                    {% for diet in dietary_options %}
+                        <option value="{{ diet.id }}" {% if filters.dietary_id == diet.id|int %}selected{% endif %}>{{ diet.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">Nacidos en (Mes)</label>
+                <select name="birth_month" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Todos los meses</option>
+                    <option value="1" {% if filters.birth_month == 1 %}selected{% endif %}>Enero</option>
+                    <option value="2" {% if filters.birth_month == 2 %}selected{% endif %}>Febrero</option>
+                    <option value="3" {% if filters.birth_month == 3 %}selected{% endif %}>Marzo</option>
+                    <option value="4" {% if filters.birth_month == 4 %}selected{% endif %}>Abril</option>
+                    <option value="5" {% if filters.birth_month == 5 %}selected{% endif %}>Mayo</option>
+                    <option value="6" {% if filters.birth_month == 6 %}selected{% endif %}>Junio</option>
+                    <option value="7" {% if filters.birth_month == 7 %}selected{% endif %}>Julio</option>
+                    <option value="8" {% if filters.birth_month == 8 %}selected{% endif %}>Agosto</option>
+                    <option value="9" {% if filters.birth_month == 9 %}selected{% endif %}>Septiembre</option>
+                    <option value="10" {% if filters.birth_month == 10 %}selected{% endif %}>Octubre</option>
+                    <option value="11" {% if filters.birth_month == 11 %}selected{% endif %}>Noviembre</option>
+                    <option value="12" {% if filters.birth_month == 12 %}selected{% endif %}>Diciembre</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">Es Líder</label>
+                <select name="is_leader" class="w-full border p-2 rounded text-sm bg-white">
+                    <option value="">Todos</option>
+                    <option value="true" {% if filters.is_leader == 'true' %}selected{% endif %}>Sí</option>
+                    <option value="false" {% if filters.is_leader == 'false' %}selected{% endif %}>No</option>
+                </select>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function toggleAdvanced() {
+        const el = document.getElementById('advancedFilters');
+        el.classList.toggle('hidden');
+    }
+
+    // Mantener abierto si hay filtros avanzados activos
+    {% if filters.gender or filters.dietary_id or filters.birth_month or filters.is_leader %}
+    document.getElementById('advancedFilters').classList.remove('hidden');
+    {% endif %}
+</script>

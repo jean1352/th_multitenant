@@ -1,0 +1,36 @@
+<div id="content-docs" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Documentación Digital</h3>
+            <button onclick="openModal('docModal')" class="bg-blue-50 text-blue-700 px-3 py-1 rounded text-sm font-medium hover:bg-blue-100">+ Subir Documento</button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for doc in employee.documents %}
+            <div class="border rounded-lg p-4 hover:shadow-md transition flex items-start gap-3 relative group">
+                <div class="bg-red-50 p-2 rounded text-red-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-medium text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
+                    <p class="text-xs text-gray-500 uppercase mt-1">{{ doc.category.value }} • Subido: {{ doc.upload_date.strftime('%d/%m/%Y') }}</p>
+                    
+                    {% if doc.expiration_date %}
+                        <p class="text-xs font-bold text-orange-600 mt-1 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Vence: {{ doc.expiration_date.strftime('%d/%m/%Y') }}
+                        </p>
+                    {% endif %}
+
+                    <div class="mt-3 flex gap-3 text-xs">
+                        <a href="{{ doc.file_url }}" target="_blank" class="text-blue-600 hover:underline font-medium">Ver / Descargar</a>
+                        <button onclick="deleteDoc({{ doc.id }})" class="text-red-500 hover:text-red-700 font-medium">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-3 text-center py-12 text-gray-400 bg-gray-50 rounded border border-dashed">No hay documentos cargados.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

@@ -1,0 +1,56 @@
+<div id="editContactModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="p-6 border-b border-gray-100 bg-white z-10 shrink-0">
+            <h2 class="text-xl font-bold text-gray-800">Editar Contacto y Ubicación</h2>
+        </div>
+        
+        <div class="p-6 overflow-y-auto flex-1">
+            <form id="editContactForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    
+                    <div class="flex flex-col col-span-1 md:col-span-2">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Dirección Particular</label>
+                        <input name="address" id="edit_contact_address" class="w-full border p-2 rounded" placeholder="Dirección completa...">
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Email Particular</label>
+                        <input type="email" name="personal_email" id="edit_contact_email" class="w-full border p-2 rounded" placeholder="ejemplo@mail.com">
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Teléfono Personal</label>
+                        <input name="phone" id="edit_contact_phone" class="w-full border p-2 rounded" placeholder="09XX XXX XXX">
+                    </div>
+
+                    <div class="col-span-1 md:col-span-2 pt-4 border-t border-gray-50">
+                        <div class="flex justify-between items-center mb-3">
+                            <p class="text-xs font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
+                                <i class="fas fa-ambulance"></i> Contactos de Emergencia
+                            </p>
+                            <button type="button" onclick="addEmergencyContactRow('edit_contact_container')" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-colors shadow-sm border border-red-200 flex items-center gap-1">
+                                <i class="fas fa-plus"></i> Agregar
+                            </button>
+                        </div>
+                        
+                        <input type="hidden" name="emergency_contacts" id="edit_emergency_contacts_json">
+                        
+                        <div id="edit_contact_container" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                            <!-- JS fills this -->
+                        </div>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+
+        <div class="p-6 border-t border-gray-100 bg-gray-50 shrink-0 rounded-b-2xl flex justify-end gap-3 z-10">
+            <button type="button" onclick="closeEditContactModal()"
+                class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">Cancelar</button>
+            <button type="submit" form="editContactForm"
+                class="bg-blue-900 text-white px-8 py-2 rounded-lg shadow-lg hover:bg-blue-800 font-bold transition-all transform active:scale-95">
+                Guardar Contactos
+            </button>
+        </div>
+    </div>
+</div>

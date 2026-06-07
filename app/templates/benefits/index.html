@@ -1,0 +1,158 @@
+{% extends "layouts/base.html" %}
+{% block title %}Configuración de Beneficios{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Catálogo de Beneficios</h1>
+        <p class="text-gray-500 text-sm">Define los tipos de beneficios disponibles para asignar.</p>
+    </div>
+    <button onclick="openModal()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Nuevo Beneficio
+    </button>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {% for ben in benefits %}
+    <!-- Tarjeta clickeable completa -->
+    <div onclick="window.location.href='/benefits/types/{{ ben.id }}'" class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative group cursor-pointer">
+        <div class="flex justify-between items-start">
+            <div>
+                <h3 class="font-bold text-lg text-gray-900 group-hover:text-blue-700 transition-colors">{{ ben.name }}</h3>
+                <p class="text-gray-500 text-sm mt-1 h-10 overflow-hidden">{{ ben.description or 'Sin descripción' }}</p>
+            </div>
+            <div class="bg-blue-50 p-2 rounded-full text-blue-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path></svg>
+            </div>
+        </div>
+        
+        <div class="mt-4 flex justify-between items-center pt-4 border-t border-gray-100">
+            <span class="text-xs font-bold px-2 py-1 rounded {{ 'bg-green-100 text-green-800' if ben.is_active else 'bg-red-100 text-red-800' }}">
+                {{ 'ACTIVO' if ben.is_active else 'INACTIVO' }}
+            </span>
+            
+            <span class="text-xs text-gray-400 flex items-center gap-1 group-hover:text-blue-500">
+                Ver Detalles &rarr;
+            </span>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-3 text-center py-12 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+        No hay beneficios configurados.
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal Crear -->
+<div id="modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl w-[500px] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <h3 class="font-bold mb-4 text-xl text-gray-900" id="modalTitle">Nuevo Tipo de Beneficio</h3>
+        
+        <div class="overflow-y-auto flex-1 pr-1">
+            <form id="form" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Información Básica</label>
+                    <input name="name" placeholder="Nombre (Ej: Seguro Médico)" class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    <textarea name="description" placeholder="Descripción breve..." class="w-full border p-2.5 rounded-lg text-sm h-20 mt-2 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                </div>
+                
+                <div class="pt-4 border-t border-gray-100">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-xs font-black text-blue-900 uppercase tracking-widest">Campos Personalizados</label>
+                        <button type="button" onclick="addFieldRow()" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold border border-blue-100 hover:bg-blue-100 transition-colors">+ Agregar Campo</button>
+                    </div>
+                    
+                    <p class="text-[10px] text-gray-400 mb-4 italic">Define qué datos adicionales se pedirán al asignar este beneficio (ej: Proveedor, Plan, Monto).</p>
+                    
+                    <div id="fields_container" class="space-y-3">
+                        <!-- JS fills this -->
+                    </div>
+                    
+                    <input type="hidden" name="fields_schema" id="fields_schema_input">
+                </div>
+            </form>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-4">
+            <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="text-gray-500 px-6 py-2 hover:text-gray-700 text-sm font-medium">Cancelar</button>
+            <button type="submit" form="form" class="bg-blue-900 text-white px-8 py-2 rounded-lg hover:bg-blue-800 text-sm font-bold shadow-lg transition-all transform active:scale-95">Guardar Beneficio</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    
+    window.addFieldRow = () => {
+        const container = document.getElementById('fields_container');
+        const div = document.createElement('div');
+        div.className = "flex gap-2 items-start bg-gray-50 p-3 rounded-lg border border-gray-100 group";
+        div.innerHTML = `
+            <div class="flex-1 space-y-2">
+                <input type="text" class="field-name w-full border px-2 py-1 rounded text-xs" placeholder="Nombre del campo (ej: Proveedor)" required>
+                <div class="flex gap-2">
+                    <select class="field-type border px-2 py-1 rounded text-[10px] bg-white w-1/2" onchange="toggleOptions(this)">
+                        <option value="text">Texto</option>
+                        <option value="number">Número</option>
+                        <option value="select">Selección (Lista)</option>
+                    </select>
+                    <input type="text" class="field-options hidden border px-2 py-1 rounded text-[10px] w-1/2" placeholder="Opciones sep. por coma">
+                </div>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        `;
+        container.appendChild(div);
+    };
+
+    window.toggleOptions = (select) => {
+        const input = select.nextElementSibling;
+        if (select.value === 'select') input.classList.remove('hidden');
+        else input.classList.add('hidden');
+    };
+
+    function serializeFields() {
+        const container = document.getElementById('fields_container');
+        const fields = [];
+        container.querySelectorAll('div.group').forEach(row => {
+            const name = row.querySelector('.field-name').value.trim();
+            const type = row.querySelector('.field-type').value;
+            const options = row.querySelector('.field-options').value.trim();
+            
+            if (name) {
+                fields.push({
+                    name,
+                    type,
+                    options: type === 'select' ? options.split(',').map(s => s.trim()) : []
+                });
+            }
+        });
+        return fields.length > 0 ? JSON.stringify({ fields }) : null;
+    }
+
+    window.openModal = () => {
+        document.getElementById('form').reset();
+        document.getElementById('fields_container').innerHTML = '';
+        document.getElementById('modal').classList.remove('hidden');
+    };
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const schema = serializeFields();
+        document.getElementById('fields_schema_input').value = schema;
+        
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        if (data.fields_schema) data.fields_schema = JSON.parse(data.fields_schema);
+        else delete data.fields_schema;
+
+        try {
+            await ApiClient.post('/benefits/api/types', data);
+            showToast('Beneficio creado con esquema');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+</script>
+{% endblock %}

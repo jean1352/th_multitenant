@@ -1,0 +1,123 @@
+<div id="closeVacancyModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeCloseVacancyModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Finalizar Proceso</h3>
+                <p class="text-sm text-gray-500 mt-2">Se enviará una notificación automática al área solicitante.</p>
+                <form id="closeVacancyForm" class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Estado Final</label>
+                        <select name="status" id="vacancyStatus" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white" onchange="toggleCloseFields()">
+                            <option value="closed">Cerrado Exitosamente</option>
+                            <option value="cancelled">Cancelado</option>
+                        </select>
+                    </div>
+                    
+                    <!-- CAMPOS DINÁMICOS DE CIERRE -->
+                    <div id="closeFields">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Tipo de Cobertura</label>
+                            <select name="vacancy_type" id="vacancyType" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white" onchange="toggleCandidateFields()">
+                                <option value="">Seleccione...</option>
+                                <option value="external">Contratación Externa</option>
+                                <option value="internal">Promoción Interna</option>
+                                <option value="transfer">Traslado</option>
+                            </select>
+                        </div>
+
+                        <!-- NUEVO: FECHA DE INICIO -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Fecha de Inicio del Colaborador</label>
+                            <input type="date" name="start_date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2">
+                        </div>
+
+                        <!-- NUEVO: EMPRESA -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Empresa (Razón Social)</label>
+                            <select name="company_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2 bg-white" required>
+                                <option value="">Seleccione...</option>
+                                {% for comp in companies %}
+                                    <option value="{{ comp.id }}">{{ comp.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- NUEVO: CARGO/PUESTO -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Cargo a Asignar</label>
+                            <select name="position_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2 bg-white" required>
+                                <option value="">Seleccione...</option>
+                                {% for pos in vacancy.area.positions %}
+                                    <option value="{{ pos.id }}" {% if pos.id == vacancy.position_id %}selected{% endif %}>{{ pos.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Por defecto se selecciona el cargo de la vacante.</p>
+                        </div>
+
+                        <!-- NUEVO: TIPO DE CONTRATO (Jinja2) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Tipo de Contrato</label>
+                            <select name="contract_type_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2 bg-white">
+                                <option value="">Seleccione...</option>
+                                {% for ct in contract_types %}
+                                    <option value="{{ ct.id }}">{{ ct.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Campos para Externo -->
+                        <div id="externalFields" class="hidden mt-4 space-y-3 border-l-4 border-blue-500 pl-4 bg-blue-50 p-2 rounded">
+                            <h4 class="text-sm font-bold text-blue-900">Datos del Nuevo Colaborador</h4>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Nombre Completo</label>
+                                <input type="text" name="candidate_name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Documento ID</label>
+                                <input type="text" name="candidate_document" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Email (Opcional)</label>
+                                <input type="email" name="candidate_email" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2">
+                            </div>
+                        </div>
+
+                        <!-- Campos para Interno (BUSCADOR PERSONALIZADO) -->
+                        <div id="internalFields" class="hidden mt-4 space-y-3 border-l-4 border-green-500 pl-4 bg-green-50 p-2 rounded">
+                            <h4 class="text-sm font-bold text-green-900">Seleccionar Colaborador</h4>
+                            <div class="relative">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Buscar por nombre o documento</label>
+                                <input type="text" id="empSearch" placeholder="Escriba para buscar..." class="w-full border-gray-300 rounded-md shadow-sm sm:text-sm border p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none">
+                                <input type="hidden" name="selected_employee_id" id="empId">
+                                
+                                <!-- Dropdown de resultados -->
+                                <div id="empDropdown" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                                    <!-- Se llena con JS -->
+                                </div>
+                            </div>
+                            <p id="selectedEmpName" class="text-xs text-green-700 font-bold mt-1"></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Observación de Cierre</label>
+                        <textarea name="description_append" id="closeObservation" rows="3" placeholder="Motivo..." class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="btnCloseVacancy" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm">Confirmar</button>
+                <button type="button" onclick="closeCloseVacancyModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient } from '/static/js/api_client.js';
+    // Ya no necesitamos cargar contratos por JS, Jinja lo hace.
+    window.openCloseVacancyModal = () => document.getElementById('closeVacancyModal').classList.remove('hidden');
+    window.closeCloseVacancyModal = () => document.getElementById('closeVacancyModal').classList.add('hidden');
+</script>

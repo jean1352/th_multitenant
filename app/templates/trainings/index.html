@@ -1,0 +1,306 @@
+{% extends "layouts/base.html" %}
+{% block title %}Capacitaciones - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <h1 class="text-2xl font-bold text-gray-800">Plan de Capacitación</h1>
+    <div class="flex gap-2">
+        <a href="/trainings/providers" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded shadow-sm hover:bg-gray-50 transition">Gestionar Proveedores</a>
+        <button onclick="openModal()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 font-medium text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Nueva Capacitación
+        </button>
+    </div>
+</div>
+
+<!-- FILTROS -->
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap gap-4 items-center">
+    <form action="" method="GET" class="flex gap-4 w-full md:w-auto flex-1">
+        <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="Buscar curso o proveedor..." class="border p-2 rounded w-full md:w-64">
+        <select name="status" class="border p-2 rounded bg-white">
+            <option value="all">Todos los estados</option>
+            <option value="planned" {% if filters.status == 'planned' %}selected{% endif %}>Planificado</option>
+            <option value="in_progress" {% if filters.status == 'in_progress' %}selected{% endif %}>En Curso</option>
+            <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Finalizado</option>
+            <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelado</option>
+        </select>
+        <button type="submit" class="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200">Filtrar</button>
+    </form>
+</div>
+
+<!-- GRID -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for t in pagination.data %}
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative group">
+        <!-- Acciones Rápidas -->
+        <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onclick='editTraining({{ t|tojson }})' class="text-gray-400 hover:text-blue-600 bg-white rounded-full p-1 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+            <button onclick="deleteTraining({{ t.id }})" class="text-gray-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        </div>
+
+        <div onclick="window.location.href='/trainings/{{ t.id }}'" class="cursor-pointer">
+            <div class="flex justify-between mb-3">
+                <span class="text-xs font-bold px-2 py-1 rounded uppercase tracking-wide
+                    {% if t.status == 'planned' %} bg-blue-100 text-blue-800
+                    {% elif t.status == 'in_progress' %} bg-green-100 text-green-800
+                    {% elif t.status == 'completed' %} bg-gray-100 text-gray-800
+                    {% else %} bg-red-100 text-red-800 {% endif %}">
+                    {{ t.status | translate_status }}
+                </span>
+                
+                <span class="text-xs font-bold px-2 py-1 rounded uppercase tracking-wide border
+                    {% if t.type == 'internal' %} bg-purple-50 text-purple-800 border-purple-200
+                    {% else %} bg-orange-50 text-orange-800 border-orange-200 {% endif %}">
+                    {{ 'INTERNA' if t.type == 'internal' else 'EXTERNA' }}
+                </span>
+            </div>
+            <h3 class="font-bold text-lg text-gray-900 mb-1">{{ t.name }}</h3>
+            
+            <p class="text-sm text-gray-500 mb-4">
+                {% if t.type == 'internal' %}
+                    Instructor: {{ t.internal_instructor.full_name if t.internal_instructor else 'Sin asignar' }}
+                {% else %}
+                    Proveedor: {{ t.provider_obj.business_name if t.provider_obj else 'Sin proveedor' }}
+                {% endif %}
+            </p>
+            
+            <div class="flex items-center text-xs text-gray-400">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                {{ t.start_date }} - {{ t.end_date }}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-3 text-center py-12 text-gray-500">No se encontraron capacitaciones.</div>
+    {% endfor %}
+</div>
+
+<!-- PAGINACIÓN -->
+{% if pagination.total_pages > 1 %}
+<div class="mt-6 flex justify-center gap-2">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.page - 1 }}&q={{ filters.q or '' }}&status={{ filters.status }}" class="px-3 py-1 border rounded hover:bg-gray-50">Anterior</a>
+    {% endif %}
+    <span class="px-3 py-1 text-gray-500">Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.page + 1 }}&q={{ filters.q or '' }}&status={{ filters.status }}" class="px-3 py-1 border rounded hover:bg-gray-50">Siguiente</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- MODAL -->
+<div id="trainModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96 max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl font-bold mb-4" id="modalTitle">Nueva Capacitación</h2>
+        <form id="trainForm" class="space-y-3">
+            <input type="hidden" name="id" id="trainId">
+            
+            <!-- Tipo -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="type" value="internal" checked onchange="toggleTypeFields()">
+                        <span class="ml-2 text-sm">Interna</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="type" value="external" onchange="toggleTypeFields()">
+                        <span class="ml-2 text-sm">Externa</span>
+                    </label>
+                </div>
+            </div>
+
+            <input name="name" id="name" placeholder="Nombre del Curso" class="w-full border p-2 rounded" required>
+            
+            <!-- Campos Internos -->
+            <div id="internalFields">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Instructor Interno</label>
+                <div class="relative">
+                    <input type="text" id="instructorSearch" placeholder="Buscar colaborador..." class="w-full border p-2 rounded text-sm" autocomplete="off">
+                    <input type="hidden" name="internal_instructor_id" id="internal_instructor_id">
+                    <div id="instructorDropdown" class="hidden absolute z-10 w-full bg-white border rounded shadow-lg max-h-40 overflow-y-auto"></div>
+                </div>
+                <p id="selectedInstructor" class="text-xs text-blue-600 mt-1 font-bold"></p>
+            </div>
+
+            <!-- Campos Externos -->
+            <div id="externalFields" class="hidden space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                    <select name="provider_id" id="provider_id" class="w-full border p-2 rounded bg-white text-sm">
+                        <option value="">Seleccione Proveedor...</option>
+                        <!-- Se llena con JS -->
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-gray-500">Costo x Persona</label>
+                        <input type="number" name="cost_per_person" id="cost_per_person" class="w-full border p-2 rounded" step="0.01">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Costo Empresa</label>
+                        <input type="number" name="company_cost" id="company_cost" class="w-full border p-2 rounded" step="0.01">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs text-gray-500">Inicio</label>
+                    <input name="start_date" id="start_date" type="date" class="w-full border p-2 rounded" required>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500">Fin</label>
+                    <input name="end_date" id="end_date" type="date" class="w-full border p-2 rounded" required>
+                </div>
+            </div>
+
+            <!-- Selector de Estado (Solo visible en edición) -->
+            <div id="statusContainer" class="hidden">
+                <label class="block text-sm font-medium text-gray-700">Estado</label>
+                <select name="status" id="status" class="w-full border p-2 rounded bg-white">
+                    <option value="planned">Planificado</option>
+                    <option value="in_progress">En Curso</option>
+                    <option value="completed">Finalizado</option>
+                    <option value="cancelled">Cancelado</option>
+                </select>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800">Guardar</button>
+            <button type="button" onclick="closeModal()" class="w-full text-gray-500 mt-2">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    const modal = document.getElementById('trainModal');
+    const form = document.getElementById('trainForm');
+    const statusContainer = document.getElementById('statusContainer');
+    
+    // --- UI LOGIC ---
+    window.toggleTypeFields = () => {
+        const type = document.querySelector('input[name="type"]:checked').value;
+        if (type === 'internal') {
+            document.getElementById('internalFields').classList.remove('hidden');
+            document.getElementById('externalFields').classList.add('hidden');
+        } else {
+            document.getElementById('internalFields').classList.add('hidden');
+            document.getElementById('externalFields').classList.remove('hidden');
+        }
+    };
+
+    // --- LOAD PROVIDERS ---
+    async function loadProviders(selectedId = null) {
+        const select = document.getElementById('provider_id');
+        try {
+            const providers = await ApiClient.get('/trainings/api/providers?active_only=true');
+            select.innerHTML = '<option value="">Seleccione Proveedor...</option>';
+            providers.forEach(p => {
+                const isSelected = (p.id === selectedId) ? 'selected' : '';
+                select.innerHTML += `<option value="${p.id}" ${isSelected}>${p.business_name}</option>`;
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    // --- INSTRUCTOR SEARCH ---
+    const searchInput = document.getElementById('instructorSearch');
+    const dropdown = document.getElementById('instructorDropdown');
+    
+    searchInput.addEventListener('input', async (e) => {
+        const term = e.target.value;
+        if (term.length < 2) { dropdown.classList.add('hidden'); return; }
+        
+        try {
+            const emps = await ApiClient.get(`/employees/api/search?q=${term}`);
+            dropdown.innerHTML = '';
+            if (emps.length > 0) {
+                emps.forEach(emp => {
+                    const div = document.createElement('div');
+                    div.className = 'p-2 hover:bg-gray-100 cursor-pointer text-sm';
+                    div.innerText = emp.full_name;
+                    div.onclick = () => {
+                        document.getElementById('internal_instructor_id').value = emp.id;
+                        document.getElementById('selectedInstructor').innerText = emp.full_name;
+                        dropdown.classList.add('hidden');
+                        searchInput.value = '';
+                    };
+                    dropdown.appendChild(div);
+                });
+                dropdown.classList.remove('hidden');
+            }
+        } catch(e) { console.error(e); }
+    });
+
+    window.openModal = async () => {
+        form.reset();
+        document.getElementById('trainId').value = '';
+        document.getElementById('modalTitle').innerText = 'Nueva Capacitación';
+        document.getElementById('selectedInstructor').innerText = '';
+        statusContainer.classList.add('hidden');
+        
+        // Reset type
+        document.querySelector('input[name="type"][value="internal"]').checked = true;
+        toggleTypeFields();
+        
+        await loadProviders();
+        modal.classList.remove('hidden');
+    };
+    window.closeModal = () => modal.classList.add('hidden');
+
+    window.editTraining = async (t) => {
+        document.getElementById('trainId').value = t.id;
+        document.getElementById('name').value = t.name;
+        document.getElementById('start_date').value = t.start_date;
+        document.getElementById('end_date').value = t.end_date;
+        document.getElementById('status').value = t.status;
+        
+        // Set Type
+        const typeRadio = document.querySelector(`input[name="type"][value="${t.type}"]`);
+        if (typeRadio) typeRadio.checked = true;
+        toggleTypeFields();
+
+        if (t.type === 'internal') {
+            document.getElementById('internal_instructor_id').value = t.internal_instructor_id || '';
+            document.getElementById('selectedInstructor').innerText = t.internal_instructor ? t.internal_instructor.full_name : '';
+        } else {
+            await loadProviders(t.provider_id);
+            document.getElementById('cost_per_person').value = t.cost_per_person || '';
+            document.getElementById('company_cost').value = t.company_cost || '';
+        }
+        
+        document.getElementById('modalTitle').innerText = 'Editar Capacitación';
+        statusContainer.classList.remove('hidden');
+        modal.classList.remove('hidden');
+    };
+
+    window.deleteTraining = async (id) => {
+        if(!confirm('¿Eliminar capacitación? Se borrarán inscripciones y asistencias.')) return;
+        try {
+            await ApiClient.delete(`/trainings/api/${id}`);
+            window.location.reload();
+        } catch(e) { showToast(e.message, 'error'); }
+    };
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        const id = data.id;
+        delete data.id;
+        
+        // Clean empty numbers
+        if (data.cost_per_person === '') data.cost_per_person = 0;
+        if (data.company_cost === '') data.company_cost = 0;
+        
+        try {
+            if(id) await ApiClient.put(`/trainings/api/${id}`, data);
+            else await ApiClient.post('/trainings/api', data);
+            window.location.reload();
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+</script>
+{% endblock %}

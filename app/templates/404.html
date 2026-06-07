@@ -1,0 +1,29 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Página no encontrada - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+    <div class="bg-blue-50 rounded-full p-8 mb-6 animate-bounce">
+        <svg class="w-20 h-20 text-blue-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+    </div>
+    
+    <h1 class="text-6xl font-bold text-blue-900 mb-2">404</h1>
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">¡Ups! Página no encontrada</h2>
+    
+    <p class="text-gray-500 max-w-md mb-8">
+        Parece que te has perdido en el campus virtual. La página que buscas no existe o ha sido movida.
+    </p>
+    
+    <div class="flex gap-4">
+        <a href="javascript:history.back()" class="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium shadow-sm">
+            &larr; Volver atrás
+        </a>
+        <a href="/recruitment/dashboard" class="px-6 py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition font-medium shadow-lg hover:shadow-xl">
+            Ir al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

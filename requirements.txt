@@ -1,0 +1,22 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.25
+asyncpg>=0.29.0
+pydantic>=2.6.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt==4.0.1
+jinja2>=3.1.3
+python-multipart>=0.0.9
+email-validator>=2.1.0
+# FIX: Forzamos NumPy < 2.0 para evitar errores de instrucciones de CPU (X86_V2)
+numpy<2.0.0
+pandas>=2.2.0
+openpyxl>=3.1.2
+weasyprint>=60.0
+matplotlib>=3.8.0
+aiosmtplib>=3.0.1
+alembic>=1.13.0
+apscheduler>=3.10.4

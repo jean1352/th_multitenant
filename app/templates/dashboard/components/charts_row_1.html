@@ -1,0 +1,125 @@
+<!-- CHARTS ROW 1: Evolución Mensual (Full Width) -->
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+
+        <!-- Título y Selector de Año -->
+        <div class="flex items-center gap-4">
+            <h3 class="text-lg font-bold text-gray-800">Evolución Mensual</h3>
+            
+            <!-- Selector de Año -->
+            <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                <button onclick="changeYear(-1)"
+                    class="p-1 hover:bg-white rounded shadow-sm transition text-gray-600 hover:text-blue-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                        </path>
+                    </svg>
+                </button>
+                <span id="currentYear" class="px-3 text-sm font-bold text-gray-700 min-w-[3rem] text-center">2026</span>
+                <button onclick="changeYear(1)"
+                    class="p-1 hover:bg-white rounded shadow-sm transition text-gray-600 hover:text-blue-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Selector de Modo -->
+        <div class="flex bg-gray-100 p-1 rounded-lg">
+            <button onclick="switchMonthlyMode('flow')" id="btn-mode-flow"
+                class="px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-white text-blue-700 shadow-sm">
+                Flujo de Actividad
+            </button>
+            <button onclick="switchMonthlyMode('backlog')" id="btn-mode-backlog"
+                class="px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-700">
+                Estado por Origen
+            </button>
+        </div>
+
+        <!-- Botón Descarga -->
+        <button onclick="downloadChart('chartMonthly', 'Evolucion_Mensual')"
+            class="text-gray-400 hover:text-blue-600 p-1" title="Descargar Imagen">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="relative h-80 w-full mb-8">
+        <canvas id="chartMonthly"></canvas>
+    </div>
+
+    <!-- TABS DE DETALLES (NUEVO DISEÑO) -->
+    <div id="monthlyDetailContainer" class="mt-8 border-t border-gray-100 pt-6 hidden">
+        
+        <!-- Tab Headers & Filter -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-100 mb-4 gap-4">
+            
+            <!-- Tabs -->
+            <div class="flex space-x-4">
+                <button onclick="switchDetailTab('opened')" id="tab-opened" 
+                    class="pb-2 border-b-2 font-medium text-sm transition-colors text-blue-600 border-blue-600">
+                    Vacantes Iniciadas (<span id="count-opened">0</span>)
+                </button>
+                <button onclick="switchDetailTab('closed')" id="tab-closed" 
+                    class="pb-2 border-b-2 font-medium text-sm transition-colors text-gray-500 border-transparent hover:text-gray-700">
+                    Vacantes Cerradas (<span id="count-closed">0</span>)
+                </button>
+                <button onclick="switchDetailTab('starts')" id="tab-starts" 
+                    class="pb-2 border-b-2 font-medium text-sm transition-colors text-gray-500 border-transparent hover:text-gray-700">
+                    Inicios de Personal (<span id="count-starts">0</span>)
+                </button>
+            </div>
+
+            <!-- Filtro de Mes (Movido aquí) -->
+            <select id="monthFilter" onchange="changeFilterMonth(this.value)" 
+                class="bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 rounded-lg py-1.5 pl-3 pr-8 focus:ring-blue-500 cursor-pointer hover:bg-gray-100 transition-colors">
+                <option value="all">Todo el Año</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+            </select>
+        </div>
+
+        <!-- Table Container -->
+        <div class="overflow-x-auto max-h-96 overflow-y-auto rounded-lg border border-gray-100">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold sticky top-0">
+                    <tr>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors" onclick="sortDetails('id')">ID ↑↓</th>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors" onclick="sortDetails('title')">
+                            <span id="col-title-header">Título</span> ↑↓
+                        </th>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors" onclick="sortDetails('created_at')">
+                            <span id="col-created-header">Fecha Creación</span> ↑↓
+                        </th>
+                        
+                        <!-- Columna dinámica según el tab -->
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors bg-blue-50/50" onclick="sortDetails('date')">
+                             <span id="col-date-header">Fecha Inicio</span> ↑↓
+                        </th>
+                        
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors" onclick="sortDetails('status')">Estado Actual ↑↓</th>
+                    </tr>
+                </thead>
+                <tbody id="monthlyDetailBody" class="divide-y divide-gray-50 text-gray-600">
+                    <!-- Filas dinámicas -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,381 @@
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    // --- LÓGICA DE BUSCADOR DE COLABORADORES (AJAX) ---
+    const empSearch = document.getElementById('empSearch');
+    const empDropdown = document.getElementById('empDropdown');
+    const empIdInput = document.getElementById('empId');
+    const selectedEmpName = document.getElementById('selectedEmpName');
+
+    let searchTimeout = null;
+
+    if (empSearch) {
+        empSearch.addEventListener('input', (e) => {
+            const term = e.target.value.trim();
+
+            clearTimeout(searchTimeout);
+
+            if (term.length < 2) {
+                empDropdown.classList.add('hidden');
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    // Usamos ApiClient para el fetch
+                    const employees = await ApiClient.get(`/employees/api/search?q=${encodeURIComponent(term)}`);
+
+                    if (employees.length > 0) {
+                        empDropdown.innerHTML = employees.map(emp => `
+                            <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b last:border-0" 
+                                 onclick="selectEmployee(${emp.id}, '${emp.full_name.replace(/'/g, "\\'")}')">
+                                <div class="font-bold text-gray-800">${emp.full_name}</div>
+                                <div class="text-xs text-gray-500">Doc: ${emp.document_id}</div>
+                            </div>
+                        `).join('');
+                        empDropdown.classList.remove('hidden');
+                    } else {
+                        empDropdown.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No encontrado</div>';
+                        empDropdown.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error fetching employees:', error);
+                    empDropdown.innerHTML = '<div class="px-4 py-2 text-sm text-red-500">Error en la búsqueda</div>';
+                    empDropdown.classList.remove('hidden');
+                }
+            }, 300);
+        });
+
+        // Cerrar dropdown si clic fuera
+        document.addEventListener('click', (e) => {
+            if (!empSearch.contains(e.target) && !empDropdown.contains(e.target)) {
+                empDropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    // Función global para seleccionar desde el dropdown generado
+    window.selectEmployee = (id, name) => {
+        empIdInput.value = id;
+        empSearch.value = name;
+        selectedEmpName.innerText = `Seleccionado: ${name}`;
+        empDropdown.classList.add('hidden');
+    };
+
+    // --- CONFIRM MODAL LOGIC ---
+    let confirmCallback = null;
+    window.openConfirmModal = (message, callback) => {
+        document.getElementById('confirmMessage').innerText = message;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    };
+    window.closeConfirmModal = () => {
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmCallback = null;
+    };
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+        if (confirmCallback) confirmCallback();
+        closeConfirmModal();
+    });
+
+    // --- DELETE VACANCY LOGIC ---
+    window.deleteVacancy = () => {
+        openConfirmModal('¿Estás seguro de eliminar esta vacante permanentemente? Se borrarán todas las etapas y el historial de auditoría.', async () => {
+            try {
+                await ApiClient.delete(`/recruitment/api/vacancies/{{ vacancy.id }}`);
+                showToast('Vacante eliminada correctamente');
+                // Redirigir al listado después de 1 segundo
+                setTimeout(() => window.location.href = '/recruitment/vacancies', 1000);
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        });
+    };
+
+    // --- NOTIFY STATUS LOGIC ---
+    window.notifyStatus = () => {
+        openConfirmModal('¿Enviar reporte de estado al responsable del área?', async () => {
+            try {
+                await ApiClient.post(`/recruitment/api/vacancies/{{ vacancy.id }}/notify-status`, {});
+                showToast('Reporte enviado correctamente');
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        });
+    };
+
+    // --- STAGE MODAL ---
+    const stageModal = document.getElementById('stageModal');
+    window.openStageModal = (stage) => {
+        document.getElementById('stageId').value = stage.id;
+        document.getElementById('stageModalTitle').innerText = `Gestionar: ${stage.name}`;
+        document.getElementById('start_date').value = stage.start_date;
+        document.getElementById('end_date').value = stage.end_date || '';
+        document.getElementById('deadline_date').value = stage.deadline_date || '';
+        document.getElementById('notes').value = stage.notes || '';
+        stageModal.classList.remove('hidden');
+    };
+    window.closeStageModal = () => stageModal.classList.add('hidden');
+
+    document.getElementById('btnSaveStage').addEventListener('click', async () => {
+        const formData = new FormData(document.getElementById('stageForm'));
+        const data = Object.fromEntries(formData.entries());
+        const id = data.id;
+        delete data.id;
+
+        if (!data.end_date) data.end_date = null;
+        if (!data.deadline_date) data.deadline_date = null;
+
+        try {
+            await ApiClient.put(`/recruitment/api/stages/${id}`, data);
+            showToast('Etapa actualizada');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    window.notifyStage = async (id) => {
+        try {
+            await ApiClient.post(`/recruitment/api/stages/${id}/notify`, {});
+            showToast('Notificación enviada');
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+
+    // --- EDIT VACANCY MODAL (CASCADA) ---
+    const editVacancyModal = document.getElementById('editVacancyModal');
+
+    window.openEditVacancyModal = async () => {
+        try {
+            // 1. Consultar datos frescos desde la API
+            const vacancy = await ApiClient.get(`/recruitment/api/vacancies/{{ vacancy.id }}`);
+
+            // Pre-llenar campos básicos
+            document.querySelector('input[name="title"]').value = vacancy.title;
+            document.querySelector('textarea[name="description"]').value = vacancy.description;
+            document.getElementById('edit_is_headcount_increase').checked = vacancy.is_headcount_increase;
+            
+            // Pre-llenar Reclutador y Motivo
+            if (vacancy.recruiter_id) {
+                const recSelect = document.querySelector('select[name="recruiter_id"]');
+                if(recSelect) recSelect.value = vacancy.recruiter_id;
+            }
+            if (vacancy.hiring_reason_id) {
+                const reasonSelect = document.querySelector('select[name="hiring_reason_id"]');
+                if(reasonSelect) reasonSelect.value = vacancy.hiring_reason_id;
+            }
+
+            // 2. Determinar IDs para la cascada (Sede -> Área -> Cargo)
+            let sedeId = null;
+            let areaId = vacancy.area_id; // Usar el ID directo de la vacante
+            let posId = vacancy.position_id;
+
+            // Intento 1: Obtener desde la Posición (si existe)
+            if (vacancy.position?.area?.sede?.id) {
+                sedeId = vacancy.position.area.sede.id;
+                areaId = vacancy.position.area.id;
+            } 
+            // Intento 2: Obtener desde el Área (si existe el objeto completo)
+            else if (vacancy.area?.sede?.id) {
+                sedeId = vacancy.area.sede.id;
+            }
+            // Intento 3: Si tenemos area_id pero no sede_id (caso importación Excel), buscamos el área
+            else if (areaId && !sedeId) {
+                try {
+                    const areaDetail = await ApiClient.get(`/organization/api/areas/${areaId}`);
+                    if (areaDetail && areaDetail.sede) {
+                        sedeId = areaDetail.sede.id;
+                    }
+                } catch (err) {
+                    console.error("Error recuperando detalles del área para preselección:", err);
+                }
+            }
+
+            // 3. Ejecutar Cascada
+            if (sedeId) {
+                const sedeSelect = document.getElementById('edit_sede_select');
+                sedeSelect.value = sedeId;
+                
+                // Cargar Áreas
+                await loadEditAreas(sedeId, areaId);
+
+                // Cargar Cargos (si hay área)
+                if (areaId) {
+                    await loadEditPositions(areaId, posId);
+                }
+            }
+
+            editVacancyModal.classList.remove('hidden');
+        } catch (e) {
+            showToast("Error cargando datos de la vacante: " + e.message, "error");
+            console.error(e);
+        }
+    };
+
+    window.closeEditVacancyModal = () => editVacancyModal.classList.add('hidden');
+
+    // Función para cargar áreas en el modal de edición
+    window.loadEditAreas = async (sedeId, selectedAreaId = null) => {
+        const areaSelect = document.getElementById('edit_area_select');
+        const posSelect = document.getElementById('edit_position_select');
+
+        areaSelect.innerHTML = '<option>Cargando...</option>';
+        areaSelect.disabled = true;
+        areaSelect.classList.add('bg-gray-50');
+
+        // Resetear cargos si cambia la sede
+        posSelect.innerHTML = '<option value="">Primero seleccione Área</option>';
+        posSelect.disabled = true;
+        posSelect.classList.add('bg-gray-50');
+
+        if (!sedeId) {
+            areaSelect.innerHTML = '<option value="">Primero seleccione Sede</option>';
+            return;
+        }
+
+        try {
+            const areas = await ApiClient.get(`/organization/api/areas?sede_id=${sedeId}`);
+            areaSelect.innerHTML = '<option value="">Seleccione Área...</option>';
+
+            if (areas.length > 0) {
+                areas.forEach(area => {
+                    const isSelected = (selectedAreaId && area.id === selectedAreaId) ? 'selected' : '';
+                    areaSelect.innerHTML += `<option value="${area.id}" ${isSelected}>${area.name}</option>`;
+                });
+                areaSelect.disabled = false;
+                areaSelect.classList.remove('bg-gray-50');
+            } else {
+                areaSelect.innerHTML = '<option value="">Sin áreas registradas</option>';
+            }
+        } catch (e) {
+            console.error(e);
+            areaSelect.innerHTML = '<option>Error al cargar</option>';
+        }
+    };
+
+    // Función para cargar cargos en el modal de edición
+    window.loadEditPositions = async (areaId, selectedPosId = null) => {
+        const posSelect = document.getElementById('edit_position_select');
+
+        posSelect.innerHTML = '<option>Cargando...</option>';
+        posSelect.disabled = true;
+        posSelect.classList.add('bg-gray-50');
+
+        if (!areaId) {
+            posSelect.innerHTML = '<option value="">Primero seleccione Área</option>';
+            return;
+        }
+
+        try {
+            const area = await ApiClient.get(`/organization/api/areas/${areaId}`);
+            posSelect.innerHTML = '<option value="">-- Seleccione Cargo --</option>';
+
+            if (area.positions && area.positions.length > 0) {
+                area.positions.forEach(pos => {
+                    const isSelected = (selectedPosId && pos.id === selectedPosId) ? 'selected' : '';
+                    posSelect.innerHTML += `<option value="${pos.id}" ${isSelected}>${pos.name}</option>`;
+                });
+                posSelect.disabled = false;
+                posSelect.classList.remove('bg-gray-50');
+            } else {
+                posSelect.innerHTML = '<option value="">Sin cargos registrados</option>';
+            }
+        } catch (e) {
+            console.error(e);
+            posSelect.innerHTML = '<option>Error al cargar cargos</option>';
+        }
+    };
+
+    document.getElementById('btnSaveVacancyEdit').addEventListener('click', async () => {
+        const form = document.getElementById('editVacancyForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        data.is_headcount_increase = document.getElementById('edit_is_headcount_increase').checked;
+
+        try {
+            await ApiClient.put(`/recruitment/api/vacancies/{{ vacancy.id }}`, data);
+            showToast('Vacante actualizada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    // --- CLOSE VACANCY MODAL ---
+    const closeVacancyModal = document.getElementById('closeVacancyModal');
+    window.openCloseVacancyModal = () => {
+        document.getElementById('closeVacancyForm').reset();
+        empIdInput.value = '';
+        selectedEmpName.innerText = '';
+        toggleCloseFields();
+        closeVacancyModal.classList.remove('hidden');
+    };
+    window.closeCloseVacancyModal = () => closeVacancyModal.classList.add('hidden');
+
+    window.toggleCloseFields = () => {
+        const status = document.getElementById('vacancyStatus').value;
+        const closeFields = document.getElementById('closeFields');
+        if (status === 'closed') {
+            closeFields.classList.remove('hidden');
+        } else {
+            closeFields.classList.add('hidden');
+        }
+    };
+
+    window.toggleCandidateFields = () => {
+        const type = document.getElementById('vacancyType').value;
+        const extFields = document.getElementById('externalFields');
+        const intFields = document.getElementById('internalFields');
+
+        extFields.classList.add('hidden');
+        intFields.classList.add('hidden');
+
+        if (type === 'external') {
+            extFields.classList.remove('hidden');
+        } else if (type === 'internal' || type === 'transfer') {
+            intFields.classList.remove('hidden');
+        }
+    };
+
+    document.getElementById('btnCloseVacancy').addEventListener('click', async () => {
+        const form = document.getElementById('closeVacancyForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        const obs = data.description_append;
+        const currentDesc = `{{ vacancy.description }}`;
+        data.description = obs ? `${currentDesc}\n\n[CIERRE ${new Date().toLocaleDateString()}]: ${obs}` : currentDesc;
+        delete data.description_append;
+
+        if (data.status === 'cancelled') {
+            delete data.vacancy_type;
+            delete data.start_date;
+            delete data.candidate_name;
+            delete data.candidate_document;
+            delete data.candidate_email;
+            delete data.selected_employee_id;
+        }
+
+        if (data.status === 'closed') {
+            if (!data.vacancy_type) {
+                showToast('Debe seleccionar el tipo de cobertura', 'error');
+                return;
+            }
+            if (!data.start_date) {
+                showToast('La fecha de inicio es obligatoria', 'error');
+                return;
+            }
+            if (data.vacancy_type === 'external' && (!data.candidate_name || !data.candidate_document)) {
+                showToast('Nombre y Documento son obligatorios para externos', 'error');
+                return;
+            }
+            if ((data.vacancy_type === 'internal' || data.vacancy_type === 'transfer') && !data.selected_employee_id) {
+                showToast('Debe seleccionar un colaborador', 'error');
+                return;
+            }
+        }
+
+        try {
+            await ApiClient.put(`/recruitment/api/vacancies/{{ vacancy.id }}`, data);
+            showToast('Vacante cerrada y procesada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+</script>

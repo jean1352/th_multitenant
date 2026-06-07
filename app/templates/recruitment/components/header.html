@@ -1,0 +1,95 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <div class="flex items-center gap-3 mb-1">
+                <a href="/recruitment/vacancies" class="text-gray-400 hover:text-blue-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                </a>
+                <h1 class="text-2xl font-bold text-gray-900">{{ vacancy.title }}</h1>
+                {% if vacancy.status == 'open' %}
+                    <span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-green-200">ABIERTO</span>
+                {% elif vacancy.status == 'closed' %}
+                    <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-gray-200">CERRADO</span>
+                {% else %}
+                    <span class="bg-red-100 text-red-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-red-200">CANCELADO</span>
+                {% endif %}
+            </div>
+            <div class="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
+                <span class="flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                    {{ vacancy.area_name }} ({{ vacancy.sede_name }})
+                </span>
+                <span class="flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012 2"></path></svg>
+                    {{ vacancy.process_name }}
+                </span>
+                <span class="flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Creado: {{ vacancy.created_at | format_date }}
+                </span>
+                {% if vacancy.position %}
+                <span class="flex items-center gap-1 text-blue-600 font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    Cargo: {{ vacancy.position.name }}
+                </span>
+                {% endif %}
+                
+                {% if vacancy.is_headcount_increase %}
+                <span class="flex items-center gap-1 text-purple-700 font-medium bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Aumento Dotación
+                </span>
+                {% endif %}
+                
+                {% if vacancy.start_date %}
+                <span class="flex items-center gap-1 text-green-700 font-medium bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Inicio: {{ vacancy.start_date | format_date }}
+                </span>
+                {% endif %}
+                
+                <span class="flex items-center gap-1 px-2 py-0.5 rounded border {{ 'bg-red-50 border-red-200 text-red-700' if vacancy.global_sla_status == 'overdue' else 'bg-blue-50 border-blue-200 text-blue-700' }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="font-bold">{{ vacancy.total_days_elapsed }}</span> / {{ vacancy.total_sla_days }} días
+                </span>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <!-- BOTONES DE ACCIÓN: Visibles si está ABIERTA o si el usuario es ADMIN -->
+            {% if vacancy.status == 'open' or (current_user and current_user.role.value == 'admin') %}
+                <!-- BOTÓN NOTIFICAR STATUS -->
+                <button onclick="notifyStatus()" class="bg-white border border-blue-300 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition-colors flex items-center gap-2" title="Enviar reporte al responsable">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Notificar Status
+                </button>
+
+                <button onclick="openEditVacancyModal()" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    Editar
+                </button>
+                <button onclick="openCloseVacancyModal()" class="bg-white border border-orange-300 text-orange-600 hover:bg-orange-50 px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Cerrar
+                </button>
+            {% endif %}
+            
+            <!-- Botón Eliminar (Siempre visible) -->
+            <button onclick="deleteVacancy()" class="bg-white border border-red-300 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition-colors flex items-center gap-2" title="Eliminar permanentemente">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Eliminar
+            </button>
+        </div>
+    </div>
+
+    <!-- Metrics & Timeline -->
+    <div class="mt-6">
+        <div class="flex justify-between text-xs font-semibold text-gray-500 mb-1">
+            <span>Progreso del Proceso</span>
+            <span>{{ vacancy.progress_percent }}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: {{ vacancy.progress_percent }}%"></div>
+        </div>
+    </div>
+</div>

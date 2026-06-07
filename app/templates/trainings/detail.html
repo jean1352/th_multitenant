@@ -1,0 +1,551 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ training.name }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="/trainings/" class="text-blue-600 hover:underline text-sm">&larr; Volver</a>
+    <div class="flex justify-between items-start mt-2">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ training.name }}</h1>
+            
+            <!-- INFO TIPO DE CAPACITACIÓN -->
+            <div class="text-gray-600 mt-1 flex gap-4 items-center flex-wrap">
+                <span class="flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    {{ training.start_date.strftime('%d/%m') }} - {{ training.end_date.strftime('%d/%m/%Y') }}
+                </span>
+                
+                {% if training.type.value == 'internal' %}
+                    <span class="bg-purple-50 text-purple-800 px-2 py-0.5 rounded text-sm border border-purple-200 font-medium">INTERNA</span>
+                    {% if training.internal_instructor %}
+                        <a href="/employees/{{ training.internal_instructor.id }}" class="text-blue-600 hover:underline text-sm flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            {{ training.internal_instructor.full_name }}
+                        </a>
+                    {% else %}
+                        <span class="text-gray-400 text-sm italic">Instructor no asignado</span>
+                    {% endif %}
+                {% else %}
+                    <span class="bg-orange-50 text-orange-800 px-2 py-0.5 rounded text-sm border border-orange-200 font-medium">EXTERNA</span>
+                    <span class="text-gray-700 text-sm font-medium flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        {{ training.provider_obj.business_name if training.provider_obj else 'Sin Proveedor' }}
+                    </span>
+                {% endif %}
+            </div>
+            
+            {% if training.type.value == 'external' %}
+            <div class="mt-2 text-xs text-gray-500 flex gap-4 bg-gray-50 p-2 rounded w-fit border border-gray-100">
+                <span>Costo x Persona: <strong class="text-gray-700">${{ training.cost_per_person }}</strong></span>
+                <span class="border-l pl-4 border-gray-300">Costo Empresa: <strong class="text-gray-700">${{ training.company_cost }}</strong></span>
+            </div>
+            {% endif %}
+        </div>
+        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold uppercase">{{ training.status | translate_status }}</span>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="mb-6 border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8">
+        <button onclick="switchTab('participants')" id="tab-participants" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">Participantes</button>
+        <button onclick="switchTab('agenda')" id="tab-agenda" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">Agenda y Asistencia</button>
+    </nav>
+</div>
+
+<!-- TAB: PARTICIPANTES -->
+<div id="content-participants" class="block animate-fade-in">
+    <div class="bg-white rounded shadow p-6">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+            <h2 class="text-xl font-bold text-gray-800">Listado de Inscritos</h2>
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="openInviteModal()" class="bg-purple-600 text-white px-3 py-1.5 rounded text-sm hover:bg-purple-700 flex items-center gap-2 transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Enviar Invitaciones
+                </button>
+                <button onclick="remindAll()" class="bg-yellow-500 text-white px-3 py-1.5 rounded text-sm hover:bg-yellow-600 flex items-center gap-1 transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    Recordatorio
+                </button>
+                <button onclick="document.getElementById('enrollModal').classList.remove('hidden')" class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition-colors shadow-sm">
+                    + Inscribir Manual
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros Inscritos -->
+        <form action="" method="GET" class="mb-4 flex gap-2">
+            <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="Buscar nombre..." class="border p-2 rounded text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none">
+            <select name="area_id" class="border p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">Todas las Áreas</option>
+                {% for area in areas %}
+                    <option value="{{ area.id }}" {% if filters.area_id == area.id|string %}selected{% endif %}>{{ area.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="bg-gray-100 px-3 py-1 rounded text-sm hover:bg-gray-200 border border-gray-300">Filtrar</button>
+        </form>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+                        <th class="px-4 py-3 font-semibold">Nombre</th>
+                        <th class="px-4 py-3 font-semibold">Área</th>
+                        <th class="px-4 py-3 font-semibold">Estado</th>
+                        <th class="px-4 py-3 font-semibold">Nota</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-sm">
+                    {% for enroll in enrollments.data %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 font-medium text-gray-900">{{ enroll.employee.full_name }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ enroll.employee.position_obj.area.name }}</td>
+                        <td class="px-4 py-3">
+                            {% if enroll.status.value == 'invited' %}
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-bold">Invitado</span>
+                            {% elif enroll.status.value == 'enrolled' %}
+                                <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">Confirmado</span>
+                            {% elif enroll.status.value == 'declined' %}
+                                <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-bold">Rechazado</span>
+                            {% elif enroll.status.value == 'attended' %}
+                                <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-bold">Asistió</span>
+                            {% else %}
+                                <span class="bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs font-bold">{{ enroll.status | translate_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">{{ enroll.knowledge_score or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">No hay inscritos en esta capacitación.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación Inscritos -->
+        {% if enrollments.total_pages > 1 %}
+        <div class="mt-4 flex justify-center gap-2 text-sm">
+            {% if enrollments.has_prev %}
+            <a href="?page={{ enrollments.page - 1 }}&q={{ filters.q or '' }}&area_id={{ filters.area_id or '' }}" class="px-3 py-1 border rounded hover:bg-gray-50">Anterior</a>
+            {% endif %}
+            <span class="px-3 py-1 text-gray-500">Página {{ enrollments.page }}</span>
+            {% if enrollments.has_next %}
+            <a href="?page={{ enrollments.page + 1 }}&q={{ filters.q or '' }}&area_id={{ filters.area_id or '' }}" class="px-3 py-1 border rounded hover:bg-gray-50">Siguiente</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- TAB: AGENDA -->
+<div id="content-agenda" class="hidden animate-fade-in">
+    <div class="bg-white rounded shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800">Sesiones Programadas</h2>
+            <button onclick="document.getElementById('genModal').classList.remove('hidden')" class="bg-blue-900 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-800 shadow-sm transition-colors">Generar Sesiones</button>
+        </div>
+        
+        <div class="space-y-3">
+            {% for session in sessions %}
+            <div class="border rounded-lg p-4 flex justify-between items-start hover:bg-gray-50 transition-colors">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-800">{{ session.date }}</span>
+                        <span class="text-sm text-gray-500">{{ session.start_time }} - {{ session.end_time }}</span>
+                        {% if session.status == 'closed' %}
+                            <span class="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded font-bold">Cerrada</span>
+                        {% elif session.status == 'open' %}
+                            <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-bold animate-pulse">Abierta</span>
+                        {% else %}
+                            <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded font-bold">Pendiente</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-base font-medium text-gray-900 mt-1">{{ session.topic }}</p>
+                    {% if session.description %}
+                        <p class="text-sm text-gray-500 mt-0.5">{{ session.description }}</p>
+                    {% endif %}
+                    {% if session.instructor %}
+                        <p class="text-xs text-blue-600 mt-1 font-medium">Instructor: {{ session.instructor }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex gap-2">
+                    <button onclick='editSession({{ session|tojson }})' class="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title="Editar">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    </button>
+                    <button onclick="openAttendance({{ session.id }}, '{{ session.topic }}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium border border-blue-200 px-3 py-1 rounded hover:bg-blue-50 transition-colors">
+                        Tomar Lista
+                    </button>
+                    <button onclick="openConfirmModal('¿Eliminar esta sesión?', () => deleteSession({{ session.id }}))" class="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50" title="Eliminar">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center text-gray-500 py-8 bg-gray-50 rounded border border-dashed">No hay sesiones programadas.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL INVITACIÓN MASIVA -->
+<div id="inviteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-[800px] max-h-[90vh] overflow-y-auto">
+        <h2 class="text-lg font-bold mb-2">Enviar Invitaciones</h2>
+        <p class="text-sm text-gray-500 mb-4">Los colaboradores recibirán un correo con un link único para confirmar.</p>
+        
+        <form id="inviteForm" class="space-y-4">
+            <!-- Filtros -->
+            <div class="bg-gray-50 p-3 rounded border">
+                <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Filtros de Destinatarios</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium">Sedes</label>
+                        <select multiple name="sede_ids" id="invite_sedes" class="w-full border p-1 rounded text-sm h-24" onchange="updateInviteAreas()">
+                            {% for sede in sedes %}<option value="{{ sede.id }}">{{ sede.name }}</option>{% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-400">Ctrl+Click para múltiples</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Áreas (Filtradas por Sede)</label>
+                        <select multiple name="area_ids" id="invite_areas" class="w-full border p-1 rounded text-sm h-24">
+                            <option value="" disabled>Seleccione sedes primero</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenido Correo -->
+            <div>
+                <label class="block text-sm font-medium">Asunto del Correo</label>
+                <input name="subject" value="Invitación: {{ training.name }}" class="w-full border p-2 rounded" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Cuerpo del Correo</label>
+                <textarea id="html_body" name="html_body" class="w-full h-64">
+<p>Hola <strong>{{ '{{name}}' }}</strong>,</p>
+<p>Estás cordialmente invitado a la capacitación <strong>{{ training.name }}</strong>.</p>
+<p>Fecha de Inicio: {{ training.start_date.strftime('%d/%m/%Y') }}</p>
+<p>{{ training.description or '' }}</p>
+<br>
+<p>Por favor, confirma tu asistencia haciendo clic en el siguiente enlace:</p>
+<p><a href="{{ '{{link}}' }}" style="background-color: #003366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirmar Asistencia</a></p>
+<br>
+<p>Atentamente,<br>Talento Humano UP</p>
+                </textarea>
+            </div>
+
+            <div class="flex gap-2 justify-end pt-2 border-t">
+                <button type="button" onclick="document.getElementById('inviteModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 px-4 py-2">Cancelar</button>
+                <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Enviar Invitaciones</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN -->
+<div id="confirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96 transform transition-all scale-100">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Confirmar Acción</h3>
+        <p id="confirmMessage" class="text-gray-600 mb-6">¿Estás seguro?</p>
+        <div class="flex justify-end gap-3">
+            <button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium">Cancelar</button>
+            <button id="confirmBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR SESIÓN -->
+<div id="editSessionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-lg font-bold mb-4">Editar Sesión</h2>
+        <form id="editSessionForm" class="space-y-3">
+            <input type="hidden" name="id" id="editSessionId">
+            <input name="topic" id="editTopic" placeholder="Tema / Módulo" class="w-full border p-2 rounded" required>
+            <textarea name="description" id="editDescription" placeholder="Detalles" class="w-full border p-2 rounded h-20"></textarea>
+            <input name="instructor" id="editInstructor" placeholder="Instructor" class="w-full border p-2 rounded">
+            
+            <div class="grid grid-cols-2 gap-2">
+                <input name="date" id="editDate" type="date" class="w-full border p-2 rounded" required>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <input name="start_time" id="editStartTime" type="time" class="w-full border p-2 rounded" required>
+                <input name="end_time" id="editEndTime" type="time" class="w-full border p-2 rounded" required>
+            </div>
+            <button type="submit" class="w-full bg-blue-900 text-white px-4 py-2 rounded">Guardar Cambios</button>
+            <button type="button" onclick="document.getElementById('editSessionModal').classList.add('hidden')" class="w-full text-gray-500 mt-2">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL GENERAR SESIONES -->
+<div id="genModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-lg font-bold mb-4">Generar Agenda</h2>
+        <form id="genForm" class="space-y-3">
+            <input name="topic" placeholder="Tema / Módulo" class="w-full border p-2 rounded" required>
+            <textarea name="description" placeholder="Detalles (Opcional)" class="w-full border p-2 rounded h-20"></textarea>
+            <input name="instructor" placeholder="Instructor (Opcional)" class="w-full border p-2 rounded">
+            
+            <div class="grid grid-cols-2 gap-2">
+                <input name="start_date" type="date" class="w-full border p-2 rounded" required>
+                <input name="end_date" type="date" class="w-full border p-2 rounded" required>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <input name="start_time" type="time" class="w-full border p-2 rounded" required>
+                <input name="end_time" type="time" class="w-full border p-2 rounded" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Días de la semana</label>
+                <div class="flex gap-2 flex-wrap">
+                    <label><input type="checkbox" name="days" value="0"> Lun</label>
+                    <label><input type="checkbox" name="days" value="1"> Mar</label>
+                    <label><input type="checkbox" name="days" value="2"> Mié</label>
+                    <label><input type="checkbox" name="days" value="3"> Jue</label>
+                    <label><input type="checkbox" name="days" value="4"> Vie</label>
+                    <label><input type="checkbox" name="days" value="5"> Sáb</label>
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-blue-900 text-white px-4 py-2 rounded">Generar</button>
+            <button type="button" onclick="document.getElementById('genModal').classList.add('hidden')" class="w-full text-gray-500 mt-2">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL INSCRIBIR MANUAL -->
+<div id="enrollModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-lg font-bold mb-4">Inscribir Colaborador</h2>
+        <form id="enrollForm">
+            <label class="block text-sm font-medium mb-1">Seleccionar Colaborador</label>
+            <select name="employee_id" class="w-full border p-2 rounded mb-4 bg-white">
+                {% for emp in employees %}<option value="{{ emp.id }}">{{ emp.full_name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Inscribir</button>
+            <button type="button" onclick="document.getElementById('enrollModal').classList.add('hidden')" class="w-full text-gray-500 mt-2">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ASISTENCIA -->
+<div id="attendanceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-[600px] max-h-[80vh] overflow-y-auto">
+        <h2 class="text-lg font-bold mb-2" id="attTitle">Asistencia</h2>
+        <p class="text-sm text-gray-500 mb-4">Marca a los presentes.</p>
+        <form id="attForm">
+            <input type="hidden" id="attSessionId">
+            <div id="attList" class="space-y-2 mb-4"></div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('attendanceModal').classList.add('hidden')" class="text-gray-500 px-4 py-2">Cancelar</button>
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Guardar y Cerrar Sesión</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TinyMCE CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    // Inicializar TinyMCE
+    tinymce.init({
+        selector: '#html_body',
+        height: 300,
+        menubar: false,
+        plugins: 'link lists image',
+        toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image',
+        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+    });
+
+    // --- CONFIRM MODAL LOGIC ---
+    let confirmCallback = null;
+    window.openConfirmModal = (message, callback) => {
+        document.getElementById('confirmMessage').innerText = message;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    };
+    window.closeConfirmModal = () => {
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmCallback = null;
+    };
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+        if (confirmCallback) confirmCallback();
+        closeConfirmModal();
+    });
+
+    // --- TABS ---
+    window.switchTab = (tab) => {
+        document.getElementById('content-participants').classList.add('hidden');
+        document.getElementById('content-agenda').classList.add('hidden');
+        document.getElementById('tab-participants').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+        document.getElementById('tab-agenda').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+        document.getElementById(`content-${tab}`).classList.remove('hidden');
+        document.getElementById(`tab-${tab}`).className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+    };
+
+    // --- ACTIONS ---
+    window.remindAll = async () => {
+        try {
+            const res = await ApiClient.post('/trainings/api/{{ training.id }}/remind_all', {});
+            showToast(res.message);
+        } catch(e) { showToast(e.message, 'error'); }
+    };
+
+    document.getElementById('enrollForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await ApiClient.post('/trainings/api/{{ training.id }}/enroll', Object.fromEntries(new FormData(e.target)));
+            showToast('Inscrito');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    document.getElementById('genForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const days = [];
+        e.target.querySelectorAll('input[name="days"]:checked').forEach(cb => days.push(parseInt(cb.value)));
+        
+        const payload = {
+            topic: formData.get('topic'),
+            description: formData.get('description'),
+            instructor: formData.get('instructor'),
+            start_date: formData.get('start_date'),
+            end_date: formData.get('end_date'),
+            start_time: formData.get('start_time'),
+            end_time: formData.get('end_time'),
+            days_of_week: days
+        };
+
+        try {
+            await ApiClient.post('/trainings/api/{{ training.id }}/sessions/generate', payload);
+            showToast('Sesiones generadas');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    // --- INVITATION LOGIC ---
+    window.openInviteModal = () => document.getElementById('inviteModal').classList.remove('hidden');
+    
+    window.updateInviteAreas = async () => {
+        const sedeSelect = document.getElementById('invite_sedes');
+        const areaSelect = document.getElementById('invite_areas');
+        const selectedSedes = Array.from(sedeSelect.selectedOptions).map(o => o.value);
+        
+        areaSelect.innerHTML = '<option>Cargando...</option>';
+        
+        if (selectedSedes.length === 0) {
+            areaSelect.innerHTML = '<option value="" disabled>Seleccione sedes primero</option>';
+            return;
+        }
+
+        try {
+            const promises = selectedSedes.map(id => ApiClient.get(`/organization/api/areas?sede_id=${id}`));
+            const results = await Promise.all(promises);
+            
+            areaSelect.innerHTML = '';
+            results.flat().forEach(a => {
+                areaSelect.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+            });
+        } catch(e) { console.error(e); }
+    };
+
+    document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        tinymce.triggerSave();
+        const formData = new FormData(e.target);
+        
+        const sedeIds = Array.from(e.target.querySelector('select[name="sede_ids"]').selectedOptions).map(opt => parseInt(opt.value));
+        const areaIds = Array.from(e.target.querySelector('select[name="area_ids"]').selectedOptions).map(opt => parseInt(opt.value));
+        
+        const payload = {
+            sede_ids: sedeIds,
+            area_ids: areaIds,
+            subject: formData.get('subject'),
+            html_body: formData.get('html_body')
+        };
+
+        try {
+            const res = await ApiClient.post('/trainings/api/{{ training.id }}/invite', payload);
+            showToast(res.message);
+            document.getElementById('inviteModal').classList.add('hidden');
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    // --- EDIT SESSION ---
+    window.editSession = (session) => {
+        document.getElementById('editSessionId').value = session.id;
+        document.getElementById('editTopic').value = session.topic;
+        document.getElementById('editDescription').value = session.description || '';
+        document.getElementById('editInstructor').value = session.instructor || '';
+        document.getElementById('editDate').value = session.date;
+        document.getElementById('editStartTime').value = session.start_time;
+        document.getElementById('editEndTime').value = session.end_time;
+        document.getElementById('editSessionModal').classList.remove('hidden');
+    };
+
+    document.getElementById('editSessionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const id = formData.get('id');
+        const data = Object.fromEntries(formData);
+        delete data.id;
+
+        try {
+            await ApiClient.put(`/trainings/api/sessions/${id}`, data);
+            showToast('Sesión actualizada');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.deleteSession = async (id) => {
+        try {
+            await ApiClient.delete(`/trainings/api/sessions/${id}`);
+            window.location.reload();
+        } catch(err) { showToast(err.message, 'error'); }
+    };
+
+    window.openAttendance = async (sessionId, topic) => {
+        document.getElementById('attTitle').innerText = `Asistencia: ${topic}`;
+        document.getElementById('attSessionId').value = sessionId;
+        const list = document.getElementById('attList');
+        list.innerHTML = '<p class="text-center text-gray-500">Cargando...</p>';
+        document.getElementById('attendanceModal').classList.remove('hidden');
+        try {
+            const data = await ApiClient.get(`/trainings/api/sessions/${sessionId}/attendance`);
+            list.innerHTML = '';
+            data.forEach(item => {
+                list.innerHTML += `
+                    <div class="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="present_${item.enrollment_id}" ${item.is_present ? 'checked' : ''} class="w-5 h-5 text-green-600 rounded focus:ring-green-500">
+                            <span class="ml-3 font-medium text-gray-700">${item.employee_name}</span>
+                        </label>
+                        <input type="text" name="note_${item.enrollment_id}" value="${item.notes || ''}" placeholder="Observación..." class="text-sm border rounded p-1 w-1/3">
+                    </div>
+                `;
+            });
+        } catch(err) { list.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`; }
+    };
+
+    document.getElementById('attForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const sessionId = document.getElementById('attSessionId').value;
+        const form = e.target;
+        const attendances = [];
+        const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            const enrollId = cb.name.split('_')[1];
+            const noteInput = form.querySelector(`input[name="note_${enrollId}"]`);
+            attendances.push({ enrollment_id: parseInt(enrollId), is_present: cb.checked, notes: noteInput.value });
+        });
+        try {
+            await ApiClient.post(`/trainings/api/sessions/${sessionId}/attendance`, { attendances });
+            showToast('Asistencia guardada');
+            document.getElementById('attendanceModal').classList.add('hidden');
+            setTimeout(() => window.location.reload(), 500);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+</script>
+{% endblock %}

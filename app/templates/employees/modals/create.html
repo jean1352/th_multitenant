@@ -1,0 +1,178 @@
+<div id="empModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="p-6 border-b border-gray-100 bg-white z-10 shrink-0">
+            <h2 class="text-xl font-bold text-gray-800">Nuevo Colaborador</h2>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <form id="empForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-100 pb-6">
+                <div class="col-span-2">
+                    <p class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Información Personal</p>
+                </div>
+                <input id="first_name" name="first_name" placeholder="Nombres" class="w-full border p-2 rounded"
+                    required>
+                <input id="last_name" name="last_name" placeholder="Apellidos" class="w-full border p-2 rounded"
+                    required>
+                <input id="document_id" name="document_id" placeholder="DNI/Cédula" class="w-full border p-2 rounded"
+                    required>
+                <input id="institutional_email" name="institutional_email" type="email"
+                    placeholder="Email Institucional" class="w-full border p-2 rounded">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-100 pb-6">
+                <div class="col-span-1 md:col-span-2">
+                    <p class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Asignación Inicial</p>
+                </div>
+                <select id="area_select" class="w-full border p-2 rounded bg-white" required
+                    onchange="loadPositions(this.value)">
+                    <option value="">Seleccione Área...</option>
+                    {% for area in areas %}
+                    <option value="{{ area.id }}">{{ area.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select id="position_id" name="position_id" class="w-full border p-2 rounded bg-gray-50" required disabled>
+                    <option value="">Primero seleccione un área</option>
+                </select>
+
+                <select id="company_id" name="company_id" class="w-full border p-2 rounded bg-white" required>
+                    <option value="">Seleccione Empresa...</option>
+                    {% for company in companies %}
+                    <option value="{{ company.id }}">{{ company.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="contract_type_id" class="w-full border p-2 rounded bg-white">
+                    <option value="">Tipo de Contrato...</option>
+                    {% for ct in contract_types %}
+                        <option value="{{ ct.id }}">{{ ct.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-100 pb-6">
+                <div class="col-span-1 md:col-span-2">
+                    <p class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Detalles de Contratación</p>
+                </div>
+
+                <div class="flex flex-col">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Fecha Fin Contrato</label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" id="create_is_indefinite" class="w-3 h-3 text-blue-600 rounded border-gray-300 focus:ring-blue-500" checked
+                                onchange="document.getElementById('create_contract_end_date').disabled = this.checked; if(this.checked) document.getElementById('create_contract_end_date').value = '';">
+                            <span class="text-[10px] text-gray-500 font-bold uppercase">Indefinido</span>
+                        </label>
+                    </div>
+                    <input type="date" name="contract_end_date" id="create_contract_end_date" class="w-full border p-2 rounded disabled:bg-gray-50 disabled:text-gray-400" disabled>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Jornada *</label>
+                    <select name="working_day_type_id" class="w-full border p-2 rounded" required>
+                        <option value="">Seleccionar...</option>
+                        {% for x in working_day_types %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col col-span-2 mt-2">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1 mb-1">Horario Semanal (Días y Modalidad)</label>
+                    <input type="hidden" name="work_schedule" id="create_work_schedule">
+                    <input type="hidden" name="work_days" id="create_work_days">
+                    <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 font-bold w-28 border-b border-gray-200">Día</th>
+                                    <th class="px-3 py-2 font-bold border-b border-gray-200">Horario</th>
+                                    <th class="px-3 py-2 font-bold border-b border-gray-200">Modalidad</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100" id="create_schedule_grid">
+                                <!-- JS fills this -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex flex-col mt-4">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase ml-1">Tipo de Salario *</label>
+                    <select name="salary_type_id" class="w-full border p-2 rounded" required>
+                        <option value="">Seleccionar...</option>
+                        {% for x in salary_types %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex gap-2">
+                    <select name="currency_id" class="w-24 border p-2 rounded" required>
+                        {% for x in currencies %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                    </select>
+                    <input type="number" name="base_salary" placeholder="Salario Base *" class="flex-1 border p-2 rounded" required step="0.01">
+                </div>
+
+                <select name="payment_method_id" class="w-full border p-2 rounded" required>
+                    <option value="">Forma de Pago... *</option>
+                    {% for x in payment_methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                </select>
+
+                <select name="bank_id" class="w-full border p-2 rounded" required>
+                    <option value="">Banco... *</option>
+                    {% for x in banks %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                </select>
+
+                <select name="cost_center_id" class="w-full border p-2 rounded col-span-1 md:col-span-2">
+                    <option value="">Centro de Costo (Opcional)...</option>
+                    {% for x in cost_centers %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+                </select>
+
+                <div class="flex flex-col col-span-1 md:col-span-2 pt-2">
+                    <p class="text-[10px] font-bold text-blue-500 uppercase mb-2">Configuración de Periodo de Prueba</p>
+                    <select name="probation_duration_id" class="w-full border p-2 rounded bg-white">
+                        <option value="">Sin Periodo de Prueba...</option>
+                        {% for x in probation_durations %}<option value="{{ x.id }}">{{ x.name }} ({{ x.days }} días)</option>{% endfor %}
+                    </select>
+                </div>
+                </div>
+
+                <!-- CONTACTO Y EMERGENCIA -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-b border-gray-100 pb-6">
+                <div class="col-span-1 md:col-span-2">
+                    <p class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Ubicación y Contacto de Emergencia</p>
+                </div>
+                <input name="address" placeholder="Dirección Particular *" class="w-full border p-2 rounded col-span-1 md:col-span-2" required>
+                <input name="personal_email" type="email" placeholder="Email Particular *" class="w-full border p-2 rounded" required>
+                <input name="phone" placeholder="Teléfono Personal *" class="w-full border p-2 rounded" required>
+
+                <div class="col-span-1 md:col-span-2 pt-2 flex justify-between items-center border-b border-red-50 pb-2 mb-2">
+                    <p class="text-[10px] font-bold text-red-500 uppercase">En caso de Emergencia avisar a:</p>
+                    <button type="button" onclick="addEmergencyContactRow('create_contact_container')" class="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-200 font-bold hover:bg-red-100">+ Agregar</button>
+                </div>
+
+                <div class="col-span-1 md:col-span-2">
+                    <input type="hidden" name="emergency_contacts" id="create_emergency_contacts_json">
+                    <div id="create_contact_container" class="space-y-3 max-h-48 overflow-y-auto">
+                        <!-- JS fills this -->
+                    </div>
+                </div>
+                </div>
+
+            <!-- Restricciones Alimenticias -->
+            <div class="border-t pt-2 mt-2">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Restricciones Alimenticias</label>
+                <div id="create_dietary_container" class="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                    <p class="text-xs text-gray-400 col-span-3">Cargando opciones...</p>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="p-6 border-t border-gray-100 bg-gray-50 shrink-0 rounded-b-2xl flex justify-end gap-3 z-10">
+        <button type="button" onclick="closeCreateModal()"
+            class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">Cancelar</button>
+        <button type="submit" form="empForm"
+            class="bg-blue-900 text-white px-8 py-2 rounded-lg shadow-lg hover:bg-blue-800 font-bold transform active:scale-95 transition-all">
+            Registrar Colaborador
+        </button>
+    </div>
+</div>
+</div>

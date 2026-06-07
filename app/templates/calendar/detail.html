@@ -1,0 +1,325 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ event.title }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="/calendar/" class="text-blue-600 hover:underline text-sm">&larr; Volver al Calendario</a>
+    <div class="flex justify-between items-start mt-2">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ event.title }}</h1>
+            <p class="text-gray-600">{{ event.date.strftime('%d/%m/%Y') }} | <span style="color: {{ event.event_type.color }}">{{ event.event_type.name | upper }}</span></p>
+            <p class="text-gray-500 mt-2">{{ event.description or 'Sin descripción' }}</p>
+        </div>
+        {% if event.is_enrollable %}
+            <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-bold">Inscripción Abierta</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if event.is_enrollable %}
+<div class="bg-white rounded shadow p-6">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+        <h2 class="text-xl font-bold">Lista de Asistentes</h2>
+        <div class="flex gap-2 flex-wrap">
+            <button onclick="openInviteModal()" class="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                Enviar Invitaciones
+            </button>
+            <a href="/calendar/api/events/{{ event.id }}/export" class="bg-white border border-green-600 text-green-600 px-3 py-1 rounded text-sm hover:bg-green-50 flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Exportar Excel
+            </a>
+            <button onclick="openEnrollModal()" class="bg-blue-900 text-white px-3 py-1 rounded text-sm hover:bg-blue-800 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Inscribir Manual
+            </button>
+        </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="border-b bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+                    <th class="px-4 py-3 font-semibold">Nombre</th>
+                    <th class="px-4 py-3 font-semibold">Cargo</th>
+                    <th class="px-4 py-3 font-semibold">Área</th>
+                    <th class="px-4 py-3 font-semibold">Estado</th>
+                    <th class="px-4 py-3 font-semibold">Info. Alimenticia</th>
+                    <th class="px-4 py-3 font-semibold text-right">Acción</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-sm">
+                {% for enroll in event.enrollments %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-900">{{ enroll.employee.full_name }}</td>
+                    <td class="px-4 py-3 text-gray-500">{{ enroll.employee.position_obj.name }}</td>
+                    <td class="px-4 py-3 text-gray-500">{{ enroll.employee.position_obj.area.name }}</td>
+                    <td class="px-4 py-3">
+                        {% if enroll.status.value == 'confirmed' %}
+                            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">Confirmado</span>
+                        {% elif enroll.status.value == 'declined' %}
+                            <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">Rechazado</span>
+                        {% else %}
+                            <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-bold">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if enroll.employee.dietary_restrictions %}
+                            <div class="flex flex-wrap gap-1">
+                                {% for diet in enroll.employee.dietary_restrictions %}
+                                    <span class="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded-full border border-orange-200">{{ diet.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400 text-xs italic">Sin restricciones</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="removeEnrollment({{ enroll.id }})" class="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-wide">Quitar</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No hay inscritos en este evento.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL INSCRIBIR MANUAL (CASCADA) -->
+<div id="enrollModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-lg font-bold mb-4">Inscribir Manualmente</h2>
+        <form id="enrollForm" class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Sede</label>
+                <select id="manual_sede" class="w-full border p-2 rounded bg-white text-sm" onchange="loadAreas(this.value, 'manual_area')">
+                    <option value="">Seleccione Sede...</option>
+                    {% for sede in sedes %}<option value="{{ sede.id }}">{{ sede.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Área</label>
+                <select id="manual_area" class="w-full border p-2 rounded bg-gray-50 text-sm" disabled onchange="loadEmployees(this.value, 'manual_employee')">
+                    <option value="">Primero seleccione Sede</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Colaborador</label>
+                <select name="employee_id" id="manual_employee" class="w-full border p-2 rounded bg-gray-50 text-sm" disabled required>
+                    <option value="">Primero seleccione Área</option>
+                </select>
+            </div>
+            <div class="flex gap-2 justify-end mt-4">
+                <button type="button" onclick="document.getElementById('enrollModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 px-4 py-2">Cancelar</button>
+                <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800">Inscribir</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL INVITACIÓN MASIVA (FILTROS REALES + IMÁGENES) -->
+<div id="inviteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg w-[800px] max-h-[90vh] overflow-y-auto">
+        <h2 class="text-lg font-bold mb-2">Enviar Invitaciones</h2>
+        <p class="text-sm text-gray-500 mb-4">Los colaboradores recibirán un correo con un link único para confirmar.</p>
+        
+        <form id="inviteForm" class="space-y-4">
+            <!-- Filtros -->
+            <div class="bg-gray-50 p-3 rounded border">
+                <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Filtros de Destinatarios</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium">Sedes</label>
+                        <select multiple name="sede_ids" id="invite_sedes" class="w-full border p-1 rounded text-sm h-24" onchange="updateInviteAreas()">
+                            {% for sede in sedes %}<option value="{{ sede.id }}">{{ sede.name }}</option>{% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-400">Ctrl+Click para múltiples</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Áreas (Filtradas por Sede)</label>
+                        <select multiple name="area_ids" id="invite_areas" class="w-full border p-1 rounded text-sm h-24">
+                            <!-- Se llena con JS -->
+                            <option value="" disabled>Seleccione sedes primero</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenido Correo -->
+            <div>
+                <label class="block text-sm font-medium">Asunto del Correo</label>
+                <input name="subject" value="Invitación: {{ event.title }}" class="w-full border p-2 rounded" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Cuerpo del Correo</label>
+                <p class="text-xs text-gray-500 mb-2">Puede arrastrar y soltar imágenes aquí.</p>
+                
+                <!-- TinyMCE Editor -->
+                <textarea id="html_body" name="html_body" class="w-full h-64">
+<p>Hola <strong>{{ '{{name}}' }}</strong>,</p>
+<p>Estás cordialmente invitado al evento <strong>{{ event.title }}</strong>.</p>
+<p>Fecha: {{ event.date.strftime('%d/%m/%Y') }}</p>
+<p>{{ event.description }}</p>
+<br>
+<p>Por favor, confirma tu asistencia haciendo clic en el siguiente enlace:</p>
+<p><a href="{{ '{{link}}' }}" style="background-color: #003366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirmar Asistencia</a></p>
+<br>
+<p>Atentamente,<br>Talento Humano UP</p>
+                </textarea>
+            </div>
+
+            <div class="flex gap-2 justify-end pt-2 border-t">
+                <button type="button" onclick="document.getElementById('inviteModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 px-4 py-2">Cancelar</button>
+                <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Enviar Invitaciones</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TinyMCE CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    // Inicializar TinyMCE con soporte de imágenes Base64
+    tinymce.init({
+        selector: '#html_body',
+        height: 300,
+        menubar: false,
+        plugins: 'link lists image',
+        toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image',
+        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+        // Configuración para imágenes Base64
+        images_upload_handler: (blobInfo, progress) => new Promise((resolve, reject) => {
+            // Convertir a base64 y resolver (TinyMCE lo incrusta)
+            const reader = new FileReader();
+            reader.readAsDataURL(blobInfo.blob());
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        })
+    });
+
+    window.openInviteModal = () => document.getElementById('inviteModal').classList.remove('hidden');
+    window.openEnrollModal = () => document.getElementById('enrollModal').classList.remove('hidden');
+
+    // --- CASCADA LOGIC ---
+    window.loadAreas = async (sedeId, targetId) => {
+        const target = document.getElementById(targetId);
+        target.innerHTML = '<option>Cargando...</option>';
+        target.disabled = true;
+        
+        if (!sedeId) return;
+
+        try {
+            const areas = await ApiClient.get(`/organization/api/areas?sede_id=${sedeId}`);
+            target.innerHTML = '<option value="">Seleccione Área...</option>';
+            areas.forEach(a => {
+                target.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+            });
+            target.disabled = false;
+            target.classList.remove('bg-gray-50');
+        } catch(e) { console.error(e); }
+    };
+
+    window.loadEmployees = async (areaId, targetId) => {
+        const target = document.getElementById(targetId);
+        target.innerHTML = '<option>Cargando...</option>';
+        target.disabled = true;
+        
+        if (!areaId) return;
+
+        try {
+            // Usamos el nuevo endpoint JSON
+            const employees = await ApiClient.get(`/employees/api/search?area_id=${areaId}`);
+            target.innerHTML = '<option value="">Seleccione Colaborador...</option>';
+            
+            if (employees.length > 0) {
+                employees.forEach(emp => {
+                    target.innerHTML += `<option value="${emp.id}">${emp.full_name}</option>`;
+                });
+                target.disabled = false;
+                target.classList.remove('bg-gray-50');
+            } else {
+                target.innerHTML = '<option value="">Sin colaboradores</option>';
+            }
+        } catch(e) { 
+            console.error(e);
+            target.innerHTML = '<option value="">Error al cargar</option>';
+        }
+    };
+    
+    // --- LOGICA FILTRO MULTIPLE INVITACIONES ---
+    window.updateInviteAreas = async () => {
+        const sedeSelect = document.getElementById('invite_sedes');
+        const areaSelect = document.getElementById('invite_areas');
+        const selectedSedes = Array.from(sedeSelect.selectedOptions).map(o => o.value);
+        
+        areaSelect.innerHTML = '<option>Cargando...</option>';
+        
+        if (selectedSedes.length === 0) {
+            areaSelect.innerHTML = '<option value="" disabled>Seleccione sedes primero</option>';
+            return;
+        }
+
+        try {
+            // Hacer llamadas paralelas
+            const promises = selectedSedes.map(id => ApiClient.get(`/organization/api/areas?sede_id=${id}`));
+            const results = await Promise.all(promises);
+            
+            areaSelect.innerHTML = '';
+            results.flat().forEach(a => {
+                areaSelect.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+            });
+        } catch(e) { console.error(e); }
+    };
+
+    // Inscripción Manual
+    document.getElementById('enrollForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await ApiClient.post('/calendar/api/events/{{ event.id }}/enroll', Object.fromEntries(new FormData(e.target)));
+            showToast('Inscrito correctamente');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    // Invitación Masiva
+    document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        tinymce.triggerSave();
+        const formData = new FormData(e.target);
+        
+        const sedeIds = Array.from(e.target.querySelector('select[name="sede_ids"]').selectedOptions).map(opt => parseInt(opt.value));
+        const areaIds = Array.from(e.target.querySelector('select[name="area_ids"]').selectedOptions).map(opt => parseInt(opt.value));
+        
+        const payload = {
+            sede_ids: sedeIds,
+            area_ids: areaIds,
+            subject: formData.get('subject'),
+            html_body: formData.get('html_body')
+        };
+
+        try {
+            const res = await ApiClient.post('/calendar/api/events/{{ event.id }}/invite', payload);
+            showToast(res.message);
+            document.getElementById('inviteModal').classList.add('hidden');
+        } catch(err) { showToast(err.message, 'error'); }
+    });
+
+    window.removeEnrollment = async (id) => {
+        if(!confirm('¿Quitar inscripción?')) return;
+        try {
+            await ApiClient.delete(`/calendar/api/enrollments/${id}`);
+            showToast('Eliminado');
+            setTimeout(() => window.location.reload(), 500);
+        } catch(err) { showToast(err.message, 'error'); }
+    };
+</script>
+{% else %}
+<div class="bg-gray-50 p-6 rounded text-center text-gray-500 border border-gray-200">
+    <p>Este evento es de carácter informativo y no requiere gestión de inscripciones.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,469 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Nueva Solicitud de Beneficios{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <a href="/benefits/requests" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-1"><i class="fas fa-arrow-left"></i> Volver a Solicitudes</a>
+    <h1 class="text-2xl font-bold text-gray-800">Nueva Solicitud</h1>
+</div>
+
+<form id="requestForm" class="max-w-5xl mx-auto space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {# --- COLUMNA IZQUIERDA: PARTICIPANTES Y GESTIÓN --- #}
+        <div class="lg:col-span-5 space-y-6">
+            
+            {# COLABORADOR BENEFICIARIO #}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative">
+                <h3 class="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i class="fas fa-user-circle"></i> 1. Colaborador Beneficiario
+                </h3>
+                
+                <div class="mb-4 relative">
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Buscar Colaborador</label>
+                    <input type="text" id="employee_search" placeholder="Cédula o Nombre..." class="w-full border border-blue-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" autocomplete="off">
+                    <div id="employee_results" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <div id="employee_details" class="hidden bg-blue-50/30 p-4 rounded-xl border border-blue-100 space-y-3">
+                    <input type="hidden" name="employee_id" id="employee_id" required>
+                    <input type="hidden" name="employee_position_id" id="employee_position_id">
+                    
+                    <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                        <div><span class="block text-[9px] font-bold text-gray-400 uppercase">Cédula</span><span id="lbl_emp_ci" class="font-bold text-gray-700">-</span></div>
+                        <div class="col-span-2"><span class="block text-[9px] font-bold text-gray-400 uppercase">Nombre</span><span id="lbl_emp_name" class="font-bold text-gray-900">-</span></div>
+                        <div><span class="block text-[9px] font-bold text-gray-400 uppercase">Cargo</span><span id="lbl_emp_position" class="font-bold text-blue-800">-</span></div>
+                    </div>
+                </div>
+            </div>
+
+            {# SOLICITANTE #}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i class="fas fa-user-edit"></i> 2. Datos del Solicitante
+                </h3>
+                
+                <div class="mb-4 relative">
+                    <input type="text" id="req_search" placeholder="Buscar Solicitante..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" autocomplete="off">
+                    <div id="req_results" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <div id="req_details" class="hidden bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <input type="hidden" name="requester_id" id="requester_id" required>
+                    <input type="hidden" name="requester_position_id" id="requester_position_id">
+                    <span id="lbl_req_name" class="font-bold text-sm text-gray-800">-</span>
+                </div>
+            </div>
+
+            {# GESTIÓN Y MOTIVO #}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-xs font-black text-purple-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i class="fas fa-file-alt"></i> 3. Tipo de Gestión
+                </h3>
+                
+                <div class="space-y-4">
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Tipo de Solicitud *</label>
+                        <select name="request_type_id" class="w-full border p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none" required>
+                            <option value="">Seleccionar...</option>
+                            {% for rt in request_types %}<option value="{{ rt.id }}">{{ rt.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Fecha de Solicitud *</label>
+                        <input type="date" name="request_date" id="request_date" class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" required>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Motivo *</label>
+                        <select name="grant_reason_id" class="w-full border p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none" required>
+                            <option value="">Seleccionar...</option>
+                            {% for gr in grant_reasons %}<option value="{{ gr.id }}">{{ gr.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Justificación *</label>
+                        <textarea name="justification" rows="3" placeholder="Fundamentación..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" required></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# --- COLUMNA DERECHA: LOS BENEFICIOS (MULTIPLES) --- #}
+        <div class="lg:col-span-7 space-y-6">
+            
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-100 bg-emerald-50/20">
+                    <h3 class="text-xs font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">
+                        <i class="fas fa-gift"></i> 4. Beneficios Solicitados
+                    </h3>
+                </div>
+
+                <div class="p-6 space-y-6">
+                    {# FORMULARIO PARA AGREGAR BENEFICIO #}
+                    <div class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-3">Agregar Beneficio</h4>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Tipo de Beneficio</label>
+                                <select id="add_benefit_type_id" class="w-full border p-2 rounded-lg text-sm bg-white" onchange="renderDynamicFields(this.value)">
+                                    <option value="">Seleccione...</option>
+                                    {% for bt in benefit_types %}<option value="{{ bt.id }}">{{ bt.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Subtipo</label>
+                                <select id="add_benefit_subtype_id" class="w-full border p-2 rounded-lg text-sm bg-white">
+                                    <option value="">Ninguno</option>
+                                    {% for st in subtypes %}<option value="{{ st.id }}">{{ st.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Moneda</label>
+                                <select id="add_currency_id" class="w-full border p-2 rounded-lg text-sm bg-white">
+                                    <option value="">N/A</option>
+                                    {% for curr in currencies %}<option value="{{ curr.id }}">{{ curr.symbol }} - {{ curr.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+
+                            {# CAMPOS DINÁMICOS #}
+                            <div id="dynamic_fields_area" class="col-span-2 hidden bg-white p-3 rounded-lg border border-emerald-100 mt-2">
+                                {# Se llena por JS #}
+                            </div>
+
+                            <div class="col-span-2">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Notas/Descripción</label>
+                                <input type="text" id="add_description_notes" class="w-full border p-2 rounded-lg text-sm" placeholder="Opcional...">
+                            </div>
+
+                            <div class="border-t border-gray-200 col-span-2 pt-4 mt-2"></div>
+
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Importe Aprobado</label>
+                                <input type="number" step="0.01" id="add_approved_amount" class="w-full border p-2 rounded-lg text-sm" placeholder="0.00">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Inicio</label>
+                                    <input type="date" id="add_validity_start_date" class="w-full border p-2 rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Fin</label>
+                                    <input type="date" id="add_validity_end_date" class="w-full border p-2 rounded-lg text-sm">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Modalidad</label>
+                                <select id="add_benefit_modality_id" class="w-full border p-2 rounded-lg text-sm bg-white">
+                                    <option value="">Seleccionar...</option>
+                                    {% for m in modalities %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-[9px] font-bold text-gray-500 uppercase ml-1">Frecuencia</label>
+                                <select id="add_benefit_frequency_id" class="w-full border p-2 rounded-lg text-sm bg-white">
+                                    <option value="">Seleccionar...</option>
+                                    {% for f in frequencies %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-span-2 flex justify-end">
+                                <button type="button" onclick="addBenefitToList()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                                    <i class="fas fa-plus"></i> Agregar Beneficio
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# TABLA DE BENEFICIOS AGREGADOS #}
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-[10px] font-black uppercase text-gray-600">
+                                    <th class="p-3">Beneficio</th>
+                                    <th class="p-3">Detalles / Importe</th>
+                                    <th class="p-3">Vigencia</th>
+                                    <th class="p-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="benefits_list_body">
+                                {# Se llena por JS #}
+                                <tr id="empty_list_row">
+                                    <td colspan="4" class="p-8 text-center text-gray-400 italic">No se han agregado beneficios a esta solicitud.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {# APROBACIÓN Y OTORGAMIENTO #}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-xs font-black text-amber-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i class="fas fa-stamp"></i> 5. Aprobación General
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Estado Aprobación *</label>
+                        <select name="status" id="status_select" class="w-full border p-2.5 rounded-lg text-sm bg-white font-bold" required onchange="toggleAuthLevel()">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Aprobada">Aprobada</option>
+                            <option value="Rechazada">Rechazada</option>
+                            <option value="Anulada">Anulada</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Estado Beneficio *</label>
+                        <select name="benefit_status" class="w-full border p-2.5 rounded-lg text-sm bg-white" required>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Activo">Activo</option>
+                            <option value="Suspendido">Suspendido</option>
+                            <option value="Finalizado">Finalizado</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col col-span-2 auth-required hidden">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Nivel de Autorización *</label>
+                        <select name="authorization_level_id" id="auth_level_id" class="w-full border p-2.5 rounded-lg text-sm bg-amber-50">
+                            <option value="">Seleccionar nivel...</option>
+                            {% for lvl in auth_levels %}<option value="{{ lvl.id }}">{{ lvl.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-span-2 relative">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Autorizante</label>
+                        <input type="text" id="auth_search" placeholder="Cédula o Nombre..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" autocomplete="off">
+                        <div id="auth_results" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto mt-1"></div>
+                        <div id="auth_details" class="hidden mt-2 p-3 bg-amber-50 rounded-lg border border-amber-100 text-xs">
+                            <input type="hidden" name="authorizer_id" id="authorizer_id">
+                            <input type="hidden" name="authorizer_position_id" id="authorizer_position_id">
+                            <span id="lbl_auth_name" class="font-bold">-</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Fecha Otorgamiento</label>
+                        <input type="date" name="grant_date" class="w-full border p-2.5 rounded-lg text-sm">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Nro. Resolución</label>
+                        <input type="text" name="resolution_number" class="w-full border p-2.5 rounded-lg text-sm">
+                    </div>
+
+                    <div class="flex flex-col col-span-2">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Observaciones</label>
+                        <textarea name="approval_comments" rows="2" class="w-full border p-2.5 rounded-lg text-sm"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 flex justify-end gap-4">
+                <a href="/benefits/requests" class="px-6 py-3 text-gray-600 font-medium hover:text-gray-900 transition-colors">Cancelar</a>
+                <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 text-lg">
+                    Registrar Solicitud
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    const benefitTypes = {{ benefit_types | tojson | safe }};
+    const addedBenefits = [];
+
+    document.getElementById('request_date').valueAsDate = new Date();
+
+    // --- BÚSQUEDA DE PERSONAS ---
+    function setupSearch(inputId, resultsId, detailsId, prefix) {
+        const input = document.getElementById(inputId);
+        const results = document.getElementById(resultsId);
+        const details = document.getElementById(detailsId);
+        let timeout = null;
+
+        input.addEventListener('input', (e) => {
+            clearTimeout(timeout);
+            const val = e.target.value;
+            if (val.length < 2) { results.classList.add('hidden'); return; }
+            timeout = setTimeout(async () => {
+                const response = await ApiClient.get(`/employees/api/search?q=${val}&limit=5`);
+                results.innerHTML = '';
+                if (!response.length) results.innerHTML = '<div class="p-2 text-xs text-gray-500">No hay resultados.</div>';
+                else response.forEach(emp => {
+                    const div = document.createElement('div');
+                    div.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-xs";
+                    div.innerHTML = `<b>${emp.full_name}</b><br><span class="text-gray-500">${emp.document_id}</span>`;
+                    div.onclick = () => selectPerson(emp, input, results, details, prefix);
+                    results.appendChild(div);
+                });
+                results.classList.remove('hidden');
+            }, 300);
+        });
+    }
+
+    function selectPerson(emp, input, results, details, prefix) {
+        input.value = ""; results.classList.add('hidden'); details.classList.remove('hidden');
+        document.getElementById(`${prefix}_id`).value = emp.id;
+        document.getElementById(`${prefix}_position_id`).value = emp.position_obj ? emp.position_obj.id : '';
+        if (prefix === 'employee') {
+            document.getElementById('lbl_emp_ci').innerText = emp.document_id;
+            document.getElementById('lbl_emp_name').innerText = emp.full_name;
+            document.getElementById('lbl_emp_position').innerText = emp.position_obj ? emp.position_obj.name : '-';
+        } else if (prefix === 'requester') {
+            document.getElementById('lbl_req_name').innerText = emp.full_name;
+        } else {
+            document.getElementById('lbl_auth_name').innerText = emp.full_name;
+        }
+    }
+
+    setupSearch('employee_search', 'employee_results', 'employee_details', 'employee');
+    setupSearch('req_search', 'req_results', 'req_details', 'requester');
+    setupSearch('auth_search', 'auth_results', 'auth_details', 'authorizer');
+
+    window.toggleAuthLevel = () => {
+        const status = document.getElementById('status_select').value;
+        const authBlock = document.querySelectorAll('.auth-required');
+        if (status === 'Aprobada' || status === 'Rechazada') authBlock.forEach(el => el.classList.remove('hidden'));
+        else authBlock.forEach(el => el.classList.add('hidden'));
+    };
+
+    // --- LÓGICA DE BENEFICIOS ---
+    window.renderDynamicFields = (typeId) => {
+        const area = document.getElementById('dynamic_fields_area');
+        const benefit = benefitTypes.find(b => b.id == typeId);
+        if (!benefit || !benefit.fields_schema || !benefit.fields_schema.fields) {
+            area.innerHTML = ''; area.classList.add('hidden'); return;
+        }
+        area.classList.remove('hidden');
+        let html = '<div class="grid grid-cols-2 gap-3">';
+        benefit.fields_schema.fields.forEach(f => {
+            html += `<div class="${f.type === 'text' ? 'col-span-2' : ''}">
+                <label class="text-[9px] font-bold text-gray-400 uppercase">${f.name}</label>`;
+            if (f.type === 'select') {
+                html += `<select class="dynamic-f border w-full p-1.5 rounded text-xs bg-white" data-name="${f.name}">
+                    <option value="">Seleccionar...</option>
+                    ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+                </select>`;
+            } else {
+                html += `<input type="${f.type}" class="dynamic-f border w-full p-1.5 rounded text-xs" data-name="${f.name}">`;
+            }
+            html += `</div>`;
+        });
+        html += '</div>';
+        area.innerHTML = html;
+    };
+
+    window.addBenefitToList = () => {
+        const typeId = document.getElementById('add_benefit_type_id').value;
+        if (!typeId) { showToast('Seleccione un tipo de beneficio', 'error'); return; }
+        
+        const benefitType = benefitTypes.find(b => b.id == typeId);
+        const customData = {};
+        document.querySelectorAll('.dynamic-f').forEach(f => { customData[f.dataset.name] = f.value; });
+
+        const item = {
+            benefit_type_id: parseInt(typeId),
+            benefit_type_name: benefitType.name,
+            benefit_subtype_id: parseInt(document.getElementById('add_benefit_subtype_id').value) || null,
+            benefit_subtype_name: document.getElementById('add_benefit_subtype_id').selectedOptions[0].text,
+            currency_id: parseInt(document.getElementById('add_currency_id').value) || null,
+            currency_symbol: document.getElementById('add_currency_id').value ? document.getElementById('add_currency_id').selectedOptions[0].text.split(' - ')[0] : '',
+            custom_data: Object.keys(customData).length ? customData : null,
+            description_notes: document.getElementById('add_description_notes').value,
+            approved_amount: parseFloat(document.getElementById('add_approved_amount').value) || null,
+            validity_start_date: document.getElementById('add_validity_start_date').value || null,
+            validity_end_date: document.getElementById('add_validity_end_date').value || null,
+            benefit_modality_id: parseInt(document.getElementById('add_benefit_modality_id').value) || null,
+            benefit_frequency_id: parseInt(document.getElementById('add_benefit_frequency_id').value) || null
+        };
+
+        addedBenefits.push(item);
+        renderBenefitsTable();
+        
+        // Limpiar campos del agregador
+        document.getElementById('add_benefit_type_id').value = '';
+        renderDynamicFields('');
+        document.getElementById('add_description_notes').value = '';
+        document.getElementById('add_approved_amount').value = '';
+    };
+
+    window.removeBenefit = (index) => {
+        addedBenefits.splice(index, 1);
+        renderBenefitsTable();
+    };
+
+    function renderBenefitsTable() {
+        const body = document.getElementById('benefits_list_body');
+        if (addedBenefits.length === 0) {
+            body.innerHTML = '<tr id="empty_list_row"><td colspan="4" class="p-8 text-center text-gray-400 italic">No se han agregado beneficios a esta solicitud.</td></tr>';
+            return;
+        }
+        
+        body.innerHTML = '';
+        addedBenefits.forEach((item, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-gray-50 hover:bg-gray-50 transition-colors";
+            tr.innerHTML = `
+                <td class="p-3">
+                    <div class="font-bold text-gray-800">${item.benefit_type_name}</div>
+                    ${item.benefit_subtype_id ? `<div class="text-[10px] text-emerald-600 font-medium">${item.benefit_subtype_name}</div>` : ''}
+                </td>
+                <td class="p-3">
+                    <div class="text-xs text-gray-600">${item.description_notes || '-'}</div>
+                    <div class="font-mono text-xs font-bold text-blue-700">${item.currency_symbol} ${item.approved_amount ? item.approved_amount.toLocaleString() : '0.00'}</div>
+                </td>
+                <td class="p-3">
+                    <div class="text-[10px] text-gray-500">${item.validity_start_date || '?'} al ${item.validity_end_date || '?'}</div>
+                </td>
+                <td class="p-3 text-right">
+                    <button type="button" onclick="removeBenefit(${idx})" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    // --- SUBMIT ---
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!addedBenefits.length) { showToast('Debe agregar al menos un beneficio', 'error'); return; }
+        
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
+        
+        // Limpiar nulos y tipos
+        ['authorization_level_id', 'authorizer_id', 'authorizer_position_id', 'employee_position_id', 'requester_position_id'].forEach(k => {
+            if (!payload[k]) delete payload[k]; else payload[k] = parseInt(payload[k]);
+        });
+        payload.request_type_id = parseInt(payload.request_type_id);
+        payload.grant_reason_id = parseInt(payload.grant_reason_id);
+        payload.employee_id = parseInt(payload.employee_id);
+        payload.requester_id = parseInt(payload.requester_id);
+        
+        // Agregar los items
+        payload.items = addedBenefits.map(item => {
+            const { benefit_type_name, benefit_subtype_name, currency_symbol, ...cleanItem } = item;
+            return cleanItem;
+        });
+
+        try {
+            e.submitter.disabled = true; e.submitter.innerHTML = 'Enviando...';
+            await ApiClient.post('/benefits/api/requests', payload);
+            showToast('Solicitud registrada correctamente');
+            setTimeout(() => window.location.href = '/benefits/requests', 1000);
+        } catch(err) { 
+            e.submitter.disabled = false; e.submitter.innerHTML = 'Registrar Solicitud';
+            showToast(err.message, 'error'); 
+        }
+    });
+</script>
+{% endblock %}

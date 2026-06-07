@@ -1,0 +1,38 @@
+services:
+  # --- Base de Datos PostgreSQL ---
+  db:
+    image: postgres:15-alpine
+    container_name: talento_up_db
+    restart: always
+    env_file:
+      - .env.db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Aplicación FastAPI ---
+  web:
+    build: .
+    container_name: talento_up_app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8006:8000"
+    env_file:
+      - .env
+    volumes:
+      # Montamos el directorio actual para Hot-Reloading en desarrollo
+      - .:/app
+    # Comando para desarrollo con reload activo
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:

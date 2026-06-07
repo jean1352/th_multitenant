@@ -1,0 +1,215 @@
+<!-- Vis.js CSS -->
+<link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+
+<!-- MODAL TIMELINE GRÁFICO -->
+<div id="timelineModal" class="fixed inset-0 bg-gray-900 bg-opacity-60 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-white rounded-xl w-[900px] max-h-[90vh] flex flex-col shadow-2xl border border-gray-200">
+        
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
+            <div>
+                <h3 class="font-bold text-xl text-gray-800 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Historial Gráfico del Colaborador
+                </h3>
+                <p class="text-xs text-gray-500 mt-1">Visualización cronológica de eventos, sanciones y beneficios.</p>
+            </div>
+            <button onclick="closeTimeline()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <!-- Toolbar de Filtros -->
+        <div class="px-6 py-3 bg-white border-b border-gray-100 flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-700">Enfocar Año:</label>
+                <select id="timelineYearFilter" class="border border-gray-300 rounded-md text-sm p-1.5 focus:ring-2 focus:ring-blue-500 outline-none" onchange="filterTimelineByYear(this.value)">
+                    <option value="all">Todo el Historial</option>
+                    <!-- Se llena dinámicamente -->
+                </select>
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex gap-3 text-xs font-medium">
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500"></span> Ingresos/Altas</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Promociones</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500"></span> Sanciones</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500"></span> Méritos</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-teal-500"></span> Beneficios</span>
+            </div>
+        </div>
+
+        <!-- Body (Gráfico) -->
+        <div class="p-6 flex-1 bg-gray-50 relative min-h-[400px]">
+            <div id="loadingTimeline" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10 hidden">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-900"></div>
+            </div>
+            
+            <!-- Contenedor Vis.js -->
+            <div id="visualization" class="w-full h-full border border-gray-200 rounded-lg bg-white shadow-inner"></div>
+        </div>
+
+        <!-- Footer (Detalle al hacer clic) -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-white rounded-b-xl min-h-[80px]">
+            <p class="text-xs text-gray-400 uppercase font-bold mb-1">Detalle del Evento Seleccionado</p>
+            <div id="eventDetail" class="text-sm text-gray-600 italic">
+                Haz clic en un evento del gráfico para ver los detalles completos aquí.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estilos personalizados para los items del Timeline -->
+<style>
+    .vis-item { border-color: transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .vis-item .vis-item-content { padding: 5px 8px; font-family: 'Inter', sans-serif; font-size: 12px; }
+    
+    /* Categorías */
+    .item-history-entry { background-color: #dcfce7; border-left: 4px solid #22c55e; color: #14532d; }
+    .item-history-promo { background-color: #dbeafe; border-left: 4px solid #3b82f6; color: #1e3a8a; }
+    .item-history-exit { background-color: #fee2e2; border-left: 4px solid #ef4444; color: #7f1d1d; }
+    .item-sanction { background-color: #fef2f2; border-left: 4px solid #dc2626; color: #991b1b; } /* Rojo fuerte */
+    .item-recognition { background-color: #fef9c3; border-left: 4px solid #eab308; color: #713f12; }
+    .item-benefit { background-color: #ccfbf1; border-left: 4px solid #14b8a6; color: #134e4a; }
+    
+    /* Grid */
+    .vis-time-axis .vis-text { color: #64748b; font-size: 11px; }
+    .vis-current-time { background-color: #ef4444; }
+</style>
+
+<!-- Vis.js Script -->
+<script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
+
+<script type="module">
+    import { ApiClient } from '/static/js/api_client.js';
+
+    let timeline = null;
+    let dataset = null;
+
+    window.openTimeline = async (empId) => {
+        const modal = document.getElementById('timelineModal');
+        const loader = document.getElementById('loadingTimeline');
+        const container = document.getElementById('visualization');
+        
+        modal.classList.remove('hidden');
+        loader.classList.remove('hidden');
+        document.getElementById('eventDetail').innerText = "Haz clic en un evento del gráfico para ver los detalles completos aquí.";
+
+        try {
+            // 1. Obtener datos
+            const events = await ApiClient.get(`/employees/api/${empId}/timeline`);
+            
+            // 2. Preparar datos para Vis.js
+            const items = events.map((evt, index) => {
+                let className = 'item-history-promo'; // Default
+                let content = `<b>${evt.title}</b>`;
+                
+                // Mapeo de estilos según categoría y tipo
+                if (evt.category === 'history') {
+                    if (evt.title.includes('Ingreso') || evt.title.includes('Reingreso')) className = 'item-history-entry';
+                    else if (evt.title.includes('Salida')) className = 'item-history-exit';
+                    else className = 'item-history-promo';
+                } else if (evt.category === 'sanction') {
+                    className = 'item-sanction';
+                    content = `⚠️ ${evt.title}`;
+                } else if (evt.category === 'recognition') {
+                    className = 'item-recognition';
+                    content = `⭐ ${evt.title}`;
+                } else if (evt.category === 'benefit') {
+                    className = 'item-benefit';
+                    content = `🎁 ${evt.title}`;
+                }
+
+                return {
+                    id: index,
+                    content: content,
+                    start: evt.date,
+                    type: 'box', // 'box' para eventos puntuales, 'range' si tuviéramos fecha fin
+                    className: className,
+                    // Datos extra para el detalle
+                    fullDesc: evt.description,
+                    fullTitle: evt.title,
+                    fullDate: evt.date,
+                    typeLabel: evt.type_label
+                };
+            });
+
+            dataset = new vis.DataSet(items);
+
+            // 3. Configuración del Timeline
+            const options = {
+                locale: 'es',
+                height: '400px',
+                zoomKey: 'ctrlKey', // Zoom con Ctrl + Scroll
+                start: new Date(new Date().getFullYear(), 0, 1), // Inicio año actual por defecto
+                end: new Date(new Date().getFullYear(), 11, 31),
+                selectable: true,
+                showCurrentTime: true
+            };
+
+            // 4. Destruir instancia previa si existe
+            if (timeline) timeline.destroy();
+
+            // 5. Crear Timeline
+            timeline = new vis.Timeline(container, dataset, options);
+
+            // 6. Evento de Selección
+            timeline.on('select', function (properties) {
+                if (properties.items.length > 0) {
+                    const item = dataset.get(properties.items[0]);
+                    const dateStr = new Date(item.start).toLocaleDateString();
+                    const html = `
+                        <div class="flex gap-4 items-start animate-fade-in">
+                            <div class="bg-blue-50 p-2 rounded text-blue-800 font-bold text-xs uppercase tracking-wide">
+                                ${dateStr}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-base">${item.fullTitle} <span class="text-gray-400 font-normal text-xs">(${item.typeLabel})</span></h4>
+                                <p class="text-gray-700 mt-1">${item.fullDesc || 'Sin detalles adicionales.'}</p>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('eventDetail').innerHTML = html;
+                } else {
+                    document.getElementById('eventDetail').innerText = "Haz clic en un evento del gráfico para ver los detalles completos aquí.";
+                }
+            });
+
+            // 7. Llenar filtro de años
+            populateYearFilter(items);
+
+        } catch (error) {
+            container.innerHTML = `<div class="flex items-center justify-center h-full text-red-500">Error cargando datos: ${error.message}</div>`;
+        } finally {
+            loader.classList.add('hidden');
+        }
+    };
+
+    window.closeTimeline = () => {
+        document.getElementById('timelineModal').classList.add('hidden');
+    };
+
+    // Lógica de Filtros
+    function populateYearFilter(items) {
+        const years = new Set();
+        items.forEach(i => years.add(new Date(i.start).getFullYear()));
+        
+        const select = document.getElementById('timelineYearFilter');
+        select.innerHTML = '<option value="all">Todo el Historial</option>';
+        
+        Array.from(years).sort().reverse().forEach(year => {
+            select.innerHTML += `<option value="${year}">${year}</option>`;
+        });
+    }
+
+    window.filterTimelineByYear = (year) => {
+        if (!timeline) return;
+
+        if (year === 'all') {
+            timeline.fit(); // Ajustar para ver todo
+        } else {
+            const start = new Date(year, 0, 1);
+            const end = new Date(year, 11, 31);
+            timeline.setWindow(start, end);
+        }
+    };
+</script>

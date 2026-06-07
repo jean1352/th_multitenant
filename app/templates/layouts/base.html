@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ tenant.name if tenant else "Talento Humano UP" }}{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        up_blue: '#003366',
+                        up_gold: '#D4AF37',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* ESTILOS PARA SIDEBAR COLAPSADO (Solo en Escritorio) */
+        @media (min-width: 768px) {
+            body.sidebar-collapsed #sidebar { width: 4.5rem !important; }
+            body.sidebar-collapsed #main-content { margin-left: 4.5rem !important; }
+            body.sidebar-collapsed .sidebar-text { display: none !important; }
+            body.sidebar-collapsed .sidebar-header-text { display: none !important; }
+            body.sidebar-collapsed .sidebar-header-container { justify-content: center !important; padding: 0 !important; }
+            body.sidebar-collapsed .sidebar-icon { margin-right: 0 !important; font-size: 1.25rem !important; }
+            body.sidebar-collapsed .sidebar-link { justify-content: center !important; padding-left: 0 !important; padding-right: 0 !important; margin-left: 0.5rem !important; margin-right: 0.5rem !important; }
+            body.sidebar-collapsed .sidebar-section-title { text-align: center !important; padding: 0 !important; font-size: 0 !important; line-height: 0 !important; margin-top: 1.5rem !important; margin-bottom: 1rem !important; }
+            body.sidebar-collapsed .sidebar-section-title::after { content: "•••"; display: block; font-size: 14px; color: #94a3b8; letter-spacing: 1px; }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 h-screen overflow-hidden flex font-sans antialiased">
+    
+    <!-- Sidebar Lateral -->
+    {% include "components/sidebar.html" %}
+
+    <!-- Área Principal -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden relative w-full md:ml-64 transition-all duration-300" id="main-content">
+        <!-- Topbar Simplificado -->
+        {% include "components/navbar.html" %}
+        
+        <!-- Contenido Scrollable -->
+        <main class="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 lg:p-8 w-full">
+            {% block content %}{% endblock %}
+            
+            <!-- Footer -->
+            <footer class="mt-8 pt-6 border-t border-gray-200">
+                <p class="text-center text-xs text-gray-400 font-medium tracking-wider uppercase">&copy; 2026 {{ tenant.name if tenant else settings.BUSINESS_NAME }} - Sistema de Gestión de Talento Humano</p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Scripts Globales -->
+    <script>
+        // Inicializar estado del Sidebar
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function toggleDesktopSidebar() {
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed'));
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

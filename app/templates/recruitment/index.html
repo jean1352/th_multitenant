@@ -1,0 +1,21 @@
+{% extends "layouts/base.html" %}
+{% block title %}Vacantes - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+
+{% block content %}
+    {# --- HEADER Y ACCIONES --- #}
+    {% include "recruitment/components/index_header.html" %}
+
+    {# --- FILTROS Y TABS --- #}
+    {% include "recruitment/components/index_filters.html" %}
+
+    {# --- TABLA DE VACANTES --- #}
+    {% include "recruitment/components/index_table.html" %}
+
+    {# --- MODALES --- #}
+    {% include "recruitment/modals/create_vacancy.html" %}
+{% endblock %}
+
+{% block scripts %}
+    {# --- LÓGICA JAVASCRIPT --- #}
+    {% include "recruitment/components/index_scripts.html" %}
+{% endblock %}

@@ -1,0 +1,66 @@
+<!-- SANCIÓN -->
+<div id="sanctionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4 text-red-800">Registrar Sanción</h3>
+        <form id="sanctionForm" class="space-y-3">
+            <input type="hidden" name="employee_id" value="{{ employee.id }}">
+            
+            <label class="block text-sm font-medium">Tipo de Sanción</label>
+            <select name="type" class="w-full border p-2 rounded bg-white" required>
+                <option value="verbal">Amonestación Verbal</option>
+                <option value="written">Amonestación Escrita</option>
+                <option value="suspension">Suspensión</option>
+                <option value="dismissal">Despido Justificado</option>
+            </select>
+
+            <label class="block text-sm font-medium">Fecha</label>
+            <input type="date" name="date" class="w-full border p-2 rounded" required>
+
+            <label class="block text-sm font-medium">Motivo</label>
+            <textarea name="reason" class="w-full border p-2 rounded h-20" required></textarea>
+
+            <div class="flex items-center mt-2">
+                <input type="checkbox" name="sent_to_ministry" id="sent_to_ministry" class="rounded text-red-600 focus:ring-red-500">
+                <label for="sent_to_ministry" class="ml-2 text-sm text-gray-700">Enviado al Ministerio de Trabajo</label>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('sanctionModal')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Registrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- RECONOCIMIENTO -->
+<div id="recognitionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-4 text-yellow-700">Agregar Reconocimiento</h3>
+        <form id="recognitionForm" class="space-y-3">
+            <input type="hidden" name="employee_id" value="{{ employee.id }}">
+            
+            <label class="block text-sm font-medium">Tipo</label>
+            <select name="type" class="w-full border p-2 rounded bg-white" required>
+                <option value="achievement">Logro Destacado</option>
+                <option value="service">Años de Servicio</option>
+                <option value="excellence">Excelencia</option>
+                <option value="innovation">Innovación</option>
+                <option value="other">Otro</option>
+            </select>
+
+            <label class="block text-sm font-medium">Título</label>
+            <input name="title" placeholder="Ej: Empleado del Mes" class="w-full border p-2 rounded" required>
+
+            <label class="block text-sm font-medium">Fecha</label>
+            <input type="date" name="date" class="w-full border p-2 rounded" required>
+
+            <label class="block text-sm font-medium">Descripción</label>
+            <textarea name="description" class="w-full border p-2 rounded h-20"></textarea>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="closeModal('recognitionModal')" class="text-gray-500">Cancelar</button>
+                <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>

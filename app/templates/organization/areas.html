@@ -1,0 +1,221 @@
+{% extends "layouts/base.html" %}
+{% block title %}Gestión de Áreas - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Áreas y Departamentos</h1>
+        <p class="text-sm text-gray-500">Gestione la estructura organizacional de sus sedes</p>
+    </div>
+    <button onclick="openModal()"
+        class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 font-medium text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        <span>Nueva Área</span>
+    </button>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="flex flex-col gap-6 mb-8">
+    <!-- Pestañas de Sedes -->
+    <div class="border-b border-gray-200">
+        <nav class="flex -mb-px space-x-8 overflow-x-auto" aria-label="Tabs">
+            <a href="?q={{ q or '' }}"
+                class="{% if not sede_id %}border-blue-900 text-blue-900{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-all">
+                Todas las Sedes
+            </a>
+            {% for s in sedes %}
+            <a href="?sede_id={{ s.id }}&q={{ q or '' }}"
+                class="{% if sede_id == s.id %}border-blue-900 text-blue-900{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-all">
+                {{ s.name }}
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <!-- Buscador Moderno -->
+    <div class="relative max-w-md w-full">
+        <form action="" method="GET" class="relative group">
+            {% if sede_id %}
+            <input type="hidden" name="sede_id" value="{{ sede_id }}">
+            {% endif %}
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400 group-focus-within:text-blue-900 transition-colors"></i>
+            </div>
+            <input type="text" name="q" value="{{ q or '' }}"
+                class="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-900/10 focus:border-blue-900 sm:text-sm transition-all"
+                placeholder="Buscar por nombre de área...">
+            {% if q %}
+            <a href="?{% if sede_id %}sede_id={{ sede_id }}{% endif %}"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times-circle"></i>
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full text-left border-collapse">
+        <thead
+            class="bg-gray-50/50 text-gray-500 text-[11px] uppercase tracking-wider font-bold border-b border-gray-200">
+            <tr>
+                <th class="px-6 py-4">Nombre del Área</th>
+                <th class="px-6 py-4">Sede</th>
+                <th class="px-6 py-4">Email Responsable</th>
+                <th class="px-6 py-4 text-center">Cargos</th>
+                <th class="px-6 py-4 text-right">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for area in areas %}
+            <tr class="hover:bg-blue-50/30 transition-colors group">
+                <td class="px-6 py-4 font-semibold text-gray-900">{{ area.name }}</td>
+                <td class="px-6 py-4">
+                    <span
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {{ area.sede.name if area.sede else 'Sin Sede' }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-gray-500 text-sm italic">{{ area.responsible_email }}</td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex justify-center">
+                        <span
+                            class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-lg border border-blue-100">
+                            {{ area.positions|length }}
+                        </span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <div
+                        class="flex justify-end gap-3 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <a href="/organization/areas/{{ area.id }}"
+                            class="text-blue-600 hover:text-blue-900 font-bold text-xs uppercase tracking-tight"
+                            title="Gestionar Cargos">
+                            Cargos
+                        </a>
+                        <button onclick='editArea({{ area|tojson }})'
+                            class="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+                            title="Editar Área">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-6 py-12 text-center">
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
+                            <i class="fas fa-folder-open text-xl"></i>
+                        </div>
+                        <p class="text-gray-500 text-sm">No se encontraron áreas asociadas a estos criterios.</p>
+                        {% if q or sede_id %}
+                        <a href="/organization/areas"
+                            class="text-blue-600 text-sm font-semibold hover:underline">Limpiar todos los filtros</a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- MODAL AREA -->
+<div id="areaModal"
+    class="fixed inset-0 bg-gray-950/40 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-800" id="modalTitle">Nueva Área</h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="areaForm" class="p-6 space-y-4">
+            <input type="hidden" name="id" id="areaId">
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del Área</label>
+                <input name="name" id="name" placeholder="Ej: Recursos Humanos"
+                    class="w-full border border-gray-200 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-900/10 focus:border-blue-900 outline-none transition-all"
+                    required>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sede Asociada</label>
+                <select name="sede_id" id="sede_id"
+                    class="w-full border border-gray-200 p-2.5 rounded-xl bg-white focus:ring-2 focus:ring-blue-900/10 focus:border-blue-900 outline-none transition-all cursor-pointer"
+                    required>
+                    <option value="" disabled selected>Seleccione una sede...</option>
+                    {% for sede in sedes %}
+                    <option value="{{ sede.id }}">{{ sede.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email del Responsable</label>
+                <input name="responsible_email" id="responsible_email" type="email"
+                    placeholder="responsable@empresa.com"
+                    class="w-full border border-gray-200 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-900/10 focus:border-blue-900 outline-none transition-all"
+                    required>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-50">
+                <button type="button" onclick="closeModal()"
+                    class="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="bg-blue-900 text-white px-6 py-2 rounded-xl font-semibold shadow-lg shadow-blue-900/20 hover:bg-blue-800 transform active:scale-95 transition-all">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    const modal = document.getElementById('areaModal');
+
+    window.openModal = () => {
+        document.getElementById('areaForm').reset();
+        document.getElementById('areaId').value = '';
+        document.getElementById('modalTitle').innerText = 'Registrar Nueva Área';
+        modal.classList.remove('hidden');
+    };
+
+    window.closeModal = () => modal.classList.add('hidden');
+
+    window.editArea = (area) => {
+        document.getElementById('areaId').value = area.id;
+        document.getElementById('name').value = area.name;
+        document.getElementById('sede_id').value = area.sede_id;
+        document.getElementById('responsible_email').value = area.responsible_email;
+        document.getElementById('modalTitle').innerText = 'Modificar Área';
+        modal.classList.remove('hidden');
+    };
+
+    document.getElementById('areaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const id = data.id;
+        delete data.id;
+
+        try {
+            if (id) await ApiClient.put(`/organization/api/areas/${id}`, data);
+            else await ApiClient.post('/organization/api/areas', data);
+
+            showToast('Información guardada correctamente');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // Cerrar modal al hacer click fuera
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+</script>
+{% endblock %}
