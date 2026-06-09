@@ -87,7 +87,7 @@ async def get_trainings_paginated(
     offset = (page - 1) * limit
     query = select(Training).options(
         selectinload(Training.internal_instructor).options(
-            selectinload(Employee.position_obj),
+            selectinload(Employee.position_obj).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Employee.company)
         ),
         selectinload(Training.provider_obj)
@@ -137,7 +137,7 @@ async def get_training_detail(
         .options(
             selectinload(Training.sessions),
             selectinload(Training.internal_instructor).options(
-                selectinload(Employee.position_obj),
+                selectinload(Employee.position_obj).selectinload(Position.area).selectinload(Area.sede),
                 selectinload(Employee.company)
             ),
             selectinload(Training.provider_obj)
@@ -168,7 +168,7 @@ async def create_training(
     # Recargar relaciones para la respuesta
     stmt = select(Training).options(
         selectinload(Training.internal_instructor).options(
-            selectinload(Employee.position_obj),
+            selectinload(Employee.position_obj).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Employee.company)
         ),
         selectinload(Training.provider_obj)
@@ -204,7 +204,7 @@ async def update_training(
     # Recargar relaciones
     stmt = select(Training).options(
         selectinload(Training.internal_instructor).options(
-            selectinload(Employee.position_obj),
+            selectinload(Employee.position_obj).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Employee.company)
         ),
         selectinload(Training.provider_obj)
