@@ -2,7 +2,7 @@ services:
   # --- Base de Datos PostgreSQL ---
   db:
     image: postgres:15-alpine
-    container_name: talento_up_db
+    container_name: sectoruno_db
     restart: always
     env_file:
       - .env.db

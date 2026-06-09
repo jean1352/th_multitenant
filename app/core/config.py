@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "password"
-    POSTGRES_DB: str = "talento_up_db"
+    POSTGRES_DB: str = "sectoruno_db"
     POSTGRES_PORT: int = 5432 
 
     # Security
