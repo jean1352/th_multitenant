@@ -60,7 +60,18 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "DELETE FROM recruitment_audits WHERE vacancy_id IN "
             "(SELECT id FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %')"
         ))
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Aviso paso 1 (auditoría): {e}")
+        await session.rollback()
+
+    # 1.5. Borrar etapas instanciadas de las vacantes demo (necesario por FK con vacancies)
+    try:
+        await session.execute(text(
+            "DELETE FROM vacancy_stages WHERE vacancy_id IN "
+            "(SELECT id FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %')"
+        ))
+    except Exception as e:
+        print(f"⚠️ Aviso paso 1.5 (etapas de vacantes): {e}")
         await session.rollback()
 
     # 2. Borrar vacantes demo (deben ir primero ya que referencian a recruiters en la tabla users)
@@ -68,7 +79,8 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
         await session.execute(text(
             "DELETE FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %'"
         ))
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Aviso paso 2 (vacantes): {e}")
         await session.rollback()
         
     # 3. Borrar procesos de selección demo
@@ -82,7 +94,8 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
         await session.execute(text(
             "DELETE FROM recruitment_processes WHERE name LIKE '%Proceso de Selección%'"
         ))
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Aviso paso 3 (procesos): {e}")
         await session.rollback()
 
     # 4. Borrar capacitaciones demo e inscripciones (deben ir antes de borrar los colaboradores ya que uno de ellos es instructor interno)
@@ -100,7 +113,8 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
         await session.execute(text(
             "DELETE FROM training_providers WHERE ruc IN ('80099999-9', '80011111-1', '80022222-2')"
         ))
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Aviso paso 4 (capacitaciones): {e}")
         await session.rollback()
 
     # 5. Borrar en cascada todos los registros de los colaboradores demo mediante subconsultas puras SQL
@@ -188,7 +202,8 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
         await session.execute(text(
             "DELETE FROM calendar_events WHERE title IN ('Almuerzo de Fin de Año', 'Taller de Inducción de Seguridad') OR title LIKE 'Integración %'"
         ))
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Aviso paso 6 (calendario): {e}")
         await session.rollback()
 
     await session.commit()
