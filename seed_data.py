@@ -61,7 +61,7 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "(SELECT id FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %')"
         ))
     except Exception:
-        pass
+        await session.rollback()
 
     # 2. Borrar vacantes demo (deben ir primero ya que referencian a recruiters en la tabla users)
     try:
@@ -69,7 +69,7 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "DELETE FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %'"
         ))
     except Exception:
-        pass
+        await session.rollback()
         
     # 3. Borrar procesos de selección demo
     try:
@@ -83,7 +83,7 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "DELETE FROM recruitment_processes WHERE name LIKE '%Proceso de Selección%'"
         ))
     except Exception:
-        pass
+        await session.rollback()
 
     # 4. Borrar capacitaciones demo e inscripciones (deben ir antes de borrar los colaboradores ya que uno de ellos es instructor interno)
     try:
@@ -101,7 +101,7 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "DELETE FROM training_providers WHERE ruc IN ('80099999-9', '80011111-1', '80022222-2')"
         ))
     except Exception:
-        pass
+        await session.rollback()
 
     # 5. Borrar en cascada todos los registros de los colaboradores demo mediante subconsultas puras SQL
     # De esta manera evitamos problemas de mapeo o expansión de listas en SQLAlchemy, y garantizamos que
@@ -189,7 +189,7 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "DELETE FROM calendar_events WHERE title IN ('Almuerzo de Fin de Año', 'Taller de Inducción de Seguridad') OR title LIKE 'Integración %'"
         ))
     except Exception:
-        pass
+        await session.rollback()
 
     await session.commit()
     print("✅ Limpieza quirúrgica de datos demo completada con éxito.")
