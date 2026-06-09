@@ -113,17 +113,19 @@ async def detail_training(
     db: Annotated[AsyncSession, Depends(get_db)],
     page: int = Query(1, ge=1),
     q: Optional[str] = None,
-    area_id: Optional[int] = None,
+    area_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
 ):
     """Vista detalle: Información, inscritos y sesiones."""
+    area_id_int = int(area_id) if area_id and area_id.strip().isdigit() else None
+
     training = await service.get_training_detail(db, id)
     if not training:
         return templates.TemplateResponse(request=request, name="404.html", context= {"request": request, "current_user": current_user, "settings": settings}, status_code=404
         )
 
     enrollments_pag = await service.get_enrollments_paginated(
-        db, id, page, 10, q, area_id
+        db, id, page, 10, q, area_id_int
     )
     employees = (await db.execute(select(Employee))).scalars().all()
     areas = (await db.execute(select(Area))).scalars().all()
@@ -143,7 +145,7 @@ async def detail_training(
             "areas": areas,
             "sedes": sedes,
             "sessions": sessions_data,
-            "filters": {"q": q, "area_id": area_id},
+            "filters": {"q": q, "area_id": area_id_int},
             "current_user": current_user,
             "settings": settings
         },
