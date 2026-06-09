@@ -49,6 +49,8 @@
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="toggleDemoMode('{{ t.id }}', '{{ t.name }}', 'seed')" class="text-emerald-600 hover:text-emerald-900 mr-3" title="Activar Modo Demo (Carga datos semilla)">Modo Demo</button>
+                        <button onclick="toggleDemoMode('{{ t.id }}', '{{ t.name }}', 'clean')" class="text-slate-500 hover:text-slate-800 mr-3" title="Limpiar todos los datos del tenant">Limpiar</button>
                         <button onclick="openAdminModal('{{ t.id }}', '{{ t.name }}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Crear Admin</button>
                         <a href="{{ settings.get_tenant_url(t.subdomain) }}" target="_blank" class="text-blue-600 hover:text-blue-900 mr-3">Visitar</a>
                         <button onclick="openEditModal('{{ t.id }}', '{{ t.name }}', {{ 'true' if t.is_active else 'false' }})" class="text-amber-600 hover:text-amber-800 mr-3">Editar</button>
@@ -352,6 +354,24 @@
             showToast(err.message || 'Error al eliminar tenant', 'error');
             btn.innerText = originalText;
             btn.disabled = false;
+        }
+    };
+
+    window.toggleDemoMode = async (tenantId, name, action) => {
+        let confirmMsg = action === 'seed' 
+            ? `¿Está seguro de activar el Modo Demo para '${name}'?\n\nSe cargarán datos de demostración realistas (colaboradores, contratos, solicitudes de beneficios, capacitaciones, amonestaciones y eventos) con marcas temporales diversas.\nEsto vaciará los datos de prueba anteriores en este tenant.`
+            : `¿Está seguro de LIMPIAR todos los datos para '${name}'?\n\nSe vaciarán de forma definitiva todas las tablas (colaboradores, cargos, beneficios, capacitaciones, etc.) dentro del esquema de este tenant.`;
+            
+        if (!confirm(confirmMsg)) return;
+        
+        showToast(action === 'seed' ? 'Cargando datos semilla (Modo Demo)...' : 'Vaciando datos de prueba...', 'success');
+        
+        try {
+            const res = await ApiClient.post(`/admin/api/tenants/${tenantId}/demo?action=${action}`);
+            showToast(action === 'seed' ? '¡Modo Demo activado con éxito!' : '¡Datos de prueba limpiados con éxito!', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (err) {
+            showToast(err.message || 'Error al procesar el modo demo', 'error');
         }
     };
 </script>

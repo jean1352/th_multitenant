@@ -163,3 +163,34 @@ async def admin_delete_tenant(
         await conn.execute(text('SET search_path TO public'))
         
     return {"message": "Tenant y base de datos eliminados correctamente"}
+
+@router.post("/api/tenants/{tenant_id}/demo")
+@is_superadmin
+async def admin_toggle_tenant_demo(
+    tenant_id: int,
+    action: str, # "seed" o "clean"
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User
+):
+    from app.modules.tenants.models import Tenant
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+        
+    if action not in ["seed", "clean"]:
+        raise HTTPException(status_code=400, detail="Acción inválida. Use 'seed' o 'clean'")
+        
+    # Importar los métodos desde seed_data
+    from seed_data import clean_tenant_data, seed_tenant_data
+    
+    try:
+        if action == "clean":
+            await clean_tenant_data(db, tenant.schema_name)
+        elif action == "seed":
+            # Limpiamos primero por seguridad
+            await clean_tenant_data(db, tenant.schema_name)
+            await seed_tenant_data(db, tenant)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al procesar la demo: {str(e)}")
+        
+    return {"status": "success", "message": f"Modo Demo procesado con éxito: {action}"}
