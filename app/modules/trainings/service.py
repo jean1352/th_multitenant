@@ -86,7 +86,10 @@ async def get_trainings_paginated(
     """Obtiene lista paginada de capacitaciones con filtros."""
     offset = (page - 1) * limit
     query = select(Training).options(
-        selectinload(Training.internal_instructor),
+        selectinload(Training.internal_instructor).options(
+            selectinload(Employee.position_obj),
+            selectinload(Employee.company)
+        ),
         selectinload(Training.provider_obj)
     )
 
@@ -133,7 +136,10 @@ async def get_training_detail(
         select(Training)
         .options(
             selectinload(Training.sessions),
-            selectinload(Training.internal_instructor),
+            selectinload(Training.internal_instructor).options(
+                selectinload(Employee.position_obj),
+                selectinload(Employee.company)
+            ),
             selectinload(Training.provider_obj)
         )
         .where(Training.id == id)
@@ -161,7 +167,10 @@ async def create_training(
     
     # Recargar relaciones para la respuesta
     stmt = select(Training).options(
-        selectinload(Training.internal_instructor),
+        selectinload(Training.internal_instructor).options(
+            selectinload(Employee.position_obj),
+            selectinload(Employee.company)
+        ),
         selectinload(Training.provider_obj)
     ).where(Training.id == new_t.id)
     
@@ -194,7 +203,10 @@ async def update_training(
     
     # Recargar relaciones
     stmt = select(Training).options(
-        selectinload(Training.internal_instructor),
+        selectinload(Training.internal_instructor).options(
+            selectinload(Employee.position_obj),
+            selectinload(Employee.company)
+        ),
         selectinload(Training.provider_obj)
     ).where(Training.id == id)
     
