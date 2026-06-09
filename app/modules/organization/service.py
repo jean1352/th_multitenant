@@ -17,6 +17,7 @@ from app.modules.organization.models import (
 )
 from app.modules.employees.models import Employee
 from app.core.config import settings
+from app.core.tenants import get_current_tenant
 
 
 # --- CONTRACT TYPES CRUD ---
@@ -529,8 +530,11 @@ async def get_hierarchy_data(db: AsyncSession) -> Dict[str, Any]:
     for root_pos in root_positions:
         hierarchy_children.append(build_hierarchy_recursive(root_pos, all_positions))
 
+    tenant = get_current_tenant()
+    tenant_name = tenant.name if tenant else settings.BUSINESS_NAME
+
     return {
-        "name": settings.BUSINESS_NAME,
+        "name": tenant_name,
         "type": "root",
         "children": hierarchy_children
     }
@@ -574,8 +578,11 @@ async def get_structure_data(db: AsyncSession) -> Dict[str, Any]:
             del sede_node["children"]
         children_sedes.append(sede_node)
 
+    tenant = get_current_tenant()
+    tenant_name = tenant.name if tenant else settings.BUSINESS_NAME
+
     return {
-        "name": settings.BUSINESS_NAME,
+        "name": tenant_name,
         "type": "root",
         "children": children_sedes
     }
@@ -647,8 +654,11 @@ async def get_people_data(db: AsyncSession) -> Dict[str, Any]:
     for root_pos in root_positions:
         people_tree.extend(build_people_tree(root_pos, all_positions))
         
+    tenant = get_current_tenant()
+    tenant_name = tenant.name if tenant else settings.BUSINESS_NAME
+
     return {
-        "name": settings.BUSINESS_NAME,
+        "name": tenant_name,
         "type": "root",
         "children": people_tree
     }
