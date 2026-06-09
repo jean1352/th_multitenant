@@ -228,7 +228,7 @@ async def get_vacancy_by_id(db: AsyncSession, vacancy_id: int) -> Optional[Vacan
                 selectinload(Position.parent),
                 selectinload(Position.area).selectinload(Area.sede)
             ),
-            selectinload(Vacancy.stages),
+            selectinload(Vacancy.stages).selectinload(VacancyStage.responsible),
             selectinload(Vacancy.hiring_reason),
             selectinload(Vacancy.recruiter)
         )
