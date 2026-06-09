@@ -50,7 +50,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button onclick="openAdminModal('{{ t.id }}', '{{ t.name }}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Crear Admin</button>
-                        <a href="http://{{ t.subdomain }}.localhost:8006" target="_blank" class="text-blue-600 hover:text-blue-900 mr-3">Visitar</a>
+                        <a href="{{ settings.get_tenant_url(t.subdomain) }}" target="_blank" class="text-blue-600 hover:text-blue-900 mr-3">Visitar</a>
                         <button class="text-gray-400 hover:text-gray-600">Editar</button>
                     </td>
                 </tr>
@@ -80,8 +80,8 @@
                 <div class="flex">
                     <input type="text" name="subdomain" required placeholder="empresa-x"
                            class="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 focus:ring-2 focus:ring-up_blue focus:border-up_blue outline-none transition-all">
-                    <span class="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                        .localhost
+                    <span class="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm font-semibold">
+                        .{{ settings.BASE_DOMAIN }}
                     </span>
                 </div>
                 <p class="text-[10px] text-gray-400 mt-1">Solo letras minúsculas, números y guiones.</p>

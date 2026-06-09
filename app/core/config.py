@@ -44,4 +44,23 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
+    @property
+    def BASE_DOMAIN(self) -> str:
+        from urllib.parse import urlparse
+        parsed = urlparse(self.BASE_URL)
+        return parsed.hostname or "localhost"
+
+    @property
+    def BASE_SCHEME(self) -> str:
+        from urllib.parse import urlparse
+        parsed = urlparse(self.BASE_URL)
+        return parsed.scheme or "http"
+
+    def get_tenant_url(self, subdomain: str) -> str:
+        from urllib.parse import urlparse
+        parsed = urlparse(self.BASE_URL)
+        if parsed.hostname == "localhost":
+            return f"{parsed.scheme}://{subdomain}.localhost:{parsed.port}" if parsed.port else f"{parsed.scheme}://{subdomain}.localhost"
+        return f"{parsed.scheme}://{subdomain}.{parsed.hostname}:{parsed.port}" if parsed.port else f"{parsed.scheme}://{subdomain}.{parsed.hostname}"
+
 settings = Settings()
