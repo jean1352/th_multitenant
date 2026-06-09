@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
-    EMAILS_FROM_EMAIL: str = "talento@upacifico.edu.py"
+    EMAILS_FROM_EMAIL: str = "talento@sectoruno.com.py"
     EMAILS_FROM_NAME: str = "Talento Humano UP"
     SMTP_TLS: bool = True
 

@@ -37,7 +37,7 @@ class Area(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String)
     responsible_email: Mapped[str] = mapped_column(
-        String, nullable=False, default="th@upacifico.edu.py"
+        String, nullable=False, default="th@sectoruno.com.py"
     )
     sede_id: Mapped[int] = mapped_column(ForeignKey("sedes.id"))
 
