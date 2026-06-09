@@ -51,7 +51,8 @@
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button onclick="openAdminModal('{{ t.id }}', '{{ t.name }}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Crear Admin</button>
                         <a href="{{ settings.get_tenant_url(t.subdomain) }}" target="_blank" class="text-blue-600 hover:text-blue-900 mr-3">Visitar</a>
-                        <button class="text-gray-400 hover:text-gray-600">Editar</button>
+                        <button onclick="openEditModal('{{ t.id }}', '{{ t.name }}', {{ 'true' if t.is_active else 'false' }})" class="text-amber-600 hover:text-amber-800 mr-3">Editar</button>
+                        <button onclick="openDeleteModal('{{ t.id }}', '{{ t.name }}', '{{ t.subdomain }}')" class="text-rose-600 hover:text-rose-800">Eliminar</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -144,6 +145,83 @@
         </form>
     </div>
 </div>
+
+<!-- Modal para editar tenant -->
+<div id="editTenantModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-900">Editar Tenant</h3>
+            <button onclick="document.getElementById('editTenantModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 flex items-center">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <form id="editTenantForm" class="p-6 space-y-4">
+            <input type="hidden" name="id" id="editTenantId">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Empresa</label>
+                <input type="text" name="name" id="editTenantName" required placeholder="Ej: Corporación X"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-up_blue focus:border-up_blue outline-none transition-all">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <select name="is_active" id="editTenantIsActive" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-up_blue focus:border-up_blue outline-none transition-all">
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo (Desactivado / Archivado)</option>
+                </select>
+                <p class="text-[10px] text-gray-400 mt-1">Los tenants inactivos no pueden acceder a la plataforma.</p>
+            </div>
+            
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('editTenantModal').classList.add('hidden')"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 bg-up_blue text-white text-sm font-bold rounded-lg hover:bg-blue-800 transition-all shadow-md">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar tenant -->
+<div id="deleteTenantModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+        <div class="bg-rose-50 px-6 py-4 border-b border-rose-100 flex justify-between items-center">
+            <div class="flex items-center gap-2 text-rose-700">
+                <span class="material-symbols-outlined text-[20px]">warning</span>
+                <h3 class="text-lg font-bold">¿Eliminar Tenant?</h3>
+            </div>
+            <button onclick="document.getElementById('deleteTenantModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 flex items-center">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-gray-600 leading-relaxed text-left">
+                Esta acción es <strong class="text-gray-900">definitiva e irreversible</strong>. Se eliminará de forma permanente el registro del tenant <strong id="deleteTenantNameDisplay" class="text-rose-700"></strong>, junto con toda su base de datos, esquema de PostgreSQL, colaboradores, nóminas, expedientes y reclutamientos asociados.
+            </p>
+            <p class="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-100 text-left">
+                Por seguridad, escribe el subdominio <strong id="deleteTenantSubdomainVerify" class="font-mono bg-white px-1.5 py-0.5 rounded border border-rose-200"></strong> para confirmar la eliminación completa.
+            </p>
+            <input type="hidden" id="deleteTenantId">
+            <input type="hidden" id="deleteTenantSubdomainValue">
+            <input type="text" id="deleteTenantVerifyInput" placeholder="Escribe el subdominio para confirmar"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-rose-500 transition-all font-mono text-sm">
+            
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('deleteTenantModal').classList.add('hidden')"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <button id="confirmDeleteBtn" onclick="submitDeleteTenant()" disabled
+                        class="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                    Confirmar Destrucción
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -206,5 +284,75 @@
             btn.disabled = false;
         }
     });
+
+    window.openEditModal = (id, name, isActive) => {
+        document.getElementById('editTenantId').value = id;
+        document.getElementById('editTenantName').value = name;
+        document.getElementById('editTenantIsActive').value = isActive ? "true" : "false";
+        document.getElementById('editTenantModal').classList.remove('hidden');
+    };
+
+    window.openDeleteModal = (id, name, subdomain) => {
+        document.getElementById('deleteTenantId').value = id;
+        document.getElementById('deleteTenantNameDisplay').innerText = name;
+        document.getElementById('deleteTenantSubdomainVerify').innerText = subdomain;
+        document.getElementById('deleteTenantSubdomainValue').value = subdomain;
+        document.getElementById('deleteTenantVerifyInput').value = "";
+        document.getElementById('confirmDeleteBtn').disabled = true;
+        document.getElementById('deleteTenantModal').classList.remove('hidden');
+    };
+
+    document.getElementById('deleteTenantVerifyInput').addEventListener('input', (e) => {
+        const subdomainToMatch = document.getElementById('deleteTenantSubdomainValue').value;
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        if (e.target.value.trim() === subdomainToMatch) {
+            confirmBtn.disabled = false;
+        } else {
+            confirmBtn.disabled = true;
+        }
+    });
+
+    document.getElementById('editTenantForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tenantId = document.getElementById('editTenantId').value;
+        const name = document.getElementById('editTenantName').value;
+        const isActive = document.getElementById('editTenantIsActive').value === "true";
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerText;
+        btn.innerText = 'Guardando...';
+        btn.disabled = true;
+
+        try {
+            await ApiClient.put(`/admin/api/tenants/${tenantId}`, {
+                name: name,
+                is_active: isActive
+            });
+            showToast('Tenant actualizado con éxito.', 'success');
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (err) {
+            showToast(err.message || 'Error al actualizar tenant', 'error');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    });
+
+    window.submitDeleteTenant = async () => {
+        const tenantId = document.getElementById('deleteTenantId').value;
+        const btn = document.getElementById('confirmDeleteBtn');
+        const originalText = btn.innerText;
+        btn.innerText = 'Eliminando...';
+        btn.disabled = true;
+
+        try {
+            await ApiClient.delete(`/admin/api/tenants/${tenantId}`);
+            showToast('Tenant y esquema eliminados de forma definitiva.', 'success');
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (err) {
+            showToast(err.message || 'Error al eliminar tenant', 'error');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    };
 </script>
 {% endblock %}

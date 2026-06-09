@@ -116,3 +116,50 @@ async def admin_create_tenant_user(
     from app.modules.auth.service import create_user
     
     return await create_user(db, user_in)
+
+@router.put("/api/tenants/{tenant_id}", response_model=schemas.Tenant)
+@is_superadmin
+async def admin_update_tenant(
+    tenant_id: int,
+    tenant_in: schemas.TenantUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User
+):
+    tenant = await db.get(models.Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    
+    if tenant_in.name is not None:
+        tenant.name = tenant_in.name
+    if tenant_in.is_active is not None:
+        tenant.is_active = tenant_in.is_active
+        
+    await db.commit()
+    await db.refresh(tenant)
+    return tenant
+
+@router.delete("/api/tenants/{tenant_id}")
+@is_superadmin
+async def admin_delete_tenant(
+    tenant_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User
+):
+    from sqlalchemy import text
+    tenant = await db.get(models.Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    
+    schema_name = tenant.schema_name
+    
+    # 1. Eliminar registro del Tenant
+    await db.delete(tenant)
+    await db.commit()
+    
+    # 2. Eliminar el esquema de base de datos asociado
+    from app.core.database import engine
+    async with engine.begin() as conn:
+        await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE'))
+        await conn.execute(text('SET search_path TO public'))
+        
+    return {"message": "Tenant y base de datos eliminados correctamente"}

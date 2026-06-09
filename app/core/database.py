@@ -47,6 +47,9 @@ async def get_db():
             # Seteamos el search_path para que las consultas se dirijan al esquema del tenant
             # Incluimos 'public' al final para que las tablas globales (como 'tenants') sigan siendo accesibles
             await session.execute(text(f'SET search_path TO "{tenant.schema_name}", public'))
+        else:
+            # Si no hay tenant, nos aseguramos de que la conexión use el esquema público
+            await session.execute(text('SET search_path TO public'))
         try:
             yield session
         finally:

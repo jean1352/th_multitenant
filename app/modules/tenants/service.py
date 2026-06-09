@@ -34,6 +34,9 @@ async def create_tenant(db: AsyncSession, name: str, subdomain: str) -> Tenant:
         # Base.metadata.create_all es síncrono, necesitamos run_sync
         await conn.run_sync(Base.metadata.create_all)
         
+        # Restablecemos el search_path a public para que la conexión no quede sucia en el pool
+        await conn.execute(text('SET search_path TO public'))
+        
     logger.info(f"Tenant '{name}' creado con esquema '{schema_name}'")
     return new_tenant
 
