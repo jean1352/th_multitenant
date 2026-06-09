@@ -1,236 +1,812 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ settings.BUSINESS_NAME }} - Plataforma de Gestión de Talento Humano</title>
+    <title>{{ settings.BUSINESS_NAME }} - Plataforma Integral de Gestión de Talento Humano</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary_blue: '#0F172A',
-                        accent_blue: '#1E3A8A',
-                        highlight_blue: '#3B82F6',
-                        light_blue: '#EFF6FF',
+                        primary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                            950: '#2e1065',
+                        },
+                        navy: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            200: '#bcccdc',
+                            300: '#9fb3c8',
+                            400: '#829ab1',
+                            500: '#627d98',
+                            600: '#486581',
+                            700: '#334e68',
+                            800: '#102a43',
+                            900: '#0b1d33',
+                            950: '#070d19',
+                        }
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'float-slow': 'float 8s ease-in-out infinite',
+                        'float-medium': 'float 6s ease-in-out infinite',
+                        'float-fast': 'float 4s ease-in-out infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #F8FAFC;
+            overflow-x: hidden;
         }
+
+        /* Custom keyframes for custom animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(1deg); }
+        }
+        @keyframes float-reverse {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(15px) rotate(-1.5deg); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.15; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(1.08); }
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes draw-progress {
+            from { width: 0%; }
+            to { width: var(--target-width); }
+        }
+
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-reverse { animation: float-reverse 7s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 5s ease-in-out infinite; }
+        .animate-slide-up { opacity: 0; animation: slide-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Grid backgrounds */
+        .grid-pattern {
+            background-image: radial-gradient(rgba(139, 92, 246, 0.1) 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+        }
+        .grid-pattern-light {
+            background-image: radial-gradient(rgba(139, 92, 246, 0.05) 1.2px, transparent 1.2px);
+            background-size: 24px 24px;
+        }
+
         .hero-gradient {
-            background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 50%),
-                        radial-gradient(circle at bottom left, rgba(30, 58, 138, 0.15), transparent 50%),
-                        #0F172A;
+            background: 
+                radial-gradient(circle at 85% 15%, rgba(139, 92, 246, 0.18) 0%, transparent 40%),
+                radial-gradient(circle at 15% 75%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
+                #070d19;
+        }
+
+        /* Card stylings */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-card-light {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .shadow-glow-purple {
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.15);
+        }
+        
+        .shadow-glow-emerald {
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
         }
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen bg-[#FDFDFE] text-navy-900 flex flex-col antialiased">
 
-    <!-- Header / Navbar -->
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100">
+    <!-- Header / Navbar (Glassmorphic) -->
+    <header class="bg-white/70 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="h-11 w-11 bg-accent-blue rounded-xl flex items-center justify-center shadow-md shadow-blue-900/20">
-                    <span class="text-white font-extrabold text-xl tracking-wider">DU</span>
+            <!-- Brand Logo and Name -->
+            <div class="flex items-center gap-3.5 group">
+                <div class="h-11 w-11 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20 group-hover:scale-105 transition-all duration-300">
+                    <i class="fa-solid fa-graduation-cap text-white text-lg"></i>
                 </div>
                 <div>
-                    <span class="font-bold text-lg text-slate-900 block leading-tight">{{ settings.BUSINESS_NAME }}</span>
-                    <span class="text-xs text-gray-500 font-medium">RUC: {{ settings.BUSINESS_RUC }}</span>
+                    <span class="font-extrabold text-xl text-navy-950 tracking-tight block leading-tight group-hover:text-primary-600 transition-colors">
+                        {{ settings.BUSINESS_NAME }}
+                    </span>
+                    <span class="text-[10px] text-primary-500 font-bold uppercase tracking-widest block mt-0.5">Gestión de Talento</span>
                 </div>
             </div>
             
+            <!-- Mid Nav Links -->
             <nav class="hidden md:flex items-center gap-8">
-                <a href="#features" class="text-gray-600 hover:text-accent-blue font-medium transition-colors">Características</a>
-                <a href="#about" class="text-gray-600 hover:text-accent-blue font-medium transition-colors">Nosotros</a>
-                <a href="#ownership" class="text-gray-600 hover:text-accent-blue font-medium transition-colors">Identidad Legal</a>
+                <a href="#features" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Nuestros Módulos</a>
+                <a href="#product-tour" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Vista Interactiva</a>
+                <a href="#ownership" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Identidad Corporativa</a>
             </nav>
 
-            <div class="flex items-center gap-3">
-                <a href="/login" class="px-5 py-2.5 text-sm font-semibold text-accent-blue hover:bg-light_blue rounded-xl transition-all">
-                    Acceso Staff
+            <!-- CTA Buttons -->
+            <div class="flex items-center gap-4">
+                <a href="/login" class="px-5 py-2.5 text-sm font-bold text-navy-700 hover:text-primary-600 bg-slate-50 hover:bg-primary-50 rounded-xl transition-all duration-300">
+                    <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Acceso Personal
                 </a>
-                <a href="/admin" class="px-5 py-2.5 text-sm font-bold text-white bg-accent-blue hover:bg-blue-800 rounded-xl shadow-lg shadow-blue-900/10 transition-all hover:scale-[1.02]">
-                    Administración
+                <a href="/admin" class="hidden sm:inline-flex items-center px-5 py-2.5 text-sm font-bold text-white bg-navy-950 hover:bg-primary-600 rounded-xl shadow-md shadow-navy-900/10 transition-all duration-300 hover:scale-[1.03]">
+                    <i class="fa-solid fa-user-tie mr-1.5"></i> Administración
                 </a>
             </div>
         </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero-gradient text-white py-24 px-4 relative overflow-hidden flex-1 flex items-center">
-        <!-- Background decorative elements -->
-        <div class="absolute inset-0 opacity-10">
-            <div class="absolute top-10 left-1/4 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl"></div>
-            <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-indigo-500 rounded-full filter blur-3xl"></div>
+    <!-- Hero Section (Premium Deep Dark & Animated Mesh) -->
+    <section class="hero-gradient text-white py-20 lg:py-28 px-4 relative overflow-hidden flex items-center grid-pattern">
+        <!-- Glowing Ambient Blobs -->
+        <div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            <div class="absolute top-1/4 left-10 w-80 h-80 bg-indigo-500/20 rounded-full filter blur-[100px] animate-pulse-glow"></div>
+            <div class="absolute bottom-1/3 right-12 w-96 h-96 bg-primary-500/20 rounded-full filter blur-[120px] animate-pulse-glow delay-1000"></div>
         </div>
 
-        <div class="max-w-5xl mx-auto text-center relative z-10">
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-400 text-xs font-bold uppercase tracking-wider mb-8">
-                <i class="fa-solid fa-server"></i> Solución SaaS Multi-inquilino (Multi-tenant)
-            </div>
-            <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6 bg-gradient-to-r from-white via-slate-100 to-blue-200 bg-clip-text text-transparent">
-                Gestión Integral de Talento Humano
-            </h1>
-            <p class="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto mb-10 font-normal leading-relaxed">
-                Descubra una suite moderna de recursos humanos diseñada para centralizar, automatizar y potenciar la productividad de sus inquilinos empresariales de manera aislada, rápida y segura.
-            </p>
+        <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
+            <!-- Left Info Block -->
+            <div class="lg:col-span-6 flex flex-col justify-center text-left animate-slide-up">
+                <!-- Badge -->
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/30 text-primary-300 text-[11px] font-bold uppercase tracking-wider mb-6 self-start">
+                    <span class="flex h-2 w-2 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <i class="fa-solid fa-chart-line mr-1"></i> Software Inteligente de RR.HH.
+                </div>
+                
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 leading-[1.12]">
+                    La plataforma definitiva para gestionar tu <span class="bg-gradient-to-r from-primary-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">Talento Humano</span>
+                </h1>
+                
+                <p class="text-base sm:text-lg text-slate-300 mb-8 max-w-xl font-normal leading-relaxed">
+                    Digitaliza el ciclo de vida completo de tus colaboradores. Centraliza expedientes, automatiza procesos de reclutamiento, administra capacitaciones, gestiona solicitudes de beneficios y mantén un clima laboral excepcional en un solo lugar.
+                </p>
 
-            <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
-                <a href="/admin" class="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-0.5">
-                    <i class="fa-solid fa-gears mr-2"></i> Gestionar Tenants
-                </a>
-                <a href="#features" class="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold rounded-2xl transition-all border border-slate-700">
-                    Saber Más
-                </a>
+                <!-- Interactive Stats Row inside Hero -->
+                <div class="grid grid-cols-3 gap-4 border-t border-b border-slate-800/80 py-5 mb-8 max-w-xl">
+                    <div class="text-left">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-primary-400">100%</div>
+                        <div class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider mt-0.5">Expediente Digital</div>
+                    </div>
+                    <div class="text-left border-l border-slate-800/80 pl-4">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-indigo-400">0</div>
+                        <div class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider mt-0.5">Archivos Físicos</div>
+                    </div>
+                    <div class="text-left border-l border-slate-800/80 pl-4">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-purple-400">Automático</div>
+                        <div class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider mt-0.5">Flujo de Permisos</div>
+                    </div>
+                </div>
+
+                <!-- Call to Actions -->
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="#product-tour" class="inline-flex items-center justify-center px-7 py-4 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-2xl shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300 hover:scale-[1.02] text-sm group">
+                        Ver Módulo Interactivo
+                        <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                    <a href="/login" class="inline-flex items-center justify-center px-7 py-4 bg-slate-900 hover:bg-slate-800 text-slate-100 hover:text-white font-bold rounded-2xl border border-slate-800 transition-all duration-300 text-sm">
+                        <i class="fa-solid fa-user-lock mr-2 text-primary-400"></i> Acceso Directo de Staff
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Interactive Mockup (Masterpiece Dashboard Simulator) -->
+            <div class="lg:col-span-6 flex justify-center items-center relative select-none animate-fade-in-up delay-200">
+                <!-- Background Glowing Circle behind the card -->
+                <div class="absolute w-[400px] h-[400px] bg-primary-600/10 rounded-full filter blur-[60px] animate-pulse"></div>
+
+                <!-- Main Simulated Dashboard Container -->
+                <div class="w-full max-w-lg glass-card rounded-2xl shadow-2xl p-6 relative overflow-hidden border border-white/10 animate-float">
+                    <!-- Top Window bar -->
+                    <div class="flex items-center justify-between pb-4 mb-4 border-b border-white/5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-3 rounded-full bg-rose-500 block"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-500 block"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 block"></span>
+                        </div>
+                        <div class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-slate-400 tracking-wider">
+                            <i class="fa-solid fa-lock text-[8px] mr-1 text-emerald-400"></i> talento.upacifico.edu.py/portal
+                        </div>
+                        <div>
+                            <i class="fa-solid fa-ellipsis-vertical text-slate-400 text-xs"></i>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Inner -->
+                    <div class="space-y-4">
+                        <!-- Header widget inside Mockup -->
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs text-slate-400 uppercase tracking-widest font-bold">Dashboard de Personal</h4>
+                                <h3 class="text-lg font-bold text-white mt-0.5">¡Hola, Alejandra!</h3>
+                            </div>
+                            <span class="px-2 py-1 text-[10px] bg-primary-500/20 border border-primary-500/30 text-primary-300 font-bold rounded-lg uppercase">Directora</span>
+                        </div>
+
+                        <!-- Main visual stat widget -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 bg-white/5 rounded-xl border border-white/5 relative group">
+                                <div class="text-[10px] text-slate-400 font-semibold uppercase">Reclutamiento Activo</div>
+                                <div class="text-xl font-bold mt-1 text-white">4 Vacantes</div>
+                                <div class="w-full bg-white/10 h-1.5 rounded-full mt-2.5 overflow-hidden">
+                                    <div class="bg-primary-500 h-full rounded-full" style="width: 75%"></div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-white/5 rounded-xl border border-white/5">
+                                <div class="text-[10px] text-slate-400 font-semibold uppercase">Tasa de Asistencia</div>
+                                <div class="text-xl font-bold mt-1 text-white">98.4%</div>
+                                <div class="w-full bg-white/10 h-1.5 rounded-full mt-2.5 overflow-hidden">
+                                    <div class="bg-emerald-500 h-full rounded-full" style="width: 98%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floating Live Employee Status Bar (Simulated Event) -->
+                        <div class="p-3.5 bg-gradient-to-r from-primary-950/40 to-indigo-950/40 rounded-xl border border-primary-500/20 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-primary-500 to-indigo-500 p-[1.5px]">
+                                    <div class="h-full w-full bg-slate-900 rounded-full flex items-center justify-center text-[11px] font-bold text-white">AB</div>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-white">Alejandra Benítez</h4>
+                                    <p class="text-[10px] text-indigo-300 font-medium">Capacitación: Liderazgo Moderno</p>
+                                </div>
+                            </div>
+                            <!-- Live indicator badge -->
+                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[10px] text-emerald-400 font-bold uppercase tracking-wider animate-pulse">
+                                Certificada
+                            </span>
+                        </div>
+
+                        <!-- Recent Benefits Request Approved (Simulated card) -->
+                        <div class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                    <i class="fa-solid fa-umbrella-beach text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-semibold text-white">Solicitud de Vacaciones</h4>
+                                    <p class="text-[10px] text-slate-400">5 días aprobados por Dirección</p>
+                                </div>
+                            </div>
+                            <div class="h-5 w-5 bg-emerald-500/20 rounded-full flex items-center justify-center text-[9px] text-emerald-400 font-bold">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Secondary floating element (Decorative Badge) -->
+                <div class="absolute -bottom-6 -left-6 bg-slate-900/90 border border-white/10 rounded-2xl p-4 shadow-xl flex items-center gap-3.5 animate-float-reverse select-none max-w-[200px]">
+                    <div class="h-10 w-10 bg-gradient-to-tr from-amber-500 to-yellow-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/10 text-white">
+                        <i class="fa-solid fa-crown text-sm"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Satisfacción</span>
+                        <span class="text-sm font-black text-white">Clima: 96%</span>
+                    </div>
+                </div>
+
+                <!-- Tertiary floating element (Interactive Bell) -->
+                <div class="absolute -top-4 -right-4 bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-3 shadow-xl flex items-center gap-2.5 animate-float select-none max-w-[170px]">
+                    <div class="h-2 w-2 rounded-full bg-rose-500 animate-ping"></div>
+                    <div>
+                        <span class="text-[10px] text-rose-400 font-bold block uppercase tracking-wider">Alerta de RR.HH.</span>
+                        <span class="text-[11px] font-semibold text-white">¡1 Entrevista Hoy!</span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section id="features" class="py-24 bg-white">
+    <!-- Interactive Product Tour (Showcase Application Modules in Real-Time) -->
+    <section id="product-tour" class="py-24 bg-slate-50/60 border-y border-slate-100 relative grid-pattern-light">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
-                <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">
-                    Características Destacadas
+                <!-- Glowing indicator badge -->
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs font-bold uppercase tracking-wider mb-4">
+                    <i class="fa-solid fa-eye"></i> Vista Interactiva del Sistema
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                    Explora el Entorno de Gestión
                 </h2>
-                <p class="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">
-                    Todo lo que su organización necesita para el control completo del ciclo laboral de sus colaboradores en un solo lugar.
+                <p class="mt-4 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-normal">
+                    Haz clic en los diferentes módulos para ver en tiempo real cómo funciona nuestra interfaz y automatiza las operaciones de tu equipo.
+                </p>
+            </div>
+
+            <!-- Tab Buttons (Elegant Layout) -->
+            <div class="flex flex-wrap justify-center gap-3 sm:gap-4 mb-10 max-w-4xl mx-auto">
+                <button onclick="switchTab('core')" id="btn-core" class="tab-btn active px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-100 hover:border-slate-200 shadow-sm transition-all duration-300 flex items-center gap-2">
+                    <i class="fa-solid fa-id-card text-base"></i>
+                    Expediente Digital
+                </button>
+                <button onclick="switchTab('recruitment')" id="btn-recruitment" class="tab-btn px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-100 hover:border-slate-200 shadow-sm transition-all duration-300 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-base"></i>
+                    Reclutamiento
+                </button>
+                <button onclick="switchTab('benefits')" id="btn-benefits" class="tab-btn px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-100 hover:border-slate-200 shadow-sm transition-all duration-300 flex items-center gap-2">
+                    <i class="fa-solid fa-gift text-base"></i>
+                    Beneficios y Permisos
+                </button>
+                <button onclick="switchTab('trainings')" id="btn-trainings" class="tab-btn px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-100 hover:border-slate-200 shadow-sm transition-all duration-300 flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap text-base"></i>
+                    Capacitaciones
+                </button>
+            </div>
+
+            <!-- Interactive Showcase Area (Simulated Application Screen) -->
+            <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-100 overflow-hidden relative min-h-[420px] flex flex-col">
+                <!-- Browser top bar -->
+                <div class="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <!-- Navigation dots -->
+                        <div class="flex gap-1.5">
+                            <span class="w-3 h-3 rounded-full bg-slate-200 block"></span>
+                            <span class="w-3 h-3 rounded-full bg-slate-200 block"></span>
+                            <span class="w-3 h-3 rounded-full bg-slate-200 block"></span>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 bg-slate-200/50 px-4 py-1.5 rounded-xl select-none">
+                            <i class="fa-solid fa-shield text-[9px] mr-1 text-primary-500"></i> Servidor Interno Seguro
+                        </span>
+                    </div>
+                    <span id="showcase-indicator" class="text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1 rounded-full uppercase tracking-wider">
+                        Módulo Expediente
+                    </span>
+                </div>
+
+                <!-- Showcase Content Containers (Rendered dynamically) -->
+                <div class="p-6 sm:p-8 flex-1 flex flex-col justify-between">
+                    
+                    <!-- TAB 1: CORE EMPLOYEE EXPEDIENTE (DEFAULT ACTIVE) -->
+                    <div id="content-core" class="tab-content block space-y-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
+                            <div class="flex items-center gap-4">
+                                <div class="h-16 w-16 bg-gradient-to-tr from-primary-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-primary-500/10">
+                                    FC
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black text-slate-900">Francisco Caballero</h3>
+                                    <p class="text-sm text-slate-500 font-semibold">Analista Senior de Atracción de Talento</p>
+                                </div>
+                            </div>
+                            <span class="px-3.5 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full flex items-center gap-1.5">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 block"></span> Contrato Activo - Indefinido
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                            <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase block tracking-wider">Información Básica</span>
+                                <p class="text-sm font-semibold text-slate-800 mt-1">ID: COL-00892</p>
+                                <p class="text-sm text-slate-600 mt-0.5">Sede: Corporativa Central</p>
+                            </div>
+                            <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase block tracking-wider">Dependencia</span>
+                                <p class="text-sm font-semibold text-slate-800 mt-1">Área: Recursos Humanos</p>
+                                <p class="text-sm text-slate-600 mt-0.5">Cargo: Analista Sr.</p>
+                            </div>
+                            <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase block tracking-wider">Histórico Laboral</span>
+                                <p class="text-sm font-semibold text-slate-800 mt-1">Ingreso: 12-Mar-2024</p>
+                                <p class="text-sm text-slate-600 mt-0.5">Promociones: 1 Vigente</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-primary-50/50 p-4 rounded-xl border border-primary-100 flex items-center justify-between text-left">
+                            <div class="flex items-center gap-3">
+                                <div class="h-9 w-9 bg-primary-100 text-primary-600 rounded-lg flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-slate-500 font-semibold">Última Actualización del Expediente</p>
+                                    <p class="text-sm font-bold text-slate-800 mt-0.5">Renovación de Contrato Cargada Digitalmente</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-slate-400 hidden sm:inline">Hace 2 horas</span>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: RECRUITMENT -->
+                    <div id="content-recruitment" class="tab-content hidden space-y-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                                    Vacante: Desarrollador Backend Python (FastAPI)
+                                    <span class="px-2.5 py-0.5 text-[10px] bg-primary-500 text-white rounded-full font-bold">Activa</span>
+                                </h3>
+                                <p class="text-sm text-slate-500 font-semibold mt-0.5">Área de Tecnología & Desarrollo • 1 Vacante disponible</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="px-3.5 py-1.5 text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors">
+                                    <i class="fa-solid fa-calendar-days mr-1 text-primary-500"></i> 4 Entrevistas
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Kanban Pipeline Sim -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <!-- Col 1: Postulados -->
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2.5 text-left">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-1">Postulados (3)</span>
+                                <div class="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm">
+                                    <p class="text-xs font-bold text-slate-800">Camilo Torres</p>
+                                    <p class="text-[10px] text-slate-500 mt-0.5">Ex-Tech Lead • 5a exp</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm">
+                                    <p class="text-xs font-bold text-slate-800">Diana Mendoza</p>
+                                    <p class="text-[10px] text-slate-500 mt-0.5">Python Dev • 3a exp</p>
+                                </div>
+                            </div>
+                            <!-- Col 2: Entrevista -->
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2.5 text-left relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-tr from-primary-500/5 to-transparent pointer-events-none"></div>
+                                <span class="text-[10px] text-primary-600 font-extrabold uppercase tracking-wider block mb-1 flex items-center justify-between">
+                                    En Entrevista (1)
+                                    <span class="h-1.5 w-1.5 rounded-full bg-primary-500 block animate-ping"></span>
+                                </span>
+                                <div class="bg-white p-3 rounded-xl border border-primary-200 shadow-md shadow-primary-500/5 relative">
+                                    <p class="text-xs font-bold text-slate-800 flex items-center justify-between">
+                                        Enzo Alcaraz
+                                        <span class="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md font-bold">Hoy 15:00</span>
+                                    </p>
+                                    <p class="text-[10px] text-primary-600 font-bold mt-1">Fase: Entrevista Técnica</p>
+                                </div>
+                            </div>
+                            <!-- Col 3: Oferta / Contratado -->
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2.5 text-left">
+                                <span class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">Ofertas (1)</span>
+                                <div class="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm border-l-4 border-l-emerald-500">
+                                    <p class="text-xs font-bold text-slate-800">Sonia Martínez</p>
+                                    <p class="text-[10px] text-emerald-600 font-bold mt-0.5">Oferta Salarial Enviada</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: BENEFITS -->
+                    <div id="content-benefits" class="tab-content hidden space-y-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900">Buzón de Solicitudes y Permisos</h3>
+                                <p class="text-sm text-slate-500 font-semibold mt-0.5">Gestión simplificada con respuesta automatizada por correo electrónico</p>
+                            </div>
+                            <span class="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold rounded-full">
+                                <i class="fa-regular fa-clock mr-1"></i> 1 Solicitud Pendiente
+                            </span>
+                        </div>
+
+                        <!-- Requests Table -->
+                        <div class="space-y-3">
+                            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between text-left">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-10 w-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-base shadow-sm">
+                                        <i class="fa-solid fa-umbrella-beach"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800">Licencia de Vacaciones</h4>
+                                        <p class="text-[10px] text-slate-500">Solicitado por: Gustavo Ferreira • Duración: 10 Días</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2.5 py-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-lg">APROBADO</span>
+                                    <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between text-left">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-10 w-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-base shadow-sm">
+                                        <i class="fa-solid fa-house-laptop"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800">Día de Trabajo Remoto Excepcional</h4>
+                                        <p class="text-[10px] text-slate-500">Solicitado por: Romina Zarza • Fecha: 11-Junio</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-lg animate-pulse">PENDIENTE</span>
+                                    <button class="bg-primary-600 hover:bg-primary-500 text-white text-[10px] font-bold px-3 py-1 rounded-lg shadow transition-colors">Aprobar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: TRAININGS -->
+                    <div id="content-trainings" class="tab-content hidden space-y-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900">Capacitaciones Activas</h3>
+                                <p class="text-sm text-slate-500 font-semibold mt-0.5">Control de planes formativos y asistencias grupales</p>
+                            </div>
+                            <span class="px-3 py-1 bg-primary-50 border border-primary-200 text-primary-700 text-xs font-bold rounded-full">
+                                <i class="fa-solid fa-check-double mr-1"></i> Certificado Oficial
+                            </span>
+                        </div>
+
+                        <!-- Progress Section -->
+                        <div class="space-y-4 text-left">
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-xs font-bold text-slate-800">Curso: Liderazgo y Dinámicas de Grupo Eficientes</h4>
+                                    <span class="text-xs font-bold text-primary-600">82% Completado</span>
+                                </div>
+                                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                                    <div class="bg-gradient-to-r from-primary-500 to-indigo-500 h-full rounded-full" style="width: 82%"></div>
+                                </div>
+                                <div class="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold">
+                                    <span>Instructor: Escuela Corporativa DUARUS</span>
+                                    <span>22 Asistentes Registrados</span>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-xs font-bold text-slate-800">Curso: Ciberseguridad y Manejo de Datos del Personal</h4>
+                                    <span class="text-xs font-bold text-emerald-600">100% Completado</span>
+                                </div>
+                                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-500 h-full rounded-full" style="width: 100%"></div>
+                                </div>
+                                <div class="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold">
+                                    <span>Instructor: Depto. Tecnología Interno</span>
+                                    <span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Finalizado Exitosamente</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lower Banner of interactive widget -->
+                    <div class="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <p class="font-medium"><i class="fa-solid fa-circle-info mr-1 text-primary-500"></i> Todos los módulos sincronizan su base de datos de manera integrada y robusta.</p>
+                        <a href="/login" class="text-primary-600 font-bold hover:underline">Acceder al Sistema <i class="fa-solid fa-arrow-right ml-0.5 text-[10px]"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Features Section (Pillars Grid with Hover Effects and Animations) -->
+    <section id="features" class="py-24 bg-white relative overflow-hidden">
+        <!-- Floating shapes background -->
+        <div class="absolute inset-0 z-0 pointer-events-none">
+            <div class="absolute top-1/3 left-[-100px] w-96 h-96 bg-primary-100/30 rounded-full filter blur-[120px] animate-pulse"></div>
+            <div class="absolute bottom-1/4 right-[-120px] w-[500px] h-[500px] bg-indigo-100/30 rounded-full filter blur-[140px] animate-pulse delay-700"></div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center mb-20">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-wider mb-4">
+                    <i class="fa-solid fa-boxes-stacked"></i> Suite Modular Completa
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                    Optimiza el Ciclo Laboral al 100%
+                </h2>
+                <p class="mt-4 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-normal">
+                    Cada pilar ha sido diseñado bajo exigentes estándares de usabilidad, logrando que la administración diaria sea rápida, clara y libre de burocracia.
                 </p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Feature 1 -->
-                <div class="p-8 rounded-2xl border border-gray-100 bg-slate-50 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
-                    <div class="h-12 w-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6">
-                        <i class="fa-solid fa-users"></i>
+                <!-- Feature 1: Expedientes -->
+                <div class="p-8 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="h-12 w-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6 group-hover:scale-110 transition-transform shadow-inner">
+                        <i class="fa-solid fa-id-card-clip"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Expediente de Empleados</h3>
-                    <p class="text-gray-600 text-sm leading-relaxed">
-                        Administración centralizada de datos laborales, contratos, áreas, cargos, sedes e información de contacto con total trazabilidad.
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 group-hover:text-primary-600 transition-colors">Expediente de Empleados</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Control digital y centralizado de la ficha del colaborador: contratos, historial de cargos, sedes físicas, áreas de trabajo, jefes inmediatos e información confidencial con historial de auditoría.
                     </p>
                 </div>
 
-                <!-- Feature 2 -->
-                <div class="p-8 rounded-2xl border border-gray-100 bg-slate-50 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
-                    <div class="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6">
-                        <i class="fa-solid fa-magnifying-glass"></i>
+                <!-- Feature 2: Recruitment -->
+                <div class="p-8 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6 group-hover:scale-110 transition-transform shadow-inner">
+                        <i class="fa-solid fa-people-arrows"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Reclutamiento y Selección</h3>
-                    <p class="text-gray-600 text-sm leading-relaxed">
-                        Control de vacantes, etapas personalizables de postulación, calendario laboral de entrevistas y auditorías de cambio de etapa.
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 group-hover:text-emerald-600 transition-colors">Atracción & Reclutamiento</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Gestión ágil de convocatorias laborales. Define etapas de postulación personalizadas, agenda entrevistas mediante un calendario inteligente y mantén un registro de auditoría de cada candidato.
                     </p>
                 </div>
 
-                <!-- Feature 3 -->
-                <div class="p-8 rounded-2xl border border-gray-100 bg-slate-50 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
-                    <div class="h-12 w-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6">
+                <!-- Feature 3: Trainings -->
+                <div class="p-8 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="h-12 w-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6 group-hover:scale-110 transition-transform shadow-inner">
                         <i class="fa-solid fa-graduation-cap"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Capacitaciones</h3>
-                    <p class="text-gray-600 text-sm leading-relaxed">
-                        Gestión de proveedores de capacitación, cursos, asistencias de empleados y evaluación de programas de formación corporativos.
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 group-hover:text-amber-600 transition-colors">Desarrollo y Capacitaciones</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Eleva las competencias profesionales de tu personal. Registra proveedores de capacitación, planifica cursos, controla asistencias mediante paneles intuitivos y emite certificados oficiales de cumplimiento.
                     </p>
                 </div>
 
-                <!-- Feature 4 -->
-                <div class="p-8 rounded-2xl border border-gray-100 bg-slate-50 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
-                    <div class="h-12 w-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6">
-                        <i class="fa-solid fa-gift"></i>
+                <!-- Feature 4: Benefits -->
+                <div class="p-8 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="h-12 w-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6 group-hover:scale-110 transition-transform shadow-inner">
+                        <i class="fa-solid fa-heart-pulse"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Beneficios y Solicitudes</h3>
-                    <p class="text-gray-600 text-sm leading-relaxed">
-                        Catálogo de beneficios corporativos y flujos de aprobación ágiles para solicitudes de días libres, permisos o asignaciones.
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 group-hover:text-purple-600 transition-colors">Beneficios y Permisos</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Administra el catálogo de beneficios y compensaciones no salariales de manera transparente. Permite a los colaboradores solicitar licencias, días libres o permisos con flujos rápidos de aprobación digital.
                     </p>
                 </div>
 
-                <!-- Feature 5 -->
-                <div class="p-8 rounded-2xl border border-gray-100 bg-slate-50 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
-                    <div class="h-12 w-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6">
+                <!-- Feature 5: Disciplinary Actions -->
+                <div class="p-8 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="h-12 w-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6 group-hover:scale-110 transition-transform shadow-inner">
                         <i class="fa-solid fa-scale-balanced"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Medidas Disciplinarias</h3>
-                    <p class="text-gray-600 text-sm leading-relaxed">
-                        Registro transparente de llamados de atención, suspensiones y amonestaciones con archivo digital e histórico de colaboradores.
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 group-hover:text-rose-600 transition-colors">Medidas Disciplinarias</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Asegura la convivencia armónica y el cumplimiento normativo. Registra amonestaciones, llamados de atención e históricos de suspensiones de forma confidencial y con total respaldo digitalizado.
                     </p>
                 </div>
 
-                <!-- Feature 6 -->
-                <div class="p-8 rounded-2xl border border-gray-100 bg-slate-50 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
-                    <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6">
-                        <i class="fa-solid fa-shield-halved"></i>
+                <!-- Feature 6: Organizational Structure -->
+                <div class="p-8 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-bold mb-6 group-hover:scale-110 transition-transform shadow-inner">
+                        <i class="fa-solid fa-sitemap"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Seguridad Multi-esquema</h3>
-                    <p class="text-gray-600 text-sm leading-relaxed">
-                        Aislamiento estricto de la base de datos mediante esquemas PostgreSQL dinámicos para garantizar que sus datos permanezcan privados.
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors">Estructura Organizacional</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Diseña de manera visual el organigrama corporativo de tu empresa. Configura áreas de trabajo, sedes operativas, tipos de contratos, catálogos generales y asigna dependencias jerárquicas fácilmente.
                     </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Ownership & Legal Section -->
-    <section id="ownership" class="py-20 bg-slate-50 border-t border-b border-slate-100">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white rounded-3xl p-8 sm:p-12 shadow-xl shadow-slate-100 border border-slate-100 flex flex-col md:flex-row items-center gap-10">
-                <div class="h-24 w-24 sm:h-32 sm:w-32 bg-accent-blue/10 rounded-2xl flex items-center justify-center text-accent-blue flex-shrink-0 text-4xl sm:text-5xl shadow-inner">
-                    <i class="fa-solid fa-building-circle-check"></i>
+    <!-- Ownership & Corporate Identity (Deep Slate / Elegant Accent Layout) -->
+    <section id="ownership" class="py-24 bg-slate-900 text-slate-300 relative overflow-hidden">
+        <div class="absolute inset-0 pointer-events-none">
+            <div class="absolute bottom-[-100px] left-1/3 w-80 h-80 bg-indigo-500/10 rounded-full filter blur-[100px]"></div>
+        </div>
+        
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="bg-slate-950 rounded-3xl p-8 sm:p-14 shadow-2xl border border-white/5 flex flex-col md:flex-row items-center gap-10 sm:gap-14">
+                <!-- Large Elegant Icon Display with glowing backshadow -->
+                <div class="h-28 w-28 sm:h-36 sm:w-36 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-3xl flex items-center justify-center text-white flex-shrink-0 text-5xl sm:text-6xl shadow-xl shadow-primary-500/10">
+                    <i class="fa-solid fa-briefcase"></i>
                 </div>
-                <div>
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-4">
-                        Información Corporativa & Titularidad
+                
+                <div class="text-left">
+                    <span class="text-[10px] text-primary-400 font-extrabold uppercase tracking-widest block mb-2">Identidad & Cumplimiento Legal</span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white mb-4">
+                        Información Corporativa y Propiedad
                     </h2>
-                    <p class="text-gray-600 leading-relaxed mb-4 text-base">
-                        La plataforma tecnológica es desarrollada, operada y mantenida exclusivamente por la empresa <strong class="text-slate-900">{{ settings.BUSINESS_NAME }}</strong> con el identificador fiscal <strong class="text-slate-900">RUC {{ settings.BUSINESS_RUC }}</strong>.
+                    <p class="text-slate-300 leading-relaxed mb-4 text-base">
+                        Esta moderna plataforma tecnológica de gestión es desarrollada, operada y mantenida de forma exclusiva por la entidad jurídica <strong class="text-white">{{ settings.BUSINESS_NAME }}</strong>, registrada bajo el identificador tributario oficial <strong class="text-white">RUC {{ settings.BUSINESS_RUC }}</strong>.
                     </p>
-                    <p class="text-gray-500 text-sm leading-relaxed">
-                        Como entidad propietaria, <strong class="text-slate-700">DUARUS E.A.S.</strong> garantiza la integridad de los servicios SaaS provistos, la continuidad del software en la nube y el cumplimiento de los más altos estándares de seguridad informática y protección de datos para todos nuestros subdominios y clientes corporativos de la suite de Talento Humano.
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Como titular exclusivo del software, <strong class="text-slate-300">DUARUS E.A.S.</strong> asegura la disponibilidad de la plataforma en la nube, brindando altos niveles de protección informática, confidencialidad, y estricto apego a las legislaciones vigentes de protección de datos para todos sus colaboradores y usuarios vinculados a la suite de Gestión de Talento Humano.
                     </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-slate-400 py-12 mt-auto">
+    <!-- Footer (Premium Dark Minimalist Design) -->
+    <footer class="bg-slate-950 text-slate-400 py-16 border-t border-white/5 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="h-9 w-9 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-extrabold text-sm tracking-wider">DU</span>
+            <div class="flex flex-col md:flex-row items-center justify-between gap-8 pb-10 border-b border-white/5">
+                <div class="flex items-center gap-4.5 group text-left">
+                    <div class="h-10 w-10 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg text-white">
+                        <i class="fa-solid fa-graduation-cap text-base"></i>
                     </div>
                     <div>
-                        <span class="font-bold text-white block text-sm">{{ settings.BUSINESS_NAME }}</span>
-                        <span class="text-xs text-slate-500">RUC: {{ settings.BUSINESS_RUC }}</span>
+                        <span class="font-extrabold text-white text-lg block leading-none">{{ settings.BUSINESS_NAME }}</span>
+                        <span class="text-[10px] text-slate-500 uppercase font-bold tracking-widest block mt-1">RUC: {{ settings.BUSINESS_RUC }}</span>
                     </div>
                 </div>
                 
-                <div class="flex gap-6 text-sm">
-                    <a href="#features" class="hover:text-white transition-colors">Características</a>
-                    <a href="#ownership" class="hover:text-white transition-colors">Legal</a>
-                    <a href="/login" class="hover:text-white transition-colors">Acceso de Personal</a>
+                <div class="flex flex-wrap gap-x-8 gap-y-4 text-sm font-semibold">
+                    <a href="#features" class="hover:text-primary-400 transition-colors">Nuestros Módulos</a>
+                    <a href="#product-tour" class="hover:text-primary-400 transition-colors">Vista Interactiva</a>
+                    <a href="#ownership" class="hover:text-primary-400 transition-colors">Legal</a>
+                    <a href="/login" class="hover:text-primary-400 transition-colors"><i class="fa-solid fa-lock text-[10px] mr-1 text-primary-400"></i> Acceso Staff</a>
                 </div>
             </div>
             
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 text-xs">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-10 text-xs text-slate-500 text-center sm:text-left">
                 <p>&copy; 2026 {{ settings.BUSINESS_NAME }}. Todos los derechos reservados.</p>
-                <p class="text-slate-500">Desarrollado y operado con altos estándares de aislamiento Multi-Tenant.</p>
+                <p class="flex items-center gap-1">
+                    <i class="fa-solid fa-shield-halved text-primary-500"></i> Plataforma Digital Auditada y Conexión Segura SSL/TLS
+                </p>
             </div>
         </div>
     </footer>
+
+    <!-- JS for Interactive Product Tour Tab System -->
+    <script>
+        function switchTab(tabId) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.add('hidden');
+                content.classList.remove('block');
+            });
+
+            // Show selected tab content
+            const targetContent = document.getElementById('content-' + tabId);
+            targetContent.classList.remove('hidden');
+            targetContent.classList.add('block');
+
+            // Reset active styles on all buttons
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.remove('bg-primary-600', 'text-white', 'shadow-lg', 'shadow-primary-500/25');
+                btn.classList.add('bg-white', 'text-slate-700', 'border-slate-100');
+            });
+
+            // Set active style on clicked button
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.add('active');
+            activeBtn.classList.add('bg-primary-600', 'text-white', 'shadow-lg', 'shadow-primary-500/25');
+            activeBtn.classList.remove('bg-white', 'text-slate-700', 'border-slate-100');
+
+            // Update showcase text indicator dynamically
+            const labelIndicator = document.getElementById('showcase-indicator');
+            let moduleLabel = "";
+            switch (tabId) {
+                case 'core':
+                    moduleLabel = "Módulo Expediente";
+                    labelIndicator.className = "text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1 rounded-full uppercase tracking-wider";
+                    break;
+                case 'recruitment':
+                    moduleLabel = "Módulo Reclutamiento";
+                    labelIndicator.className = "text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider";
+                    break;
+                case 'benefits':
+                    moduleLabel = "Módulo Beneficios";
+                    labelIndicator.className = "text-xs font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full uppercase tracking-wider";
+                    break;
+                case 'trainings':
+                    moduleLabel = "Módulo Capacitaciones";
+                    labelIndicator.className = "text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-wider";
+                    break;
+            }
+            labelIndicator.innerText = moduleLabel;
+        }
+
+        // Initialize active class properly on load
+        document.addEventListener('DOMContentLoaded', () => {
+            switchTab('core');
+        });
+    </script>
 
 </body>
 
