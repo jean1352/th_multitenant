@@ -1,0 +1,40 @@
+<script>
+    /**
+     * Utilidades compartidas para el Dashboard
+     */
+
+    // Función para descargar cualquier canvas como imagen
+    window.downloadChart = (canvasId, filename) => {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        
+        const link = document.createElement('a');
+        link.download = `${filename}_${new Date().toISOString().slice(0,10)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+
+    // Lógica del Modal de Exportación
+    const exportModal = document.getElementById('exportModal');
+    
+    window.openExportModal = () => exportModal.classList.remove('hidden');
+    window.closeExportModal = () => exportModal.classList.add('hidden');
+
+    window.downloadReport = (type) => {
+        const areaId = document.getElementById('exportArea').value;
+        const status = document.getElementById('exportStatus').value;
+        const start = document.getElementById('exportStart').value;
+        const end = document.getElementById('exportEnd').value;
+
+        let params = new URLSearchParams();
+        if (areaId) params.append('area_id', areaId);
+        if (status) params.append('status', status);
+        if (start) params.append('start_date', start);
+        if (end) params.append('end_date', end);
+
+        let url = type === 'excel' ? '/recruitment/api/reports/export' : '/recruitment/api/reports/pdf';
+        window.location.href = `${url}?${params.toString()}`;
+        
+        closeExportModal();
+    };
+</script>

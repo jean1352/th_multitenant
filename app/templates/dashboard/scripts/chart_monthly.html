@@ -1,0 +1,350 @@
+<script type="module">
+    import { ApiClient } from '/static/js/api_client.js';
+
+    /**
+     * GRÁFICO: Evolución Mensual (Dinámico)
+     * Soporta dos modos: 'flow' (Actividad) y 'backlog' (Estado por origen)
+     */
+    let monthlyChart = null;
+    let currentYear = new Date().getFullYear();
+    let currentMode = 'flow'; // 'flow' | 'backlog'
+    let cachedData = null; // Cache para no recargar al cambiar modo
+    let currentDetailsSource = {}; // Stores all 3 lists: opened, closed, starts
+    let activeTab = 'opened';      // 'opened' | 'closed' | 'starts'
+    let currentSort = { col: 'date', dir: 'desc' };
+    let currentFilterMonth = 'all'; // 'all' | '1'...'12'
+
+    window.changeYear = (delta) => {
+        currentYear += delta;
+        loadMonthlyChart(currentYear);
+    };
+
+    window.changeFilterMonth = (val) => {
+        currentFilterMonth = val;
+        updateTabCounts();
+        renderDetailTable();
+    };
+
+    window.switchMonthlyMode = (mode) => {
+        currentMode = mode;
+
+        // Update UI Buttons
+        const btnFlow = document.getElementById('btn-mode-flow');
+        const btnBacklog = document.getElementById('btn-mode-backlog');
+
+        if (mode === 'flow') {
+            btnFlow.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-white text-blue-700 shadow-sm";
+            btnBacklog.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-700";
+        } else {
+            btnFlow.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-700";
+            btnBacklog.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-white text-blue-700 shadow-sm";
+        }
+
+        if (cachedData) {
+            renderChart(cachedData);
+        } else {
+            loadMonthlyChart(currentYear);
+        }
+    };
+    
+    // --- NUEVO: Lógica de Tabs ---
+    window.switchDetailTab = (tabName) => {
+        activeTab = tabName;
+        
+        // Update Tab Styles
+        ['opened', 'closed', 'starts'].forEach(t => {
+            const el = document.getElementById(`tab-${t}`);
+            if (t === tabName) {
+                el.className = "pb-2 border-b-2 font-medium text-sm transition-colors text-blue-600 border-blue-600";
+            } else {
+                el.className = "pb-2 border-b-2 font-medium text-sm transition-colors text-gray-500 border-transparent hover:text-gray-700";
+            }
+        });
+
+        // Update Header Text based on Tab
+        const dateHeaders = {
+            'opened': 'Fecha Inicio',
+            'closed': 'Fecha Cierre',
+            'starts': 'Fecha Ingreso'
+        };
+        const titleHeaders = {
+            'opened': 'Título Vacante',
+            'closed': 'Título Vacante',
+            'starts': 'Funcionario'
+        };
+        const createdHeaders = {
+            'opened': 'Fecha Creación',
+            'closed': 'Fecha Creación',
+            'starts': 'Cédula Identidad'
+        };
+
+        document.getElementById('col-date-header').textContent = dateHeaders[tabName] || 'Fecha';
+        document.getElementById('col-title-header').textContent = titleHeaders[tabName] || 'Título';
+        document.getElementById('col-created-header').textContent = createdHeaders[tabName] || 'Creado';
+
+        renderDetailTable();
+    }
+
+
+
+    async function loadMonthlyChart(year) {
+        document.getElementById('currentYear').innerText = year;
+        try {
+            const data = await ApiClient.get(`/recruitment/api/dashboard/chart-data?year=${year}`);
+            cachedData = data;
+            
+            // Store details
+            currentDetailsSource = data.details || {};
+            
+            // Initial counts update
+            updateTabCounts();
+
+            renderChart(data);
+        } catch (e) {
+            console.error("Error cargando gráfico mensual:", e);
+        }
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('chartMonthly').getContext('2d');
+        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+        if (monthlyChart) monthlyChart.destroy();
+
+        let datasets = [];
+        let chartType = 'bar';
+        let scales = {
+            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { borderDash: [2, 4] } },
+            x: { grid: { display: false } }
+        };
+
+        if (currentMode === 'flow') {
+            // MODO 1: FLUJO DE ACTIVIDAD
+            datasets = [
+                {
+                    label: 'Iniciadas',
+                    data: data.flow.opened,
+                    backgroundColor: '#3B82F6', // Azul
+                    borderRadius: 4,
+                    order: 2
+                },
+                {
+                    label: 'Cerradas (Actividad)',
+                    data: data.flow.closed,
+                    backgroundColor: '#10B981', // Verde
+                    borderRadius: 4,
+                    order: 3
+                },
+                {
+                    label: 'Aumento Dotación',
+                    data: data.flow.growth,
+                    backgroundColor: '#F59E0B', // Naranja
+                    borderRadius: 4,
+                    order: 4
+                },
+                {
+                    label: 'Inicios de Personal',
+                    data: data.flow.starts,
+                    borderColor: '#8B5CF6', // Púrpura
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    type: 'line',
+                    tension: 0.3,
+                    pointRadius: 3,
+                    order: 1
+                }
+            ];
+        } else {
+            // MODO 2: BACKLOG (Estado de lo creado)
+            scales.x.stacked = true;
+            scales.y.stacked = true;
+
+            datasets = [
+                {
+                    label: 'Cerradas',
+                    data: data.backlog.created_and_closed,
+                    backgroundColor: '#CBD5E1', // Gris (Ya resuelto)
+                    borderRadius: 4,
+                    stack: 'Stack 0'
+                },
+                {
+                    label: 'Aún Abiertas',
+                    data: data.backlog.still_open,
+                    backgroundColor: '#EF4444', // Rojo (Pendiente)
+                    borderRadius: 4,
+                    stack: 'Stack 0'
+                }
+            ];
+        }
+
+        monthlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: scales,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, boxWidth: 8 }
+                    },
+                    datalabels: {
+                        display: 'auto',
+                        anchor: 'end',
+                        align: 'top',
+                        offset: -2,
+                        font: { size: 10, weight: 'bold' },
+                        color: '#64748b',
+                        formatter: (value) => value > 0 ? value : ''
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => {
+                                const m = items[0].label;
+                                return currentMode === 'backlog'
+                                    ? `Vacantes iniciadas en ${m}`
+                                    : `Actividad en ${m}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Initial render of details (default to 'opened')
+        renderDetailTable();
+    }
+
+    window.sortDetails = (col) => {
+        if (currentSort.col === col) {
+            currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.col = col;
+            currentSort.dir = 'asc';
+        }
+        renderDetailTable();
+    }
+
+    // --- HELPER DE FILTRADO ---
+    function getFilteredList(list) {
+        if (!list) return [];
+        if (currentFilterMonth === 'all') return list;
+        
+        const targetMonth = parseInt(currentFilterMonth);
+
+        return list.filter(item => {
+            const dateStr = item.date; // "DD/MM/YYYY" or "-"
+            if (!dateStr || dateStr === '-') return false;
+            
+            const parts = dateStr.split('/');
+            if (parts.length !== 3) return false;
+            
+            const month = parseInt(parts[1]);
+            return month === targetMonth;
+        });
+    }
+    
+    function updateTabCounts() {
+        // Calculate filtered counts for all tabs
+        const lists = ['opened', 'closed', 'starts'];
+        lists.forEach(type => {
+            const rawList = currentDetailsSource[type] || [];
+            const filteredList = getFilteredList(rawList);
+            const countEl = document.getElementById(`count-${type}`);
+            if(countEl) countEl.textContent = filteredList.length;
+        });
+    }
+
+    function renderDetailTable() {
+        const container = document.getElementById('monthlyDetailContainer');
+        const body = document.getElementById('monthlyDetailBody');
+
+        // Unhide container
+        container.classList.remove('hidden');
+
+        // Get and FILTER items
+        const rawList = currentDetailsSource[activeTab] || [];
+        const filteredList = getFilteredList(rawList);
+        
+        // Sort in place
+        const sortedList = [...filteredList].sort((a, b) => {
+            let valA = a[currentSort.col];
+            let valB = b[currentSort.col];
+
+            // Handle nulls
+            if (valA === null) return 1;
+            if (valB === null) return -1;
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        if (sortedList.length === 0) {
+            body.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-gray-500 italic">
+                        No hay registros para este criterio.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        body.innerHTML = sortedList.map(v => {
+            // Logic for Link and Status based on Active Tab
+            let linkUrl = `/recruitment/vacancies/${v.id}`;
+            let statusBadge = '';
+            
+            if (activeTab === 'starts') {
+                // Employee Logic
+                linkUrl = `/employees/${v.id}`; // Matches /employees/{id}
+                if (v.status === 'active' || v.status === 'hired') {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Contratado</span>`;
+                } else {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">${v.status}</span>`;
+                }
+            } else {
+                // Vacancy Logic
+                if (v.status === 'open') {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Abierta</span>`;
+                } else if (v.status === 'closed') {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">Cerrada</span>`;
+                } else {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Cancelada</span>`;
+                }
+            }
+
+            return `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 font-medium text-gray-900">#${v.id}</td>
+                <td class="px-4 py-3 font-semibold text-blue-800">
+                    <a href="${linkUrl}" class="hover:underline">${v.title}</a>
+                </td>
+                <td class="px-4 py-3 text-gray-500">${v.created_at || '-'}</td>
+                <td class="px-4 py-3">
+                    <span class="font-bold text-gray-700">
+                        ${v.date || '-'}
+                    </span>
+                </td>
+                <td class="px-4 py-3">
+                    ${statusBadge}
+                </td>
+            </tr>
+        `}).join('');
+    }
+
+    // Cargar inicial
+    loadMonthlyChart(currentYear);
+</script>

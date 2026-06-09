@@ -1,0 +1,37 @@
+<script>
+    /**
+     * GRÁFICO: Top Incumplimientos (Barra Horizontal)
+     */
+    (function() {
+        const ctx = document.getElementById('chartTopBreaches').getContext('2d');
+        const data = window.DashboardData.top_breaches;
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: { 
+                labels: Object.keys(data), 
+                datasets: [{ 
+                    label: 'Etapas Vencidas', 
+                    data: Object.values(data), 
+                    backgroundColor: '#EF4444', // Rojo Alerta
+                    borderRadius: 4 
+                }] 
+            },
+            options: { 
+                indexAxis: 'y',
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: { 
+                        color: '#fff',
+                        anchor: 'end',
+                        align: 'start',
+                        formatter: (value) => value > 0 ? value : ''
+                    } 
+                }
+            }
+        });
+    })();
+</script>

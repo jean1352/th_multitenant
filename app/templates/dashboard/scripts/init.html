@@ -1,0 +1,16 @@
+<!-- Librerías de Gráficos -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<script>
+    // Registrar Plugin de Etiquetas globalmente
+    Chart.register(ChartDataLabels);
+
+    // INICIALIZACIÓN DE DATOS GLOBALES
+    // Esto desacopla Jinja2 de los scripts individuales
+    window.DashboardData = {{ metrics.charts | tojson }};
+    
+    // Configuración Global de Fuentes y Colores
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = '#64748b';
+</script>

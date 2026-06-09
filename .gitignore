@@ -75,7 +75,8 @@ app/static/uploads/**/*
 *.sql
 
 # --- Scripts
-scripts/
+/scripts/
+!/app/templates/dashboard/scripts/
 
 steps.md
 

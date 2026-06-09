@@ -1,0 +1,52 @@
+<script>
+    /**
+     * GRÁFICO: Cuellos de Botella (Mixed Chart: Bar + Line)
+     * Ahora muestra Tiempo Real vs SLA Objetivo
+     */
+    let bottleneckChartInstance = null;
+
+    // Esta función es llamada desde chart_sla.html cuando se actualizan los datos
+    window.renderBottleneckChart = (data) => {
+        const ctx = document.getElementById('chartBottleneck').getContext('2d');
+
+        if (bottleneckChartInstance) bottleneckChartInstance.destroy();
+
+        bottleneckChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { 
+                labels: data.labels, 
+                datasets: [
+                    { 
+                        label: 'Días Promedio Real', 
+                        data: data.real, 
+                        backgroundColor: '#8B5CF6', // Violeta
+                        borderRadius: 4,
+                        order: 2
+                    },
+                    {
+                        label: 'SLA Objetivo',
+                        data: data.target,
+                        type: 'line',
+                        borderColor: '#F59E0B', // Naranja
+                        borderWidth: 2,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#F59E0B',
+                        pointRadius: 4,
+                        fill: false,
+                        order: 1
+                    }
+                ] 
+            },
+            options: { 
+                indexAxis: 'y',
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { x: { beginAtZero: true } },
+                plugins: { 
+                    datalabels: { display: false },
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    };
+</script>

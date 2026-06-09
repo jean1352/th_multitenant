@@ -1,0 +1,65 @@
+<script>
+    /**
+     * GRÁFICO: Movimientos de Personal (Línea Multiserie)
+     * Muestra Ingresos, Salidas y Promociones
+     */
+    (function() {
+        const ctx = document.getElementById('chartTurnover').getContext('2d');
+        const data = window.DashboardData.turnover;
+
+        new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: data.labels, 
+                datasets: [
+                    { 
+                        label: 'Ingresos', 
+                        data: data.entries, 
+                        borderColor: '#10B981', // Verde
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 4
+                    },
+                    { 
+                        label: 'Salidas', 
+                        data: data.exits, 
+                        borderColor: '#EF4444', // Rojo
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 4
+                    },
+                    { 
+                        label: 'Promociones', 
+                        data: data.promotions, 
+                        borderColor: '#3B82F6', // Azul
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        borderDash: [5, 5]
+                    }
+                ] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { stepSize: 1 } 
+                    } 
+                },
+                plugins: { 
+                    datalabels: { display: false },
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    })();
+</script>

@@ -1,0 +1,45 @@
+<script>
+    /**
+     * GRÁFICO: Análisis de Cobertura (Doughnut - Mini)
+     * Adaptado para el KPI Card
+     */
+    (function() {
+        const ctx = document.getElementById('chartType').getContext('2d');
+        const data = window.DashboardData.by_type;
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: { 
+                labels: Object.keys(data).map(k => k.toUpperCase()), 
+                datasets: [{ 
+                    data: Object.values(data), 
+                    backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'], 
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                cutout: '70%', // Dona más fina
+                plugins: { 
+                    legend: { display: false }, // Ocultar leyenda para ahorrar espacio
+                    datalabels: { display: false }, // Ocultar etiquetas internas
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) { label += ': '; }
+                                let value = context.raw;
+                                let sum = context.chart._metasets[context.datasetIndex].total;
+                                let percentage = (value * 100 / sum).toFixed(1) + "%";
+                                return label + value + ' (' + percentage + ')';
+                            }
+                        }
+                    }
+                } 
+            }
+        });
+    })();
+</script>
