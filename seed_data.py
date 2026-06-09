@@ -166,11 +166,13 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
             "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
-        # Usuarios de acceso demo
+        # Usuarios de acceso demo (solamente borra las 4 cuentas fijas demo y cuentas asociadas a empleados demo,
+        # protegiendo por completo a los administradores reales y usuarios creados legítimamente por el cliente)
         await session.execute(text(
             "DELETE FROM users WHERE employee_id IN "
             "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%') "
-            "OR email LIKE '%@sectoruno.com.py'"
+            "OR email IN ('maria.lopez@sectoruno.com.py', 'ana.benitez@sectoruno.com.py', "
+            "'carlos.gomez@sectoruno.com.py', 'diego.torres@sectoruno.com.py')"
         ))
         
         # Finalmente, los Colaboradores demo
@@ -657,6 +659,7 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
     session.add(proc_tech)
     await session.flush()
     
+    stages_ti_objects = []
     stages_ti = [
         "Filtro Curricular", "Entrevista de Recursos Humanos", "Evaluación Técnica (FastAPI/React)",
         "Entrevista Técnica con Líderes", "Entrevista Final de Dirección", "Exámenes Médicos", "Oferta Económica"
@@ -664,6 +667,7 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
     for idx, name in enumerate(stages_ti, 1):
         stage = ProcessStage(process_id=proc_tech.id, name=name, sla_days=random.choice([2, 3, 5]), owner=StageOwner.RECRUITER if idx in [1, 2, 7] else StageOwner.AREA, order_index=idx)
         session.add(stage)
+        stages_ti_objects.append(stage)
         
     # Proceso 2: Operaciones y Logística (5 Etapas)
     proc_ops = RecruitmentProcess(
@@ -672,12 +676,14 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
     session.add(proc_ops)
     await session.flush()
     
+    stages_ops_objects = []
     stages_ops = [
         "Filtro de Perfil", "Test Psicométrico e Inteligencia", "Dinámica de Grupo e Integración", "Entrevista Individual con Supervisor", "Oferta y Firma de Contrato"
     ]
     for idx, name in enumerate(stages_ops, 1):
         stage = ProcessStage(process_id=proc_ops.id, name=name, sla_days=random.choice([2, 3, 4]), owner=StageOwner.RECRUITER if idx in [1, 5] else StageOwner.AREA, order_index=idx)
         session.add(stage)
+        stages_ops_objects.append(stage)
         
     await session.flush()
 
@@ -715,6 +721,51 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
         session.add(vac)
         await session.flush()
         
+        # Generar etapas individuales para esta vacante específica (VacancyStage)
+        stages_list = stages_ti_objects if is_ti else stages_ops_objects
+        current_stage_date = start_date
+        
+        # Determinar cuántas etapas se completaron según el estado de la vacante
+        if status == ProcessStatus.CLOSED:
+            num_completed_stages = len(stages_list) # todas completadas
+        elif status == ProcessStatus.CANCELLED:
+            num_completed_stages = random.randint(1, len(stages_list) - 1)
+        else: # OPEN (activa)
+            num_completed_stages = random.randint(1, len(stages_list) - 1)
+            
+        for s_idx, p_stage in enumerate(stages_list, 1):
+            deadline_date = current_stage_date + timedelta(days=p_stage.sla_days)
+            
+            if s_idx <= num_completed_stages:
+                # Etapa completada
+                actual_days = random.randint(1, p_stage.sla_days + 2) # a veces con retraso
+                end_date = current_stage_date + timedelta(days=actual_days)
+                if end_date >= date.today():
+                    end_date = date.today() - timedelta(days=1)
+                
+                notes = f"Etapa de '{p_stage.name}' finalizada y aprobada de forma satisfactoria. Se registraron todas las observaciones del comité evaluador de Sector Uno."
+                next_stage_start = end_date
+            else:
+                # Etapa pendiente o futura
+                end_date = None
+                notes = "Pendiente de inicio. Esperando finalización de etapas previas del proceso." if status == ProcessStatus.OPEN else "Etapa cancelada debido a finalización prematura de la vacante."
+                next_stage_start = current_stage_date + timedelta(days=p_stage.sla_days)
+                
+            v_stage = VacancyStage(
+                vacancy_id=vac.id,
+                name=p_stage.name,
+                owner=p_stage.owner,
+                responsible_id=recruiter_user_id if p_stage.owner == StageOwner.RECRUITER else manager_user_id,
+                sla_days_snapshot=p_stage.sla_days,
+                order_index=p_stage.order_index,
+                start_date=current_stage_date,
+                end_date=end_date,
+                deadline_date=deadline_date,
+                notes=notes
+            )
+            session.add(v_stage)
+            current_stage_date = next_stage_start
+
         # Generar historial de AUDITORÍA para cada vacante (3-5 registros por vacante con tiempos variables)
         actions = ["CREATED", "STAGE_UPDATE", "STATUS_CHANGE"]
         details_list = [
