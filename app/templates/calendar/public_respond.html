@@ -5,13 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Confirmar Asistencia - UP</title>
+    <link rel="icon" type="image/png" href="/static/images/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden" id="card">
-        <div class="bg-blue-900 p-6 text-center">
+        <div class="bg-blue-900 p-6 flex flex-col items-center text-center">
+            <img src="/static/images/logo.png" alt="Logo" class="h-14 w-14 object-contain mb-2 filter drop-shadow">
             <h1 class="text-white text-xl font-bold">{{ settings.BUSINESS_NAME }}</h1>
             <p class="text-blue-200 text-sm">Gestión de Eventos</p>
         </div>

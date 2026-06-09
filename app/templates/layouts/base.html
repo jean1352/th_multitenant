@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ tenant.name if tenant else "Talento Humano UP" }}{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/images/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -35,7 +36,9 @@
             body.sidebar-collapsed #main-content { margin-left: 4.5rem !important; }
             body.sidebar-collapsed .sidebar-text { display: none !important; }
             body.sidebar-collapsed .sidebar-header-text { display: none !important; }
-            body.sidebar-collapsed .sidebar-header-container { justify-content: center !important; padding: 0 !important; }
+            body.sidebar-collapsed .sidebar-header-container { min-height: 4rem !important; height: 4rem !important; justify-content: center !important; padding: 0 !important; }
+            body.sidebar-collapsed .sidebar-logo { margin-bottom: 0 !important; height: 2.25rem !important; width: 2.25rem !important; }
+            body.sidebar-collapsed .sidebar-toggle-btn { display: none !important; }
             body.sidebar-collapsed .sidebar-icon { margin-right: 0 !important; font-size: 1.25rem !important; }
             body.sidebar-collapsed .sidebar-link { justify-content: center !important; padding-left: 0 !important; padding-right: 0 !important; margin-left: 0.5rem !important; margin-right: 0.5rem !important; }
             body.sidebar-collapsed .sidebar-section-title { text-align: center !important; padding: 0 !important; font-size: 0 !important; line-height: 0 !important; margin-top: 1.5rem !important; margin-bottom: 1rem !important; }

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - {{ tenant.name if tenant else "Administración Global" }}</title>
+    <link rel="icon" type="image/png" href="/static/images/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -41,9 +42,7 @@
     <div
         class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10 transform transition-all hover:scale-[1.01] duration-300">
         <div class="text-center mb-8">
-            <div class="mx-auto h-16 w-16 bg-blue-900 rounded-full flex items-center justify-center mb-4 shadow-lg">
-                <span class="text-white font-bold text-2xl">{{ tenant.name[:2]|upper if tenant else "AD" }}</span>
-            </div>
+            <img src="/static/images/logo.png" alt="Logo" class="mx-auto h-20 w-20 object-contain mb-4 filter drop-shadow">
             <h1 class="text-2xl font-bold text-blue-900 tracking-tight">{{ tenant.name if tenant else "Acceso Global" }}</h1>
             <p class="text-gray-500 text-sm mt-1">{{ "Gestión de Tenants y Plataforma" if not tenant else "Sistema de Gestión de Talento Humano" }}</p>
         </div>
