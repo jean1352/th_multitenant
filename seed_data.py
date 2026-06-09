@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script de carga y limpieza de datos semilla (Seed Data) para un Tenant específico.
-Permite poblar y limpiar bases de datos multi-tenant de forma segura.
+Script de carga y limpieza quirúrgica de datos semilla (Seed Data) para un Tenant específico.
+Permite poblar y limpiar bases de datos de demostración de manera segura sin afectar usuarios reales.
 """
 
 import os
@@ -45,121 +45,305 @@ from app.modules.trainings.models import (
 
 async def clean_tenant_data(session: AsyncSession, schema_name: str):
     """
-    Limpia todas las tablas de datos dentro del esquema del Tenant usando TRUNCATE CASCADE.
-    De esta forma se eliminan los datos de prueba sin alterar el esquema público.
+    Limpia de forma quirúrgica únicamente los datos de prueba (demo) del esquema del tenant,
+    sin afectar a los usuarios, administradores o datos creados de manera real por el cliente.
     """
-    print(f"🧹 Limpiando todos los datos existentes en el esquema: '{schema_name}'...")
+    print(f"🧹 Iniciando limpieza quirúrgica de datos demo en esquema: '{schema_name}'...")
     
-    # Listado de tablas del inquilino en orden seguro
-    tables = [
-        "emergency_contacts", "event_enrollments", "calendar_events", "calendar_event_types",
-        "training_enrollments", "trainings", "training_providers", "employee_dietary_association",
-        "dietary_restrictions", "sanctions", "recognitions", "employee_benefits",
-        "benefit_request_items", "benefit_requests", "benefit_types", "benefit_request_types",
-        "benefit_subtypes", "benefit_grant_reasons", "authorization_levels", "benefit_modalities",
-        "benefit_frequencies", "users", "employees", "employee_positions", "positions",
-        "areas", "sedes", "companies", "contract_types", "working_day_types", "salary_types",
-        "currencies", "payment_methods", "banks", "recruitment_processes", "hiring_reasons",
-        "stage_edit_reasons", "process_stages", "vacancies", "vacancy_stages"
+    # Asegurar el search_path en la sesión
+    await session.execute(text(f'SET search_path TO "{schema_name}", public'))
+    
+    # 1. Borrar vacantes demo (deben ir primero ya que referencian a recruiters en la tabla users)
+    try:
+        await session.execute(text(
+            "DELETE FROM vacancies WHERE title = 'Desarrollador Fullstack Junior'"
+        ))
+    except Exception:
+        pass
+        
+    # 2. Borrar procesos de selección demo
+    try:
+        # Borrar primero las etapas del proceso de selección demo
+        await session.execute(text(
+            "DELETE FROM process_stages WHERE process_id IN "
+            "(SELECT id FROM recruitment_processes WHERE name = 'Proceso de Selección de Tecnología')"
+        ))
+        # Borrar el proceso de selección demo
+        await session.execute(text(
+            "DELETE FROM recruitment_processes WHERE name = 'Proceso de Selección de Tecnología'"
+        ))
+    except Exception:
+        pass
+
+    # 3. Borrar capacitaciones demo (deben ir antes de borrar los colaboradores ya que uno de ellos es instructor interno)
+    try:
+        # Borrar inscripciones de capacitaciones demo
+        await session.execute(text(
+            "DELETE FROM training_enrollments WHERE training_id IN "
+            "(SELECT id FROM trainings WHERE name IN ('FastAPI Avanzado y SQL Server', 'Habilidades Blandas en Talento Humano'))"
+        ))
+        # Borrar capacitaciones
+        await session.execute(text(
+            "DELETE FROM trainings WHERE name IN ('FastAPI Avanzado y SQL Server', 'Habilidades Blandas en Talento Humano')"
+        ))
+        # Borrar proveedores demo
+        await session.execute(text(
+            "DELETE FROM training_providers WHERE ruc = '80099999-9'"
+        ))
+    except Exception:
+        pass
+
+    # 4. Borrar en cascada todos los registros de los colaboradores demo mediante subconsultas puras SQL
+    # De esta manera evitamos problemas de mapeo o expansión de listas en SQLAlchemy, y garantizamos que
+    # si el cliente creó usuarios reales o administradores en su cuenta, estos queden 100% INTACTOS.
+    try:
+        # Contactos de emergencia
+        await session.execute(text(
+            "DELETE FROM emergency_contacts WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Calendario e inscripciones
+        await session.execute(text(
+            "DELETE FROM event_enrollments WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Capacitaciones e inscripciones generales
+        await session.execute(text(
+            "DELETE FROM training_enrollments WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Asociación de comedor / dietario
+        await session.execute(text(
+            "DELETE FROM employee_dietary_association WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Sanciones
+        await session.execute(text(
+            "DELETE FROM sanctions WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Reconocimientos
+        await session.execute(text(
+            "DELETE FROM recognitions WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Solicitudes de Beneficios (Items y Cabecera)
+        await session.execute(text(
+            "DELETE FROM benefit_request_items WHERE benefit_request_id IN "
+            "(SELECT id FROM benefit_requests WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890')))"
+        ))
+        await session.execute(text(
+            "DELETE FROM benefit_requests WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Beneficios activos asignados
+        await session.execute(text(
+            "DELETE FROM employee_benefits WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Cargos históricos / Contratos
+        await session.execute(text(
+            "DELETE FROM employee_positions WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+        ))
+        
+        # Usuarios de acceso demo (solamente se eliminan las credenciales con correos demo,
+        # protegiendo por completo a los administradores y usuarios creados legítimamente por el cliente)
+        await session.execute(text(
+            "DELETE FROM users WHERE employee_id IN "
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890')) "
+            "OR email IN ('maria.lopez@universidad.edu.py', 'ana.benitez@universidad.edu.py', "
+            "'carlos.gomez@universidad.edu.py', 'diego.torres@universidad.edu.py')"
+        ))
+        
+        # Finalmente, los Colaboradores demo
+        await session.execute(text(
+            "DELETE FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890')"
+        ))
+    except Exception as e:
+        await session.rollback()
+        print(f"⚠️ Error borrando relaciones de empleados: {e}")
+            
+    # 5. Borrar eventos de calendario demo
+    try:
+        await session.execute(text(
+            "DELETE FROM calendar_events WHERE title IN ('Almuerzo de Fin de Año UP', 'Taller de Inducción de Seguridad')"
+        ))
+    except Exception:
+        pass
+        
+    # 7. Borrar catálogos creados por demo (únicamente si no tienen dependencias externas/reales)
+    cat_tables = [
+        ("benefit_request_types", "Alta"),
+        ("benefit_request_types", "Modificación"),
+        ("benefit_subtypes", "Seguro Médico"),
+        ("benefit_subtypes", "Vales de Combustible"),
+        ("benefit_grant_reasons", "Por Política"),
+        ("benefit_grant_reasons", "Por Rendimiento"),
+        ("authorization_levels", "Gerencia de Personas"),
+        ("authorization_levels", "Rectorado"),
+        ("benefit_modalities", "Fijo"),
+        ("benefit_modalities", "Variable"),
+        ("benefit_frequencies", "Mensual"),
+        ("benefit_frequencies", "Único"),
+        ("benefit_types", "Seguro de Salud Premium"),
+        ("benefit_types", "Ayuda de Combustible"),
+        ("hiring_reasons", "Reemplazo de Personal"),
+        ("hiring_reasons", "Aumento de Estructura"),
+        ("calendar_event_types", "Social"),
+        ("calendar_event_types", "Capacitación"),
+        ("dietary_restrictions", "Celíaco"),
+        ("dietary_restrictions", "Vegetariano"),
+        ("dietary_restrictions", "Intolerante a la Lactosa"),
+        ("companies", "Universidad del Pacífico S.A."),
+        ("companies", "Servicios Educativos UP"),
+        ("contract_types", "Indefinido"),
+        ("contract_types", "Plazo Fijo"),
+        ("working_day_types", "Tiempo Completo"),
+        ("working_day_types", "Remoto"),
+        ("salary_types", "Fijo"),
+        ("currencies", "Guaraníes"),
+        ("currencies", "Dólares"),
+        ("payment_methods", "Transferencia Bancaria"),
+        ("banks", "Banco Itaú Paraguay")
     ]
     
-    for table in tables:
+    for tbl, name in cat_tables:
         try:
-            # PostgreSQL Truncate Cascade elimina de forma segura incluyendo foreign keys vinculadas
-            await session.execute(text(f'TRUNCATE TABLE "{schema_name}"."{table}" CASCADE;'))
-        except Exception as e:
-            # Omitir de forma segura si la tabla aún no existe o no tiene registros
+            await session.execute(
+                text(f'DELETE FROM "{schema_name}"."{tbl}" WHERE name = :name'),
+                {"name": name}
+            )
+            await session.commit()
+        except Exception:
+            # Si un elemento real del cliente está usando este catálogo, PostgreSQL lanzará un error de FK,
+            # lo cual capturamos y omitimos de forma segura para no alterar sus datos reales.
             await session.rollback()
             continue
             
-    await session.commit()
-    print("✅ Esquema de base de datos limpio con éxito.")
+    # 8. Borrar cargos demo
+    demo_pos_names = ["Director de Talento Humano", "Gerente de TI", "Analista de Talento Humano", "Desarrollador Senior"]
+    for pos_name in demo_pos_names:
+        try:
+            await session.execute(
+                text('DELETE FROM positions WHERE name = :name'),
+                {"name": pos_name}
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            continue
+            
+    # 9. Borrar áreas de prueba
+    demo_area_names = ["Talento Humano", "Tecnología de la Información", "Operaciones"]
+    for area_name in demo_area_names:
+        try:
+            await session.execute(
+                text('DELETE FROM areas WHERE name = :name'),
+                {"name": area_name}
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            continue
+            
+    # 10. Borrar sedes demo
+    demo_sede_names = ["Campus Central", "Sede Miraflores"]
+    for S_name in demo_sede_names:
+        try:
+            await session.execute(
+                text('DELETE FROM sedes WHERE name = :name'),
+                {"name": S_name}
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            continue
 
-async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
+    await session.commit()
+    print("✅ Limpieza quirúrgica de datos demo completada con éxito.")
+
+async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name: str):
     """
     Puebla el esquema del Tenant con datos de muestra realistas con distintas marcas temporales.
     """
-    schema_name = tenant.schema_name
     print(f"🌱 Población de datos iniciada en el esquema: '{schema_name}'...")
     
     # Establecer la búsqueda de esquema para la sesión actual
     await session.execute(text(f'SET search_path TO "{schema_name}", public'))
     
+    # Helper genérico para evitar violaciones de clave única (On Conflict Get Or Create)
+    async def get_or_create(model, unique_field, value, **kwargs):
+        res = await session.execute(select(model).where(getattr(model, unique_field) == value))
+        obj = res.scalar_one_or_none()
+        if not obj:
+            obj = model(**{unique_field: value}, **kwargs)
+            session.add(obj)
+            await session.flush()
+        return obj
+
     # ---------------------------------------------------------
     # 1. Catálogos Generales y Configuración Básica
     # ---------------------------------------------------------
     print("   -> Creando catálogos generales...")
     
     # Monedas
-    cur_pyg = Currency(name="Guaraníes", symbol="PYG", description="Moneda local de Paraguay")
-    cur_usd = Currency(name="Dólares", symbol="USD", description="Dólares estadounidenses")
-    session.add_all([cur_pyg, cur_usd])
-    await session.flush()
+    cur_pyg = await get_or_create(Currency, "name", "Guaraníes", symbol="PYG", description="Moneda local de Paraguay")
+    cur_usd = await get_or_create(Currency, "name", "Dólares", symbol="USD", description="Dólares estadounidenses")
     
     # Tipos de Contrato
-    ct_indef = ContractType(name="Indefinido", description="Contrato de duración indefinida")
-    ct_temp = ContractType(name="Plazo Fijo", description="Contrato por un plazo determinado")
-    session.add_all([ct_indef, ct_temp])
-    await session.flush()
+    ct_indef = await get_or_create(ContractType, "name", "Indefinido", description="Contrato de duración indefinida")
+    ct_temp = await get_or_create(ContractType, "name", "Plazo Fijo", description="Contrato por un plazo determinado")
     
     # Tipos de Jornada
-    wdt_full = WorkingDayType(name="Tiempo Completo", description="Jornada completa tradicional")
-    wdt_remote = WorkingDayType(name="Remoto", description="Trabajo 100% a distancia")
-    session.add_all([wdt_full, wdt_remote])
-    await session.flush()
+    wdt_full = await get_or_create(WorkingDayType, "name", "Tiempo Completo", description="Jornada completa tradicional")
+    wdt_remote = await get_or_create(WorkingDayType, "name", "Remoto", description="Trabajo 100% a distancia")
     
     # Tipos de Salario
-    st_fijo = SalaryType(name="Fijo", description="Salario mensual garantizado")
-    session.add_all([st_fijo])
-    await session.flush()
+    st_fijo = await get_or_create(SalaryType, "name", "Fijo", description="Salario mensual garantizado")
     
     # Bancos y Métodos de Pago
-    bank_itau = Bank(name="Banco Itaú Paraguay")
-    pm_transfer = PaymentMethod(name="Transferencia Bancaria")
-    session.add_all([bank_itau, pm_transfer])
-    await session.flush()
+    bank_itau = await get_or_create(Bank, "name", "Banco Itaú Paraguay")
+    pm_transfer = await get_or_create(PaymentMethod, "name", "Transferencia Bancaria")
     
     # Empresas (Razón Social)
-    comp_up = Company(name="Universidad del Pacífico S.A.", tax_id="80170151-1")
-    comp_serv = Company(name="Servicios Educativos UP", tax_id="80170152-2")
-    session.add_all([comp_up, comp_serv])
-    await session.flush()
+    comp_up = await get_or_create(Company, "name", "Universidad del Pacífico S.A.", tax_id="80170151-1")
+    comp_serv = await get_or_create(Company, "name", "Servicios Educativos UP", tax_id="80170152-2")
 
     # ---------------------------------------------------------
     # 2. Sedes, Áreas y Estructura Organizativa
     # ---------------------------------------------------------
     print("   -> Creando estructura organizativa (Sedes, Áreas, Cargos)...")
     
-    sede_central = Sede(name="Campus Central", address="Av. España 123, Asunción")
-    sede_norte = Sede(name="Sede Miraflores", address="Av. Aviadores del Chaco 456, Asunción")
-    session.add_all([sede_central, sede_norte])
-    await session.flush()
+    sede_central = await get_or_create(Sede, "name", "Campus Central", address="Av. España 123, Asunción")
+    sede_norte = await get_or_create(Sede, "name", "Sede Miraflores", address="Av. Aviadores del Chaco 456, Asunción")
     
-    area_th = Area(name="Talento Humano", responsible_email="th@universidad.edu.py",  sede=sede_central)
-    area_ti = Area(name="Tecnología de la Información", responsible_email="ti@universidad.edu.py", sede=sede_central)
-    area_ops = Area(name="Operaciones", responsible_email="ops@universidad.edu.py",  sede=sede_norte)
-    session.add_all([area_th, area_ti, area_ops])
-    await session.flush()
+    area_th = await get_or_create(Area, "name", "Talento Humano", responsible_email="th@universidad.edu.py", sede_id=sede_central.id)
+    area_ti = await get_or_create(Area, "name", "Tecnología de la Información", responsible_email="ti@universidad.edu.py", sede_id=sede_central.id)
+    area_ops = await get_or_create(Area, "name", "Operaciones", responsible_email="ops@universidad.edu.py", sede_id=sede_norte.id)
     
     # Jerarquía de Cargos
-    pos_director_th = Position(name="Director de Talento Humano", area=area_th, is_leader=True)
-    pos_gerente_ti = Position(name="Gerente de TI", area=area_ti, is_leader=True)
-    session.add_all([pos_director_th, pos_gerente_ti])
-    await session.flush()
+    pos_director_th = await get_or_create(Position, "name", "Director de Talento Humano", area_id=area_th.id, is_leader=True)
+    pos_gerente_ti = await get_or_create(Position, "name", "Gerente de TI", area_id=area_ti.id, is_leader=True)
     
-    pos_analista_th = Position(name="Analista de Talento Humano", area=area_th, is_leader=False, parent_id=pos_director_th.id)
-    pos_dev_sr = Position(name="Desarrollador Senior", area=area_ti, is_leader=False, parent_id=pos_gerente_ti.id)
-    session.add_all([pos_analista_th, pos_dev_sr])
-    await session.flush()
+    pos_analista_th = await get_or_create(Position, "name", "Analista de Talento Humano", area_id=area_th.id, is_leader=False, parent_id=pos_director_th.id)
+    pos_dev_sr = await get_or_create(Position, "name", "Desarrollador Senior", area_id=area_ti.id, is_leader=False, parent_id=pos_gerente_ti.id)
 
     # ---------------------------------------------------------
     # Restricciones Alimenticias (Comedor) - Creadas temprano para asignación segura
     # ---------------------------------------------------------
-    dr_gluten = DietaryRestriction(name="Celíaco", description="Intolerancia médica al gluten")
-    dr_veg = DietaryRestriction(name="Vegetariano", description="Persona con alimentación basada en plantas")
-    dr_lactose = DietaryRestriction(name="Intolerante a la Lactosa", description="Intolerancia a productos lácteos")
-    session.add_all([dr_gluten, dr_veg, dr_lactose])
-    await session.flush()
+    dr_gluten = await get_or_create(DietaryRestriction, "name", "Celíaco", description="Intolerancia médica al gluten")
+    dr_veg = await get_or_create(DietaryRestriction, "name", "Vegetariano", description="Persona con alimentación basada en plantas")
+    dr_lactose = await get_or_create(DietaryRestriction, "name", "Intolerante a la Lactosa", description="Intolerancia a productos lácteos")
 
     # ---------------------------------------------------------
     # 3. Colaboradores y Contratos de Trabajo
@@ -263,41 +447,27 @@ async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
     print("   -> Creando beneficios corporativos e histórico de solicitudes...")
     
     # Catálogos de Solicitudes
-    brt_alta = BenefitRequestType(name="Alta")
-    brt_mod = BenefitRequestType(name="Modificación")
-    session.add_all([brt_alta, brt_mod])
-    await session.flush()
+    brt_alta = await get_or_create(BenefitRequestType, "name", "Alta")
+    brt_mod = await get_or_create(BenefitRequestType, "name", "Modificación")
     
-    bs_seguro = BenefitSubtype(name="Seguro Médico")
-    bs_vale = BenefitSubtype(name="Vales de Combustible")
-    session.add_all([bs_seguro, bs_vale])
-    await session.flush()
+    bs_seguro = await get_or_create(BenefitSubtype, "name", "Seguro Médico")
+    bs_vale = await get_or_create(BenefitSubtype, "name", "Vales de Combustible")
     
-    bgr_politica = BenefitGrantReason(name="Por Política")
-    bgr_rendimiento = BenefitGrantReason(name="Por Rendimiento")
-    session.add_all([bgr_politica, bgr_rendimiento])
-    await session.flush()
+    bgr_politica = await get_or_create(BenefitGrantReason, "name", "Por Política")
+    bgr_rendimiento = await get_or_create(BenefitGrantReason, "name", "Por Rendimiento")
     
-    al_gerencia = AuthorizationLevel(name="Gerencia de Personas")
-    al_rector = AuthorizationLevel(name="Rectorado")
-    session.add_all([al_gerencia, al_rector])
-    await session.flush()
+    al_gerencia = await get_or_create(AuthorizationLevel, "name", "Gerencia de Personas")
+    al_rector = await get_or_create(AuthorizationLevel, "name", "Rectorado")
     
-    bm_fijo = BenefitModality(name="Fijo")
-    bm_variable = BenefitModality(name="Variable")
-    session.add_all([bm_fijo, bm_variable])
-    await session.flush()
+    bm_fijo = await get_or_create(BenefitModality, "name", "Fijo")
+    bm_variable = await get_or_create(BenefitModality, "name", "Variable")
     
-    bf_mensual = BenefitFrequency(name="Mensual")
-    bf_unico = BenefitFrequency(name="Único")
-    session.add_all([bf_mensual, bf_unico])
-    await session.flush()
+    bf_mensual = await get_or_create(BenefitFrequency, "name", "Mensual")
+    bf_unico = await get_or_create(BenefitFrequency, "name", "Único")
     
     # Tipos de Beneficios
-    bt_seguro = BenefitType(name="Seguro de Salud Premium", description="Cobertura prepaga familiar para cargos jerárquicos")
-    bt_combustible = BenefitType(name="Ayuda de Combustible", description="Monto mensual para movilidad y traslados")
-    session.add_all([bt_seguro, bt_combustible])
-    await session.flush()
+    bt_seguro = await get_or_create(BenefitType, "name", "Seguro de Salud Premium", description="Cobertura prepaga familiar para cargos jerárquicos")
+    bt_combustible = await get_or_create(BenefitType, "name", "Ayuda de Combustible", description="Monto mensual para movilidad y traslados")
     
     # Asignación Directa Activa
     eb_director = EmployeeBenefit(
@@ -311,7 +481,7 @@ async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
     req_approved = BenefitRequest(
         request_code="BE001", employee_id=emp_dev.id, employee_position_id=ep_dev.id,
         request_type_id=brt_alta.id, request_date=date.today() - timedelta(days=30),
-        grant_reason_id=bgr_politica.id, justification="Beneficio por modalidad remota distante",
+        grant_reason_id=bgr_politica.id, justification="Beneficio por modalidd remota distante",
         requester_id=emp_gerente.id, requester_position_id=ep_gerente.id,
         authorization_level_id=al_gerencia.id, authorizer_id=emp_director.id, authorizer_position_id=ep_director.id,
         grant_date=date.today() - timedelta(days=28), resolution_number="RES-2026-TH04",
@@ -373,7 +543,7 @@ async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
     
     prov_tech = TrainingProvider(
         business_name="Tech Academy S.A.", ruc="80099999-9", phone="021600700",
-        email="contacto@techacademy.com.py", contact_person="Ing. Roberto Downey", address="Av. Mcal. López 789"
+        email="contacto@techacademy.com.py", contact_person="Ing. Robert Downey", address="Av. Mcal. López 789"
     )
     session.add_all([prov_tech])
     await session.flush()
@@ -407,10 +577,8 @@ async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
     # ---------------------------------------------------------
     print("   -> Creando eventos en el calendario institucional...")
     
-    et_social = CalendarEventType(name="Social", color="#3B82F6", description="Cumpleaños, aniversarios e integración")
-    et_capacita = CalendarEventType(name="Capacitación", color="#10B981", description="Cursos de inducción obligatorios")
-    session.add_all([et_social, et_capacita])
-    await session.flush()
+    et_social = await get_or_create(CalendarEventType, "name", "Social", color="#3B82F6", description="Cumpleaños, aniversarios e integración")
+    et_capacita = await get_or_create(CalendarEventType, "name", "Capacitación", color="#10B981", description="Cursos de inducción obligatorios")
     
     ev_social = CalendarEvent(
         title="Almuerzo de Fin de Año UP", description="Festejo anual de cierre de periodo lectivo y administrativo.",
@@ -428,10 +596,8 @@ async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
     # ---------------------------------------------------------
     print("   -> Creando procesos de selección y vacantes activas...")
     
-    hr_reemplazo = HiringReason(name="Reemplazo de Personal")
-    hr_aumento = HiringReason(name="Aumento de Estructura")
-    session.add_all([hr_reemplazo, hr_aumento])
-    await session.flush()
+    hr_reemplazo = await get_or_create(HiringReason, "name", "Reemplazo de Personal")
+    hr_aumento = await get_or_create(HiringReason, "name", "Aumento de Estructura")
     
     proc_tech = RecruitmentProcess(
         name="Proceso de Selección de Tecnología", description="Flujo estándar con filtros curriculares y técnicos"
@@ -456,7 +622,7 @@ async def seed_tenant_data(session: AsyncSession, tenant: Tenant):
     await session.flush()
     
     await session.commit()
-    print(f"🎉 ¡Tenant '{tenant.name}' poblado con éxito con datos semilla completos!")
+    print(f"🎉 ¡Tenant '{tenant_name}' poblado con éxito con datos semilla completos!")
 
 async def main():
     parser = argparse.ArgumentParser(description="Script para manejar la seed data de un inquilino (Tenant)")
@@ -486,13 +652,17 @@ async def main():
                 print(f"❌ Error creando el Tenant de forma automática: {e}")
                 sys.exit(1)
                 
+        # Extraer variables primitivas antes de transacciones de base de datos
+        schema_name = tenant.schema_name
+        tenant_name = tenant.name
+
         # 2. Ejecutar la Acción Solicitada
         if args.action == "clean":
-            await clean_tenant_data(session, tenant.schema_name)
+            await clean_tenant_data(session, schema_name)
         elif args.action == "seed":
             # Asegurar que el esquema se limpie primero para evitar duplicados
-            await clean_tenant_data(session, tenant.schema_name)
-            await seed_tenant_data(session, tenant)
+            await clean_tenant_data(session, schema_name)
+            await seed_tenant_data(session, schema_name, tenant_name)
 
 if __name__ == "__main__":
     asyncio.run(main())

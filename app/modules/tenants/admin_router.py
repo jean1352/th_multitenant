@@ -183,13 +183,16 @@ async def admin_toggle_tenant_demo(
     # Importar los métodos desde seed_data
     from seed_data import clean_tenant_data, seed_tenant_data
     
+    schema_name = tenant.schema_name
+    tenant_name = tenant.name
+    
     try:
         if action == "clean":
-            await clean_tenant_data(db, tenant.schema_name)
+            await clean_tenant_data(db, schema_name)
         elif action == "seed":
             # Limpiamos primero por seguridad
-            await clean_tenant_data(db, tenant.schema_name)
-            await seed_tenant_data(db, tenant)
+            await clean_tenant_data(db, schema_name)
+            await seed_tenant_data(db, schema_name, tenant_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al procesar la demo: {str(e)}")
         
