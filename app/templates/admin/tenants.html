@@ -224,6 +224,54 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Modo Demo / Limpiar Quirúrgico -->
+<div id="demoModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all scale-100 duration-300">
+        <!-- Header -->
+        <div id="demoModalHeader" class="px-6 py-4 border-b flex justify-between items-center transition-colors">
+            <div class="flex items-center gap-2" id="demoModalTitleContainer">
+                <span class="material-symbols-outlined text-[20px]" id="demoModalIcon">science</span>
+                <h3 class="text-lg font-bold" id="demoModalTitle">Modo Demo</h3>
+            </div>
+            <button onclick="document.getElementById('demoModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 flex items-center">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <!-- Content -->
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-gray-600 leading-relaxed text-left" id="demoModalMessage">
+                <!-- Dynamic text populated by JS -->
+            </p>
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-100 text-left" id="demoModalDetailsContainer">
+                <span class="text-xs font-bold text-gray-700 block mb-1.5">Módulos que se verán afectados por la demostración:</span>
+                <ul class="text-xs text-gray-500 list-disc list-inside space-y-1">
+                    <li>Estructura organizativa, Sedes y Cargos</li>
+                    <li>Legajos de colaboradores y contratos activos</li>
+                    <li>Credenciales de acceso demo y roles</li>
+                    <li>Solicitudes e histórico de beneficios</li>
+                    <li>Amonestaciones, sanciones y reconocimientos</li>
+                    <li>Cursos de capacitación e inscripciones</li>
+                    <li>Eventos en el calendario institucional</li>
+                    <li>Procesos de selección, etapas y vacantes</li>
+                </ul>
+            </div>
+            <input type="hidden" id="demoModalTenantId">
+            <input type="hidden" id="demoModalAction">
+            
+            <div class="pt-4 flex justify-end gap-3 border-t border-gray-100">
+                <button type="button" onclick="document.getElementById('demoModal').classList.add('hidden')"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <button id="confirmDemoBtn" onclick="submitDemoAction()"
+                        class="px-4 py-2 text-sm font-bold text-white rounded-lg transition-all shadow-md">
+                    Confirmar Acción
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -357,21 +405,63 @@
         }
     };
 
-    window.toggleDemoMode = async (tenantId, name, action) => {
-        let confirmMsg = action === 'seed' 
-            ? `¿Está seguro de activar el Modo Demo para '${name}'?\n\nSe cargarán datos de demostración realistas (colaboradores, contratos, solicitudes de beneficios, capacitaciones, amonestaciones y eventos) con marcas temporales diversas.\nEsto vaciará los datos de prueba anteriores en este tenant.`
-            : `¿Está seguro de LIMPIAR todos los datos para '${name}'?\n\nSe vaciarán de forma definitiva todas las tablas (colaboradores, cargos, beneficios, capacitaciones, etc.) dentro del esquema de este tenant.`;
-            
-        if (!confirm(confirmMsg)) return;
+    window.toggleDemoMode = (tenantId, name, action) => {
+        const modal = document.getElementById('demoModal');
+        const header = document.getElementById('demoModalHeader');
+        const title = document.getElementById('demoModalTitle');
+        const icon = document.getElementById('demoModalIcon');
+        const msg = document.getElementById('demoModalMessage');
+        const detailContainer = document.getElementById('demoModalDetailsContainer');
+        const confirmBtn = document.getElementById('confirmDemoBtn');
         
-        showToast(action === 'seed' ? 'Cargando datos semilla (Modo Demo)...' : 'Vaciando datos de prueba...', 'success');
+        document.getElementById('demoModalTenantId').value = tenantId;
+        document.getElementById('demoModalAction').value = action;
+        
+        if (action === 'seed') {
+            // Estilo Carga (Emerald)
+            header.className = "px-6 py-4 border-b border-emerald-100 bg-emerald-50 flex justify-between items-center transition-colors text-emerald-800";
+            title.innerText = "Activar Modo Demo";
+            icon.innerText = "science";
+            icon.className = "material-symbols-outlined text-[20px] text-emerald-700 animate-pulse";
+            msg.innerHTML = `¿Está seguro de activar el <strong class="text-emerald-700 font-bold">Modo Demo</strong> para <strong>${name}</strong>?<br><br>Se cargarán datos de demostración realistas con marcas temporales diversas. Cualquier dato demo anterior de esta cuenta se limpiará para evitar duplicados. <strong class="text-gray-900 font-semibold">Tus usuarios reales, administradores y personalizaciones se mantendrán 100% intactos.</strong>`;
+            confirmBtn.className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-all shadow-md";
+            confirmBtn.innerText = "Activar Demo";
+            detailContainer.classList.remove('hidden');
+        } else {
+            // Estilo Limpieza (Slate)
+            header.className = "px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center transition-colors text-slate-800";
+            title.innerText = "Limpiar Datos de Prueba";
+            icon.innerText = "delete_sweep";
+            icon.className = "material-symbols-outlined text-[20px] text-slate-700";
+            msg.innerHTML = `¿Está seguro de <strong class="text-rose-700 font-bold">LIMPIAR</strong> todos los datos demo para <strong>${name}</strong>?<br><br>Se vaciarán de forma definitiva todas las tablas operativas (colaboradores demo, cargos, solicitudes, eventos, etc.) dentro del esquema de este tenant. <strong class="text-gray-900 font-semibold">Los administradores, usuarios reales y configuraciones del cliente NO se verán afectados.</strong>`;
+            confirmBtn.className = "px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-all shadow-md";
+            confirmBtn.innerText = "Limpiar Datos";
+            detailContainer.classList.add('hidden');
+        }
+        
+        modal.classList.remove('hidden');
+    };
+
+    window.submitDemoAction = async () => {
+        const tenantId = document.getElementById('demoModalTenantId').value;
+        const action = document.getElementById('demoModalAction').value;
+        
+        const modal = document.getElementById('demoModal');
+        const confirmBtn = document.getElementById('confirmDemoBtn');
+        const originalText = confirmBtn.innerText;
+        
+        confirmBtn.innerText = action === 'seed' ? 'Cargando...' : 'Limpiando...';
+        confirmBtn.disabled = true;
         
         try {
-            const res = await ApiClient.post(`/admin/api/tenants/${tenantId}/demo?action=${action}`);
+            await ApiClient.post(`/admin/api/tenants/${tenantId}/demo?action=${action}`);
+            modal.classList.add('hidden');
             showToast(action === 'seed' ? '¡Modo Demo activado con éxito!' : '¡Datos de prueba limpiados con éxito!', 'success');
             setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
             showToast(err.message || 'Error al procesar el modo demo', 'error');
+            confirmBtn.innerText = originalText;
+            confirmBtn.disabled = false;
         }
     };
 </script>

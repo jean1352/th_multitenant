@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Script de carga y limpieza quirúrgica de datos semilla (Seed Data) para un Tenant específico.
-Permite poblar y limpiar bases de datos de demostración de manera segura sin afectar usuarios reales.
+Permite poblar y limpiar bases de datos de demostración a escala empresarial sin afectar usuarios reales.
 """
 
 import os
 import sys
 import argparse
 import asyncio
+import random
 from datetime import date, datetime, timedelta
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +38,7 @@ from app.modules.benefits.models import (
 from app.modules.disciplinary.models import Sanction, Recognition, SanctionType, RecognitionType
 from app.modules.calendar.models import CalendarEvent, CalendarEventType
 from app.modules.recruitment.models import (
-    RecruitmentProcess, HiringReason, ProcessStage, Vacancy, VacancyStage, ProcessStatus, StageOwner, VacancyType
+    RecruitmentProcess, HiringReason, ProcessStage, Vacancy, VacancyStage, ProcessStatus, StageOwner, VacancyType, RecruitmentAudit
 )
 from app.modules.trainings.models import (
     TrainingProvider, Training, TrainingEnrollment, TrainingType, TrainingStatus, EnrollmentStatus
@@ -48,235 +49,155 @@ async def clean_tenant_data(session: AsyncSession, schema_name: str):
     Limpia de forma quirúrgica únicamente los datos de prueba (demo) del esquema del tenant,
     sin afectar a los usuarios, administradores o datos creados de manera real por el cliente.
     """
-    print(f"🧹 Iniciando limpieza quirúrgica de datos demo en esquema: '{schema_name}'...")
+    print(f"🧹 Iniciando limpieza quirúrgica de datos de prueba en esquema: '{schema_name}'...")
     
     # Asegurar el search_path en la sesión
     await session.execute(text(f'SET search_path TO "{schema_name}", public'))
     
-    # 1. Borrar vacantes demo (deben ir primero ya que referencian a recruiters en la tabla users)
+    # 1. Borrar auditoría de reclutamiento demo
     try:
         await session.execute(text(
-            "DELETE FROM vacancies WHERE title = 'Desarrollador Fullstack Junior'"
+            "DELETE FROM recruitment_audits WHERE vacancy_id IN "
+            "(SELECT id FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %')"
+        ))
+    except Exception:
+        pass
+
+    # 2. Borrar vacantes demo (deben ir primero ya que referencian a recruiters en la tabla users)
+    try:
+        await session.execute(text(
+            "DELETE FROM vacancies WHERE title = 'Desarrollador Fullstack Junior' OR title LIKE 'Convocatoria %'"
         ))
     except Exception:
         pass
         
-    # 2. Borrar procesos de selección demo
+    # 3. Borrar procesos de selección demo
     try:
         # Borrar primero las etapas del proceso de selección demo
         await session.execute(text(
             "DELETE FROM process_stages WHERE process_id IN "
-            "(SELECT id FROM recruitment_processes WHERE name = 'Proceso de Selección de Tecnología')"
+            "(SELECT id FROM recruitment_processes WHERE name LIKE '%Proceso de Selección%')"
         ))
         # Borrar el proceso de selección demo
         await session.execute(text(
-            "DELETE FROM recruitment_processes WHERE name = 'Proceso de Selección de Tecnología'"
+            "DELETE FROM recruitment_processes WHERE name LIKE '%Proceso de Selección%'"
         ))
     except Exception:
         pass
 
-    # 3. Borrar capacitaciones demo (deben ir antes de borrar los colaboradores ya que uno de ellos es instructor interno)
+    # 4. Borrar capacitaciones demo e inscripciones (deben ir antes de borrar los colaboradores ya que uno de ellos es instructor interno)
     try:
         # Borrar inscripciones de capacitaciones demo
         await session.execute(text(
             "DELETE FROM training_enrollments WHERE training_id IN "
-            "(SELECT id FROM trainings WHERE name IN ('FastAPI Avanzado y SQL Server', 'Habilidades Blandas en Talento Humano'))"
+            "(SELECT id FROM trainings WHERE name IN ('FastAPI Avanzado y SQL Server', 'Habilidades Blandas en Talento Humano') OR name LIKE 'Curso de %')"
         ))
         # Borrar capacitaciones
         await session.execute(text(
-            "DELETE FROM trainings WHERE name IN ('FastAPI Avanzado y SQL Server', 'Habilidades Blandas en Talento Humano')"
+            "DELETE FROM trainings WHERE name IN ('FastAPI Avanzado y SQL Server', 'Habilidades Blandas en Talento Humano') OR name LIKE 'Curso de %'"
         ))
         # Borrar proveedores demo
         await session.execute(text(
-            "DELETE FROM training_providers WHERE ruc = '80099999-9'"
+            "DELETE FROM training_providers WHERE ruc IN ('80099999-9', '80011111-1', '80022222-2')"
         ))
     except Exception:
         pass
 
-    # 4. Borrar en cascada todos los registros de los colaboradores demo mediante subconsultas puras SQL
+    # 5. Borrar en cascada todos los registros de los colaboradores demo mediante subconsultas puras SQL
     # De esta manera evitamos problemas de mapeo o expansión de listas en SQLAlchemy, y garantizamos que
     # si el cliente creó usuarios reales o administradores en su cuenta, estos queden 100% INTACTOS.
     try:
         # Contactos de emergencia
         await session.execute(text(
             "DELETE FROM emergency_contacts WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Calendario e inscripciones
         await session.execute(text(
             "DELETE FROM event_enrollments WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Capacitaciones e inscripciones generales
         await session.execute(text(
             "DELETE FROM training_enrollments WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Asociación de comedor / dietario
         await session.execute(text(
             "DELETE FROM employee_dietary_association WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Sanciones
         await session.execute(text(
             "DELETE FROM sanctions WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Reconocimientos
         await session.execute(text(
             "DELETE FROM recognitions WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Solicitudes de Beneficios (Items y Cabecera)
         await session.execute(text(
             "DELETE FROM benefit_request_items WHERE benefit_request_id IN "
             "(SELECT id FROM benefit_requests WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890')))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%'))"
         ))
         await session.execute(text(
             "DELETE FROM benefit_requests WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Beneficios activos asignados
         await session.execute(text(
             "DELETE FROM employee_benefits WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
         # Cargos históricos / Contratos
         await session.execute(text(
             "DELETE FROM employee_positions WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890'))"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%')"
         ))
         
-        # Usuarios de acceso demo (solamente se eliminan las credenciales con correos demo,
-        # protegiendo por completo a los administradores y usuarios creados legítimamente por el cliente)
+        # Usuarios de acceso demo
         await session.execute(text(
             "DELETE FROM users WHERE employee_id IN "
-            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890')) "
-            "OR email IN ('maria.lopez@universidad.edu.py', 'ana.benitez@universidad.edu.py', "
-            "'carlos.gomez@universidad.edu.py', 'diego.torres@universidad.edu.py')"
+            "(SELECT id FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%') "
+            "OR email LIKE '%@sectoruno.com.py'"
         ))
         
         # Finalmente, los Colaboradores demo
         await session.execute(text(
-            "DELETE FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890')"
+            "DELETE FROM employees WHERE document_id IN ('1234567', '2345678', '3456789', '4567890') OR document_id LIKE 'DEMO-%'"
         ))
     except Exception as e:
         await session.rollback()
         print(f"⚠️ Error borrando relaciones de empleados: {e}")
             
-    # 5. Borrar eventos de calendario demo
+    # 6. Borrar eventos de calendario demo
     try:
         await session.execute(text(
-            "DELETE FROM calendar_events WHERE title IN ('Almuerzo de Fin de Año UP', 'Taller de Inducción de Seguridad')"
+            "DELETE FROM calendar_events WHERE title IN ('Almuerzo de Fin de Año', 'Taller de Inducción de Seguridad') OR title LIKE 'Integración %'"
         ))
     except Exception:
         pass
-        
-    # 7. Borrar catálogos creados por demo (únicamente si no tienen dependencias externas/reales)
-    cat_tables = [
-        ("benefit_request_types", "Alta"),
-        ("benefit_request_types", "Modificación"),
-        ("benefit_subtypes", "Seguro Médico"),
-        ("benefit_subtypes", "Vales de Combustible"),
-        ("benefit_grant_reasons", "Por Política"),
-        ("benefit_grant_reasons", "Por Rendimiento"),
-        ("authorization_levels", "Gerencia de Personas"),
-        ("authorization_levels", "Rectorado"),
-        ("benefit_modalities", "Fijo"),
-        ("benefit_modalities", "Variable"),
-        ("benefit_frequencies", "Mensual"),
-        ("benefit_frequencies", "Único"),
-        ("benefit_types", "Seguro de Salud Premium"),
-        ("benefit_types", "Ayuda de Combustible"),
-        ("hiring_reasons", "Reemplazo de Personal"),
-        ("hiring_reasons", "Aumento de Estructura"),
-        ("calendar_event_types", "Social"),
-        ("calendar_event_types", "Capacitación"),
-        ("dietary_restrictions", "Celíaco"),
-        ("dietary_restrictions", "Vegetariano"),
-        ("dietary_restrictions", "Intolerante a la Lactosa"),
-        ("companies", "Universidad del Pacífico S.A."),
-        ("companies", "Servicios Educativos UP"),
-        ("contract_types", "Indefinido"),
-        ("contract_types", "Plazo Fijo"),
-        ("working_day_types", "Tiempo Completo"),
-        ("working_day_types", "Remoto"),
-        ("salary_types", "Fijo"),
-        ("currencies", "Guaraníes"),
-        ("currencies", "Dólares"),
-        ("payment_methods", "Transferencia Bancaria"),
-        ("banks", "Banco Itaú Paraguay")
-    ]
-    
-    for tbl, name in cat_tables:
-        try:
-            await session.execute(
-                text(f'DELETE FROM "{schema_name}"."{tbl}" WHERE name = :name'),
-                {"name": name}
-            )
-            await session.commit()
-        except Exception:
-            # Si un elemento real del cliente está usando este catálogo, PostgreSQL lanzará un error de FK,
-            # lo cual capturamos y omitimos de forma segura para no alterar sus datos reales.
-            await session.rollback()
-            continue
-            
-    # 8. Borrar cargos demo
-    demo_pos_names = ["Director de Talento Humano", "Gerente de TI", "Analista de Talento Humano", "Desarrollador Senior"]
-    for pos_name in demo_pos_names:
-        try:
-            await session.execute(
-                text('DELETE FROM positions WHERE name = :name'),
-                {"name": pos_name}
-            )
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            continue
-            
-    # 9. Borrar áreas de prueba
-    demo_area_names = ["Talento Humano", "Tecnología de la Información", "Operaciones"]
-    for area_name in demo_area_names:
-        try:
-            await session.execute(
-                text('DELETE FROM areas WHERE name = :name'),
-                {"name": area_name}
-            )
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            continue
-            
-    # 10. Borrar sedes demo
-    demo_sede_names = ["Campus Central", "Sede Miraflores"]
-    for S_name in demo_sede_names:
-        try:
-            await session.execute(
-                text('DELETE FROM sedes WHERE name = :name'),
-                {"name": S_name}
-            )
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            continue
 
     await session.commit()
     print("✅ Limpieza quirúrgica de datos demo completada con éxito.")
 
 async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name: str):
     """
-    Puebla el esquema del Tenant con datos de muestra realistas con distintas marcas temporales.
+    Puebla el esquema del Tenant con un dataset demo masivo (escala de 250+ colaboradores y reclutamientos),
+    con marcas temporales variables realistas de años anteriores o del año actual (nunca a futuro).
     """
-    print(f"🌱 Población de datos iniciada en el esquema: '{schema_name}'...")
+    print(f"🌱 Población masiva de datos iniciada en el esquema: '{schema_name}'...")
     
     # Establecer la búsqueda de esquema para la sesión actual
     await session.execute(text(f'SET search_path TO "{schema_name}", public'))
@@ -291,6 +212,11 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
             await session.flush()
         return obj
 
+    # Nombres de muestra para generar datos masivos
+    nombres_f = ["María", "Ana", "Laura", "Patricia", "Sofía", "Gabriela", "Elena", "Sandra", "Beatriz", "Clara", "Andrea", "Camila", "Lucía", "Natalia", "Isabel"]
+    nombres_m = ["Juan", "Carlos", "Carlos Gómez", "Diego", "Carlos", "Roberto", "Jorge", "Guillermo", "David", "Luis", "José", "Alejandro", "Fernando", "Ricardo", "Andrés"]
+    apellidos = ["Pérez", "Gómez", "Rodríguez", "González", "Torres", "Benítez", "López", "Giménez", "Martínez", "Cardozo", "Sánchez", "Ortiz", "Díaz", "Silva", "Vera", "Ríos", "Acuña", "Duarte", "Cáceres", "Gamarra"]
+
     # ---------------------------------------------------------
     # 1. Catálogos Generales y Configuración Básica
     # ---------------------------------------------------------
@@ -303,326 +229,525 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
     # Tipos de Contrato
     ct_indef = await get_or_create(ContractType, "name", "Indefinido", description="Contrato de duración indefinida")
     ct_temp = await get_or_create(ContractType, "name", "Plazo Fijo", description="Contrato por un plazo determinado")
+    ct_serv = await get_or_create(ContractType, "name", "Servicios Profesionales", description="Prestación de servicios de consultoría")
     
     # Tipos de Jornada
-    wdt_full = await get_or_create(WorkingDayType, "name", "Tiempo Completo", description="Jornada completa tradicional")
-    wdt_remote = await get_or_create(WorkingDayType, "name", "Remoto", description="Trabajo 100% a distancia")
+    wdt_full = await get_or_create(WorkingDayType, "name", "Tiempo Completo", description="Jornada completa tradicional de 44 horas semanales")
+    wdt_remote = await get_or_create(WorkingDayType, "name", "Remoto", description="Trabajo 100% virtual a distancia")
+    wdt_hybrid = await get_or_create(WorkingDayType, "name", "Híbrido", description="Formato mixto presencial y remoto")
     
     # Tipos de Salario
-    st_fijo = await get_or_create(SalaryType, "name", "Fijo", description="Salario mensual garantizado")
+    st_fijo = await get_or_create(SalaryType, "name", "Fijo", description="Salario mensual estándar")
     
     # Bancos y Métodos de Pago
     bank_itau = await get_or_create(Bank, "name", "Banco Itaú Paraguay")
+    bank_conti = await get_or_create(Bank, "name", "Banco Continental")
     pm_transfer = await get_or_create(PaymentMethod, "name", "Transferencia Bancaria")
     
     # Empresas (Razón Social)
-    comp_up = await get_or_create(Company, "name", "Universidad del Pacífico S.A.", tax_id="80170151-1")
-    comp_serv = await get_or_create(Company, "name", "Servicios Educativos UP", tax_id="80170152-2")
+    comp_main = await get_or_create(Company, "name", "Sector Uno S.A.", tax_id="80170001-1")
+    comp_serv = await get_or_create(Company, "name", "Servicios Sector Uno", tax_id="80170002-2")
 
     # ---------------------------------------------------------
     # 2. Sedes, Áreas y Estructura Organizativa
     # ---------------------------------------------------------
-    print("   -> Creando estructura organizativa (Sedes, Áreas, Cargos)...")
+    print("   -> Creando sedes físicas y áreas de trabajo...")
     
-    sede_central = await get_or_create(Sede, "name", "Campus Central", address="Av. España 123, Asunción")
-    sede_norte = await get_or_create(Sede, "name", "Sede Miraflores", address="Av. Aviadores del Chaco 456, Asunción")
+    sede_central = await get_or_create(Sede, "name", "Sede Central (Asunción)", address="Av. Aviadores del Chaco 1129, Asunción")
+    sede_cde = await get_or_create(Sede, "name", "Sede Ciudad del Este", address="Av. Mcal. Estigarribia 450, Ciudad del Este")
+    sede_enc = await get_or_create(Sede, "name", "Sede Encarnación", address="Ruta 1 Km 2, Encarnación")
     
-    area_th = await get_or_create(Area, "name", "Talento Humano", responsible_email="th@universidad.edu.py", sede_id=sede_central.id)
-    area_ti = await get_or_create(Area, "name", "Tecnología de la Información", responsible_email="ti@universidad.edu.py", sede_id=sede_central.id)
-    area_ops = await get_or_create(Area, "name", "Operaciones", responsible_email="ops@universidad.edu.py", sede_id=sede_norte.id)
+    # 6 Áreas de trabajo realistas
+    area_th = await get_or_create(Area, "name", "Talento Humano", responsible_email="th@sectoruno.com.py", sede_id=sede_central.id)
+    area_ti = await get_or_create(Area, "name", "Tecnología de la Información", responsible_email="ti@sectoruno.com.py", sede_id=sede_central.id)
+    area_ops = await get_or_create(Area, "name", "Operaciones y Logística", responsible_email="ops@sectoruno.com.py", sede_id=sede_cde.id)
+    area_fin = await get_or_create(Area, "name", "Administración y Finanzas", responsible_email="finanzas@sectoruno.com.py", sede_id=sede_central.id)
+    area_cs = await get_or_create(Area, "name", "Atención al Cliente", responsible_email="soporte@sectoruno.com.py", sede_id=sede_enc.id)
+    area_leg = await get_or_create(Area, "name", "Legales y Cumplimiento", responsible_email="legales@sectoruno.com.py", sede_id=sede_central.id)
     
-    # Jerarquía de Cargos
-    pos_director_th = await get_or_create(Position, "name", "Director de Talento Humano", area_id=area_th.id, is_leader=True)
-    pos_gerente_ti = await get_or_create(Position, "name", "Gerente de TI", area_id=area_ti.id, is_leader=True)
+    print("   -> Creando jerarquía de cargos...")
+    # Cargos Líderes
+    pos_dir_th = await get_or_create(Position, "name", "Director de Talento Humano", area_id=area_th.id, is_leader=True)
+    pos_ger_ti = await get_or_create(Position, "name", "Gerente de TI", area_id=area_ti.id, is_leader=True)
+    pos_ger_ops = await get_or_create(Position, "name", "Gerente de Operaciones", area_id=area_ops.id, is_leader=True)
+    pos_ger_fin = await get_or_create(Position, "name", "Director de Finanzas", area_id=area_fin.id, is_leader=True)
     
-    pos_analista_th = await get_or_create(Position, "name", "Analista de Talento Humano", area_id=area_th.id, is_leader=False, parent_id=pos_director_th.id)
-    pos_dev_sr = await get_or_create(Position, "name", "Desarrollador Senior", area_id=area_ti.id, is_leader=False, parent_id=pos_gerente_ti.id)
+    # Cargos Especialistas (Línea de reporte)
+    pos_analista_th = await get_or_create(Position, "name", "Analista de Talento Humano", area_id=area_th.id, is_leader=False, parent_id=pos_dir_th.id)
+    pos_dev_sr = await get_or_create(Position, "name", "Desarrollador Senior", area_id=area_ti.id, is_leader=False, parent_id=pos_ger_ti.id)
+    pos_dev_jr = await get_or_create(Position, "name", "Desarrollador Junior", area_id=area_ti.id, is_leader=False, parent_id=pos_ger_ti.id)
+    pos_analista_ops = await get_or_create(Position, "name", "Analista de Logística", area_id=area_ops.id, is_leader=False, parent_id=pos_ger_ops.id)
+    pos_analista_fin = await get_or_create(Position, "name", "Especialista en Tesorería", area_id=area_fin.id, is_leader=False, parent_id=pos_ger_fin.id)
+    pos_agent_cs = await get_or_create(Position, "name", "Agente de Soporte", area_id=area_cs.id, is_leader=False)
+    pos_abogado = await get_or_create(Position, "name", "Asesor Jurídico", area_id=area_leg.id, is_leader=False)
 
-    # ---------------------------------------------------------
-    # Restricciones Alimenticias (Comedor) - Creadas temprano para asignación segura
-    # ---------------------------------------------------------
+    # Restricciones Alimenticias (Comedor)
     dr_gluten = await get_or_create(DietaryRestriction, "name", "Celíaco", description="Intolerancia médica al gluten")
     dr_veg = await get_or_create(DietaryRestriction, "name", "Vegetariano", description="Persona con alimentación basada en plantas")
     dr_lactose = await get_or_create(DietaryRestriction, "name", "Intolerante a la Lactosa", description="Intolerancia a productos lácteos")
 
     # ---------------------------------------------------------
-    # 3. Colaboradores y Contratos de Trabajo
+    # 3. Datos Masivos de Colaboradores (250 Registros)
     # ---------------------------------------------------------
-    print("   -> Creando colaboradores y asignando cargos históricos...")
+    print("   -> Generando un lote masivo de 250 colaboradores con contratos históricos y actuales...")
     
-    # 4 Colaboradores de prueba
+    # 4 Líderes fijos iniciales (para mantener accesos admin)
     emp_director = Employee(
         first_name="María", last_name="López", full_name="María López", document_id="1234567",
-        position_id=pos_director_th.id, gender="Femenino", marital_status="Soltero", nationality="Paraguaya",
-        personal_email="maria.lopez@gmail.com", institutional_email="maria.lopez@universidad.edu.py",
-        phone="0981111222", birthday=date(1985, 5, 12), employment_status=EmploymentStatus.ACTIVE, company_id=comp_up.id,
+        position_id=pos_dir_th.id, gender="Femenino", marital_status="Soltero", nationality="Paraguaya",
+        personal_email="maria.lopez@gmail.com", institutional_email="maria.lopez@sectoruno.com.py",
+        phone="0981111222", birthday=date(1985, 5, 12), employment_status=EmploymentStatus.ACTIVE, company_id=comp_main.id,
         dietary_restrictions=[dr_lactose]
     )
     emp_analista = Employee(
         first_name="Ana", last_name="Benítez", full_name="Ana Benítez", document_id="2345678",
         position_id=pos_analista_th.id, gender="Femenino", marital_status="Soltero", nationality="Paraguaya",
-        personal_email="ana.benitez@gmail.com", institutional_email="ana.benitez@universidad.edu.py",
-        phone="0982222333", birthday=date(1992, 8, 20), employment_status=EmploymentStatus.ACTIVE, company_id=comp_up.id
+        personal_email="ana.benitez@gmail.com", institutional_email="ana.benitez@sectoruno.com.py",
+        phone="0982222333", birthday=date(1992, 8, 20), employment_status=EmploymentStatus.ACTIVE, company_id=comp_main.id
     )
     emp_gerente = Employee(
         first_name="Carlos", last_name="Gómez", full_name="Carlos Gómez", document_id="3456789",
-        position_id=pos_gerente_ti.id, gender="Masculino", marital_status="Casado", nationality="Paraguaya",
-        personal_email="carlos.gomez@gmail.com", institutional_email="carlos.gomez@universidad.edu.py",
-        phone="0983333444", birthday=date(1980, 11, 30), employment_status=EmploymentStatus.ACTIVE, company_id=comp_up.id
+        position_id=pos_ger_ti.id, gender="Masculino", marital_status="Casado", nationality="Paraguaya",
+        personal_email="carlos.gomez@gmail.com", institutional_email="carlos.gomez@sectoruno.com.py",
+        phone="0983333444", birthday=date(1980, 11, 30), employment_status=EmploymentStatus.ACTIVE, company_id=comp_main.id
     )
     emp_dev = Employee(
         first_name="Diego", last_name="Torres", full_name="Diego Torres", document_id="4567890",
         position_id=pos_dev_sr.id, gender="Masculino", marital_status="Casado", nationality="Paraguaya",
-        personal_email="diego.torres@gmail.com", institutional_email="diego.torres@universidad.edu.py",
+        personal_email="diego.torres@gmail.com", institutional_email="diego.torres@sectoruno.com.py",
         phone="0984444555", birthday=date(1990, 3, 15), employment_status=EmploymentStatus.ACTIVE, company_id=comp_serv.id,
         dietary_restrictions=[dr_veg]
     )
+    
     session.add_all([emp_director, emp_analista, emp_gerente, emp_dev])
     await session.flush()
-    
-    # Asignaciones de contrato en EmployeePosition
+
+    # Contratos fijos iniciales
     ep_director = EmployeePosition(
-        employee_id=emp_director.id, position_id=pos_director_th.id, company_id=comp_up.id,
+        employee_id=emp_director.id, position_id=pos_dir_th.id, company_id=comp_main.id,
         contract_type_id=ct_indef.id, working_day_type_id=wdt_full.id, salary_type_id=st_fijo.id,
-        base_salary=12000000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes"
+        base_salary=14000000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes",
+        start_date=date(2021, 6, 1)
     )
     ep_analista = EmployeePosition(
-        employee_id=emp_analista.id, position_id=pos_analista_th.id, company_id=comp_up.id,
+        employee_id=emp_analista.id, position_id=pos_analista_th.id, company_id=comp_main.id,
         contract_type_id=ct_indef.id, working_day_type_id=wdt_full.id, salary_type_id=st_fijo.id,
-        base_salary=6000000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes"
+        base_salary=6500000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes",
+        start_date=date(2023, 2, 1)
     )
     ep_gerente = EmployeePosition(
-        employee_id=emp_gerente.id, position_id=pos_gerente_ti.id, company_id=comp_up.id,
+        employee_id=emp_gerente.id, position_id=pos_ger_ti.id, company_id=comp_main.id,
         contract_type_id=ct_indef.id, working_day_type_id=wdt_full.id, salary_type_id=st_fijo.id,
-        base_salary=15000000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes"
+        base_salary=18000000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes",
+        start_date=date(2020, 10, 1)
     )
+    # Ejemplo de CARRERA HISTÓRICA para el Desarrollador Diego Torres (2 Contratos)
+    # Contrato Pasado (Cerrado en 2024)
+    ep_dev_old = EmployeePosition(
+        employee_id=emp_dev.id, position_id=pos_dev_jr.id, company_id=comp_serv.id,
+        contract_type_id=ct_temp.id, working_day_type_id=wdt_full.id, salary_type_id=st_fijo.id,
+        base_salary=4500000.0, currency_id=cur_pyg.id, work_schedule="08:00 - 17:00", work_days="Lunes a Viernes",
+        start_date=date(2023, 1, 15), end_date=date(2024, 7, 31)
+    )
+    # Contrato Actual (Activo)
     ep_dev = EmployeePosition(
         employee_id=emp_dev.id, position_id=pos_dev_sr.id, company_id=comp_serv.id,
-        contract_type_id=ct_temp.id, working_day_type_id=wdt_remote.id, salary_type_id=st_fijo.id,
-        base_salary=9000000.0, currency_id=cur_pyg.id, work_schedule="09:00 - 18:00", work_days="Lunes a Viernes",
-        contract_end_date=date.today() + timedelta(days=180)
+        contract_type_id=ct_indef.id, working_day_type_id=wdt_remote.id, salary_type_id=st_fijo.id,
+        base_salary=9500000.0, currency_id=cur_pyg.id, work_schedule="09:00 - 18:00", work_days="Lunes a Viernes",
+        start_date=date(2024, 8, 1)
     )
-    session.add_all([ep_director, ep_analista, ep_gerente, ep_dev])
+    
+    session.add_all([ep_director, ep_analista, ep_gerente, ep_dev_old, ep_dev])
+    await session.flush()
+
+    # Generación masiva mediante bucle
+    posiciones = [pos_analista_th, pos_dev_sr, pos_dev_jr, pos_analista_ops, pos_analista_fin, pos_agent_cs, pos_abogado]
+    empresas = [comp_main, comp_serv]
+    jornadas = [wdt_full, wdt_remote, wdt_hybrid]
+    contratos = [ct_indef, ct_temp]
+    
+    bulk_employees = []
+    bulk_positions = []
+    
+    for i in range(250):
+        # Datos del Colaborador
+        gender = random.choice(["Masculino", "Femenino"])
+        first_name = random.choice(nombres_f if gender == "Femenino" else nombres_m)
+        last_name = f"{random.choice(apellidos)} {random.choice(apellidos)}"
+        full_name = f"{first_name} {last_name}"
+        doc_id = f"DEMO-{random.randint(1000000, 8000000)}"
+        email_prefix = f"{first_name.lower()}.{last_name.split()[0].lower()}{random.randint(1,99)}"
+        personal_email = f"{email_prefix}@gmail.com"
+        inst_email = f"{email_prefix}@sectoruno.com.py"
+        phone = f"09{random.randint(71, 99)}{random.randint(100000, 999999)}"
+        
+        # Fecha de Nacimiento (Edad 20-60)
+        birthday = date.today() - timedelta(days=random.randint(7300, 21900))
+        
+        # Fecha de contratación (Últimos 4 años, nunca a futuro)
+        hire_date = date.today() - timedelta(days=random.randint(15, 1460))
+        
+        pos = random.choice(posiciones)
+        emp = Employee(
+            first_name=first_name, last_name=last_name, full_name=full_name, document_id=doc_id,
+            position_id=pos.id, gender=gender, marital_status=random.choice(["Soltero", "Casado", "Divorciado"]),
+            nationality="Paraguaya", personal_email=personal_email, institutional_email=inst_email,
+            phone=phone, birthday=birthday, employment_status=EmploymentStatus.ACTIVE, company_id=random.choice(empresas).id,
+            # Añadir restricciones alimentarias aleatoriamente (15% de probabilidad)
+            dietary_restrictions=[random.choice([dr_gluten, dr_veg, dr_lactose])] if random.random() < 0.15 else []
+        )
+        session.add(emp)
+        bulk_employees.append(emp)
+        
+    await session.flush()
+    
+    # Crear asignación EmployeePosition para todos los colaboradores masivos
+    for i, emp in enumerate(bulk_employees):
+        # Determinar el nombre del cargo de forma segura usando la lista local
+        pos = next((p for p in posiciones if p.id == emp.position_id), None)
+        pos_name = pos.name if pos else ""
+        
+        # Determinar un salario coherente con el cargo
+        if "Senior" in pos_name:
+            salario = random.randint(8500000, 13000000)
+        elif "Director" in pos_name or "Gerente" in pos_name:
+            salario = random.randint(13500000, 18000000)
+        elif "Junior" in pos_name or "Agente" in pos_name:
+            salario = random.randint(3500000, 4800000)
+        else:
+            salario = random.randint(5000000, 7800000)
+            
+        ep = EmployeePosition(
+            employee_id=emp.id, position_id=emp.position_id, company_id=emp.company_id,
+            contract_type_id=random.choice(contratos).id, working_day_type_id=random.choice(jornadas).id,
+            salary_type_id=st_fijo.id, base_salary=float(salario), currency_id=cur_pyg.id,
+            work_schedule="08:00 - 17:00" if random.random() < 0.7 else "09:00 - 18:00",
+            work_days="Lunes a Viernes", start_date=date.today() - timedelta(days=random.randint(100, 1000))
+        )
+        session.add(ep)
+        
     await session.flush()
 
     # ---------------------------------------------------------
     # 4. Usuarios de Acceso al Sistema (Auth)
     # ---------------------------------------------------------
-    print("   -> Creando credenciales y perfiles de acceso (Auth)...")
+    print("   -> Creando credenciales para personal directivo (Auth)...")
     
     hashed_pwd = get_password_hash("password123")
     user_director = User(
-        email="maria.lopez@universidad.edu.py", full_name="María López", hashed_password=hashed_pwd,
+        email="maria.lopez@sectoruno.com.py", full_name="María López", hashed_password=hashed_pwd,
         is_active=True, role=UserRole.TH, employee_id=emp_director.id, sede_id=sede_central.id, area_id=area_th.id
     )
     user_analista = User(
-        email="ana.benitez@universidad.edu.py", full_name="Ana Benítez", hashed_password=hashed_pwd,
+        email="ana.benitez@sectoruno.com.py", full_name="Ana Benítez", hashed_password=hashed_pwd,
         is_active=True, role=UserRole.EMPLOYEE, employee_id=emp_analista.id, sede_id=sede_central.id, area_id=area_th.id
     )
     user_gerente = User(
-        email="carlos.gomez@universidad.edu.py", full_name="Carlos Gómez", hashed_password=hashed_pwd,
+        email="carlos.gomez@sectoruno.com.py", full_name="Carlos Gómez", hashed_password=hashed_pwd,
         is_active=True, role=UserRole.MANAGER, employee_id=emp_gerente.id, sede_id=sede_central.id, area_id=area_ti.id
     )
     user_dev = User(
-        email="diego.torres@universidad.edu.py", full_name="Diego Torres", hashed_password=hashed_pwd,
-        is_active=True, role=UserRole.EMPLOYEE, employee_id=emp_dev.id, sede_id=sede_norte.id, area_id=area_ti.id
+        email="diego.torres@sectoruno.com.py", full_name="Diego Torres", hashed_password=hashed_pwd,
+        is_active=True, role=UserRole.EMPLOYEE, employee_id=emp_dev.id, sede_id=sede_cde.id, area_id=area_ti.id
     )
     session.add_all([user_director, user_analista, user_gerente, user_dev])
     await session.flush()
 
-    # Contactos de Emergencia
-    ec_maria = EmergencyContact(employee_id=emp_director.id, name="Juan López", phone="0981999888")
-    ec_diego = EmergencyContact(employee_id=emp_dev.id, name="Laura Torres", phone="0981777666")
-    session.add_all([ec_maria, ec_diego])
-    await session.flush()
-
     # ---------------------------------------------------------
-    # 5. Restricciones Alimenticias (Comedor)
+    # 5. Beneficios e Historial Masivo (60 Solicitudes con Tiempos Variables)
     # ---------------------------------------------------------
-    print("   -> Catálogo de comedor y restricciones alimenticias vinculadas correctamente.")
-
-    # ---------------------------------------------------------
-    # 6. Beneficios y Solicitudes con Distintas Marcas Temporales
-    # ---------------------------------------------------------
-    print("   -> Creando beneficios corporativos e histórico de solicitudes...")
+    print("   -> Creando catálogo de beneficios y 60 solicitudes históricas...")
     
-    # Catálogos de Solicitudes
+    # Catálogos
     brt_alta = await get_or_create(BenefitRequestType, "name", "Alta")
     brt_mod = await get_or_create(BenefitRequestType, "name", "Modificación")
     
     bs_seguro = await get_or_create(BenefitSubtype, "name", "Seguro Médico")
     bs_vale = await get_or_create(BenefitSubtype, "name", "Vales de Combustible")
+    bs_estu = await get_or_create(BenefitSubtype, "name", "Ayuda de Estudios")
     
     bgr_politica = await get_or_create(BenefitGrantReason, "name", "Por Política")
     bgr_rendimiento = await get_or_create(BenefitGrantReason, "name", "Por Rendimiento")
+    bgr_social = await get_or_create(BenefitGrantReason, "name", "Ayuda Social")
     
     al_gerencia = await get_or_create(AuthorizationLevel, "name", "Gerencia de Personas")
-    al_rector = await get_or_create(AuthorizationLevel, "name", "Rectorado")
+    al_director = await get_or_create(AuthorizationLevel, "name", "Dirección General")
     
     bm_fijo = await get_or_create(BenefitModality, "name", "Fijo")
-    bm_variable = await get_or_create(BenefitModality, "name", "Variable")
+    bm_var = await get_or_create(BenefitModality, "name", "Variable")
     
     bf_mensual = await get_or_create(BenefitFrequency, "name", "Mensual")
     bf_unico = await get_or_create(BenefitFrequency, "name", "Único")
     
-    # Tipos de Beneficios
+    # Beneficios principales
     bt_seguro = await get_or_create(BenefitType, "name", "Seguro de Salud Premium", description="Cobertura prepaga familiar para cargos jerárquicos")
-    bt_combustible = await get_or_create(BenefitType, "name", "Ayuda de Combustible", description="Monto mensual para movilidad y traslados")
+    bt_combustible = await get_or_create(BenefitType, "name", "Ayuda de Combustible", description="Monto mensual para viáticos y movilidad")
+    bt_beca = await get_or_create(BenefitType, "name", "Subsidio de Becas Universitarias", description="Financiamiento parcial de carreras o posgrados")
     
-    # Asignación Directa Activa
-    eb_director = EmployeeBenefit(
-        employee_id=emp_director.id, benefit_type_id=bt_seguro.id,
-        start_date=date.today() - timedelta(days=365), details="Asignación inicial", is_active=True
-    )
-    session.add_all([eb_director])
-    await session.flush()
+    # 60 solicitudes simuladas distribuidas en los últimos 18 meses
+    statuses = ["Aprobada", "Pendiente", "Rechazada"]
+    beneficios_list = [bt_seguro, bt_combustible, bt_beca]
+    subtipos_list = [bs_seguro, bs_vale, bs_estu]
+    modalidades = [bm_fijo, bm_var]
+    frecuencias = [bf_mensual, bf_unico]
+    motivos = [bgr_politica, bgr_rendimiento, bgr_social]
     
-    # SOLICITUD 1: Aprobada (Hace 30 días)
-    req_approved = BenefitRequest(
-        request_code="BE001", employee_id=emp_dev.id, employee_position_id=ep_dev.id,
-        request_type_id=brt_alta.id, request_date=date.today() - timedelta(days=30),
-        grant_reason_id=bgr_politica.id, justification="Beneficio por modalidd remota distante",
-        requester_id=emp_gerente.id, requester_position_id=ep_gerente.id,
-        authorization_level_id=al_gerencia.id, authorizer_id=emp_director.id, authorizer_position_id=ep_director.id,
-        grant_date=date.today() - timedelta(days=28), resolution_number="RES-2026-TH04",
-        status="Aprobada", benefit_status="Activo", approval_comments="Validado con presupuesto de TI",
-        created_at=datetime.now() - timedelta(days=30)
-    )
-    session.add_all([req_approved])
-    await session.flush()
-    
-    item_approved = BenefitRequestItem(
-        benefit_request_id=req_approved.id, benefit_type_id=bt_combustible.id, benefit_subtype_id=bs_vale.id,
-        currency_id=cur_pyg.id, approved_amount=500000.0, validity_start_date=date.today() - timedelta(days=28),
-        validity_end_date=date.today() + timedelta(days=120), benefit_modality_id=bm_fijo.id,
-        benefit_frequency_id=bf_mensual.id, description_notes="Gasto de traslado asignado"
-    )
-    session.add_all([item_approved])
-    await session.flush()
-    
-    # SOLICITUD 2: Pendiente (Hace 2 días)
-    req_pending = BenefitRequest(
-        request_code="BE002", employee_id=emp_analista.id, employee_position_id=ep_analista.id,
-        request_type_id=brt_alta.id, request_date=date.today() - timedelta(days=2),
-        grant_reason_id=bgr_rendimiento.id, justification="Excelente gestión en campaña de reclutamiento",
-        requester_id=emp_director.id, requester_position_id=ep_director.id,
-        status="Pendiente", benefit_status="Pendiente", created_at=datetime.now() - timedelta(days=2)
-    )
-    session.add_all([req_pending])
-    await session.flush()
-    
-    item_pending = BenefitRequestItem(
-        benefit_request_id=req_pending.id, benefit_type_id=bt_seguro.id, benefit_subtype_id=bs_seguro.id,
-        currency_id=cur_pyg.id, approved_amount=0.0, validity_start_date=date.today() + timedelta(days=5),
-        benefit_modality_id=bm_fijo.id, benefit_frequency_id=bf_mensual.id, description_notes="Ampliación seguro médico"
-    )
-    session.add_all([item_pending])
+    for count in range(1, 61):
+        emp = random.choice(bulk_employees)
+        status = random.choices(statuses, weights=[0.75, 0.15, 0.10])[0]
+        req_date = date.today() - timedelta(days=random.randint(5, 540))
+        
+        req = BenefitRequest(
+            request_code=f"BE{count:03d}", employee_id=emp.id,
+            request_type_id=brt_alta.id, request_date=req_date,
+            grant_reason_id=random.choice(motivos).id, justification=f"Justificación técnica y laboral para el expediente BE{count:03d}",
+            requester_id=emp_director.id, status=status, benefit_status="Activo" if status == "Aprobada" else "Pendiente",
+            created_at=datetime.combine(req_date, datetime.min.time()) + timedelta(hours=random.randint(8,16))
+        )
+        if status == "Aprobada":
+            req.authorizer_id = emp_director.id
+            req.grant_date = req_date + timedelta(days=random.randint(1, 5))
+            req.resolution_number = f"RES-2026-SO{count:02d}"
+            req.approval_comments = "Evaluado y validado según disponibilidad de presupuesto anual."
+            
+        session.add(req)
+        await session.flush()
+        
+        # Detalle de la solicitud (item)
+        bt = random.choice(beneficios_list)
+        monto = random.choice([350000.0, 500000.0, 1000000.0, 1500000.0]) if bt != bt_seguro else 0.0
+        
+        item = BenefitRequestItem(
+            benefit_request_id=req.id, benefit_type_id=bt.id, benefit_subtype_id=random.choice(subtipos_list).id,
+            currency_id=cur_pyg.id, approved_amount=monto if status == "Aprobada" else 0.0,
+            validity_start_date=req_date + timedelta(days=5), benefit_modality_id=random.choice(modalidades).id,
+            benefit_frequency_id=random.choice(frecuencias).id, description_notes=f"Notas operativas del beneficio item BE{count:03d}"
+        )
+        session.add(item)
+        
     await session.flush()
 
     # ---------------------------------------------------------
-    # 7. Sanciones Disciplinarias y Reconocimientos
+    # 6. Méritos, Reconocimientos y Disciplina (35 Registros de cada uno)
     # ---------------------------------------------------------
-    print("   -> Creando amonestaciones y reconocimientos...")
+    print("   -> Generando 35 amonestaciones y 35 reconocimientos históricos...")
     
-    sanc_dev = Sanction(
-        employee_id=emp_dev.id, type=SanctionType.VERBAL, date=date.today() - timedelta(days=45),
-        reason="Amonestación verbal por retrasos en dailies obligatorias de tecnología.",
-        sent_to_ministry=False, notes="El colaborador asume el compromiso de conectarse a tiempo."
-    )
-    recog_director = Recognition(
-        employee_id=emp_director.id, type=RecognitionType.EXCELLENCE, date=date.today() - timedelta(days=15),
-        title="Líder Sobresaliente UP 2026", description="Premio corporativo anual de reconocimiento a la gestión humana asertiva."
-    )
-    session.add_all([sanc_dev, recog_director])
+    # Amonestaciones / Sanciones
+    sanc_reasons = [
+        "Amonestación por retrasos recurrentes en las marcaciones semanales.",
+        "Ausencia injustificada al puesto de trabajo en horario vespertino.",
+        "Incumplimiento de las normas de confidencialidad en manejo de expedientes.",
+        "Falta de respeto o comportamiento no profesional en reuniones corporativas.",
+        "No reportar de forma oportuna la justificación de reposo médico."
+    ]
+    for _ in range(35):
+        emp = random.choice(bulk_employees)
+        sanc = Sanction(
+            employee_id=emp.id, type=random.choice([SanctionType.VERBAL, SanctionType.WRITTEN, SanctionType.SUSPENSION]),
+            date=date.today() - timedelta(days=random.randint(10, 400)),
+            reason=random.choice(sanc_reasons), sent_to_ministry=False,
+            notes="Expediente registrado en legajo por TH."
+        )
+        session.add(sanc)
+        
+    # Reconocimientos / Méritos
+    recog_titles = [
+        "Colaborador Estrella del Mes",
+        "Premio a la Innovación en Procesos",
+        "Mención de Honor al Compromiso",
+        "Destacado por Excelente Servicio",
+        "Premio de Superación de Metas del Periodo"
+    ]
+    for _ in range(35):
+        emp = random.choice(bulk_employees)
+        recog = Recognition(
+            employee_id=emp.id, type=random.choice([RecognitionType.EXCELLENCE, RecognitionType.ACHIEVEMENT, RecognitionType.INNOVATION]),
+            date=date.today() - timedelta(days=random.randint(10, 400)),
+            title=random.choice(recog_titles),
+            description="Otorgado formalmente por la gerencia por demostrar un alto nivel de eficiencia en sus metas asignadas."
+        )
+        session.add(recog)
+        
     await session.flush()
 
     # ---------------------------------------------------------
-    # 8. Módulo de Capacitaciones (Trainings)
+    # 7. Capacitaciones (Trainings)
     # ---------------------------------------------------------
-    print("   -> Creando capacitadores, cursos e inscripciones...")
+    print("   -> Creando capacitaciones institucionales y matriculaciones...")
     
     prov_tech = TrainingProvider(
         business_name="Tech Academy S.A.", ruc="80099999-9", phone="021600700",
         email="contacto@techacademy.com.py", contact_person="Ing. Robert Downey", address="Av. Mcal. López 789"
     )
-    session.add_all([prov_tech])
+    prov_ops = TrainingProvider(
+        business_name="Consultores del Cono Sur", ruc="80011111-1", phone="021400500",
+        email="soporte@cono_sur.py", contact_person="Dra. Cynthia Pratt", address="Av. Santa Teresa 1400"
+    )
+    session.add_all([prov_tech, prov_ops])
     await session.flush()
     
+    # 5 Cursos distribuidos en el tiempo (pasados o actuales, nunca futuro)
     course_fastapi = Training(
         name="FastAPI Avanzado y SQL Server", description="Profundización de microservicios, seguridad OAuth2 e integraciones asíncronas",
         type=TrainingType.EXTERNAL, provider_id=prov_tech.id, cost_per_person=1500000.0, company_cost=6000000.0,
-        start_date=date.today() - timedelta(days=10), end_date=date.today() + timedelta(days=15), status=TrainingStatus.IN_PROGRESS
+        start_date=date.today() - timedelta(days=40), end_date=date.today() - timedelta(days=15), status=TrainingStatus.COMPLETED
     )
     course_liderazgo = Training(
         name="Habilidades Blandas en Talento Humano", description="Empatía, gestión de crisis internas y comunicación con sindicatos",
         type=TrainingType.INTERNAL, internal_instructor_id=emp_director.id, cost_per_person=0.0, company_cost=100000.0,
-        start_date=date.today() + timedelta(days=20), end_date=date.today() + timedelta(days=25), status=TrainingStatus.PLANNED
+        start_date=date.today() - timedelta(days=10), end_date=date.today() + timedelta(days=5), status=TrainingStatus.IN_PROGRESS
     )
-    session.add_all([course_fastapi, course_liderazgo])
+    course_iso = Training(
+        name="Curso de Auditoría Interna ISO 9001", description="Normativas de calidad aplicadas a servicios logísticos y de soporte",
+        type=TrainingType.EXTERNAL, provider_id=prov_ops.id, cost_per_person=2000000.0, company_cost=8000000.0,
+        start_date=date.today() - timedelta(days=90), end_date=date.today() - timedelta(days=70), status=TrainingStatus.COMPLETED
+    )
+    session.add_all([course_fastapi, course_liderazgo, course_iso])
     await session.flush()
     
-    enroll_dev = TrainingEnrollment(
-        training_id=course_fastapi.id, employee_id=emp_dev.id, status=EnrollmentStatus.ENROLLED,
-        invitation_sent_at=date.today() - timedelta(days=12)
-    )
-    enroll_analista = TrainingEnrollment(
-        training_id=course_liderazgo.id, employee_id=emp_analista.id, status=EnrollmentStatus.ENROLLED,
-        invitation_sent_at=date.today() - timedelta(days=2)
-    )
-    session.add_all([enroll_dev, enroll_analista])
+    # Matricular aleatoriamente a 40 empleados en cada curso finalizado o activo
+    for emp in random.sample(bulk_employees, 35):
+        enroll = TrainingEnrollment(
+            training_id=course_fastapi.id, employee_id=emp.id, status=EnrollmentStatus.ATTENDED,
+            invitation_sent_at=course_fastapi.start_date - timedelta(days=10), knowledge_score=random.randint(70, 100),
+            feedback="Excelente curso teórico y práctico."
+        )
+        session.add(enroll)
+        
+    for emp in random.sample(bulk_employees, 25):
+        enroll = TrainingEnrollment(
+            training_id=course_liderazgo.id, employee_id=emp.id, status=EnrollmentStatus.ENROLLED,
+            invitation_sent_at=course_liderazgo.start_date - timedelta(days=5)
+        )
+        session.add(enroll)
+        
     await session.flush()
 
     # ---------------------------------------------------------
-    # 9. Calendario y Eventos de Integración
+    # 8. Calendario de Eventos Institucionales
     # ---------------------------------------------------------
-    print("   -> Creando eventos en el calendario institucional...")
+    print("   -> Creando eventos en el calendario de Sector Uno...")
     
     et_social = await get_or_create(CalendarEventType, "name", "Social", color="#3B82F6", description="Cumpleaños, aniversarios e integración")
     et_capacita = await get_or_create(CalendarEventType, "name", "Capacitación", color="#10B981", description="Cursos de inducción obligatorios")
     
     ev_social = CalendarEvent(
-        title="Almuerzo de Fin de Año UP", description="Festejo anual de cierre de periodo lectivo y administrativo.",
+        title="Almuerzo de Fin de Año", description="Festejo anual de cierre de periodo laboral con la familia Sector Uno.",
         date=date.today() - timedelta(days=15), event_type_id=et_social.id, is_enrollable=True
     )
     ev_capacita = CalendarEvent(
-        title="Taller de Inducción de Seguridad", description="Seguridad de la información y protección de legajos privados.",
-        date=date.today() + timedelta(days=10), event_type_id=et_capacita.id, is_enrollable=True
+        title="Taller de Inducción de Seguridad", description="Seguridad de la información y protección de legajos privados de Sector Uno.",
+        date=date.today() - timedelta(days=1), event_type_id=et_capacita.id, is_enrollable=False
     )
     session.add_all([ev_social, ev_capacita])
     await session.flush()
 
     # ---------------------------------------------------------
-    # 10. Reclutamiento y Vacantes Activas
+    # 9. Reclutamiento y Vacantes Masivas (50 Vacantes, 4-8 Etapas)
     # ---------------------------------------------------------
-    print("   -> Creando procesos de selección y vacantes activas...")
+    print("   -> Creando procesos de selección complejos con múltiples etapas...")
     
     hr_reemplazo = await get_or_create(HiringReason, "name", "Reemplazo de Personal")
     hr_aumento = await get_or_create(HiringReason, "name", "Aumento de Estructura")
     
+    # Proceso 1: TI (7 Etapas)
     proc_tech = RecruitmentProcess(
-        name="Proceso de Selección de Tecnología", description="Flujo estándar con filtros curriculares y técnicos"
+        name="Proceso de Selección - Tecnología", description="Flujo exhaustivo de 7 etapas para programadores de Sector Uno"
     )
-    session.add_all([proc_tech])
+    session.add(proc_tech)
     await session.flush()
     
-    stage_cv = ProcessStage(process_id=proc_tech.id, name="Filtro Curricular", sla_days=3, owner=StageOwner.RECRUITER, order_index=1)
-    stage_tech = ProcessStage(process_id=proc_tech.id, name="Prueba Técnica", sla_days=5, owner=StageOwner.AREA, order_index=2)
-    stage_ent = ProcessStage(process_id=proc_tech.id, name="Entrevista Final", sla_days=3, owner=StageOwner.RECRUITER, order_index=3)
-    session.add_all([stage_cv, stage_tech, stage_ent])
-    await session.flush()
-    
-    vac_dev = Vacancy(
-        title="Desarrollador Fullstack Junior", description="Buscamos un desarrollador junior enfocado en Python, FastAPI y VueJS",
-        status=ProcessStatus.OPEN, vacancy_type=VacancyType.EXTERNAL, is_headcount_increase=False,
-        start_date=date.today() - timedelta(days=5), area_id=area_ti.id, position_id=pos_dev_sr.id,
-        requester_id=user_gerente.id, process_id=proc_tech.id, hiring_reason_id=hr_reemplazo.id,
-        recruiter_id=user_director.id, created_at=datetime.now() - timedelta(days=5)
+    stages_ti = [
+        "Filtro Curricular", "Entrevista de Recursos Humanos", "Evaluación Técnica (FastAPI/React)",
+        "Entrevista Técnica con Líderes", "Entrevista Final de Dirección", "Exámenes Médicos", "Oferta Económica"
+    ]
+    for idx, name in enumerate(stages_ti, 1):
+        stage = ProcessStage(process_id=proc_tech.id, name=name, sla_days=random.choice([2, 3, 5]), owner=StageOwner.RECRUITER if idx in [1, 2, 7] else StageOwner.AREA, order_index=idx)
+        session.add(stage)
+        
+    # Proceso 2: Operaciones y Logística (5 Etapas)
+    proc_ops = RecruitmentProcess(
+        name="Proceso de Selección - Operaciones y Logística", description="Evaluación rápida para cargos logísticos"
     )
-    session.add_all([vac_dev])
+    session.add(proc_ops)
     await session.flush()
     
+    stages_ops = [
+        "Filtro de Perfil", "Test Psicométrico e Inteligencia", "Dinámica de Grupo e Integración", "Entrevista Individual con Supervisor", "Oferta y Firma de Contrato"
+    ]
+    for idx, name in enumerate(stages_ops, 1):
+        stage = ProcessStage(process_id=proc_ops.id, name=name, sla_days=random.choice([2, 3, 4]), owner=StageOwner.RECRUITER if idx in [1, 5] else StageOwner.AREA, order_index=idx)
+        session.add(stage)
+        
+    await session.flush()
+
+    # Generar 50 Vacantes con fechas de creación variables y estados realistas
+    print("   -> Poblando 50 vacantes activas/cerradas e historiales de auditoría...")
+    
+    recruiter_user_id = user_director.id
+    manager_user_id = user_gerente.id
+    
+    vacancy_titles_ti = ["Desarrollador Fullstack Junior", "DevOps Engineer", "QA Engineer", "Diseñador UI/UX", "Data Analyst", "Scrum Master"]
+    vacancy_titles_ops = ["Coordinador de Almacén", "Supervisor de Despacho", "Operador Logístico", "Asistente de Importación", "Analista de Inventario"]
+    
+    for v_count in range(1, 51):
+        is_ti = random.random() < 0.5
+        title_base = random.choice(vacancy_titles_ti if is_ti else vacancy_titles_ops)
+        title = f"Convocatoria {title_base} - Código #{1000 + v_count}"
+        
+        status = random.choices(
+            [ProcessStatus.OPEN, ProcessStatus.CLOSED, ProcessStatus.CANCELLED],
+            weights=[0.60, 0.30, 0.10]
+        )[0]
+        
+        # Fecha de creación (Últimos 12 meses, nunca futura)
+        start_date = date.today() - timedelta(days=random.randint(10, 360))
+        
+        vac = Vacancy(
+            title=title, description=f"Descripción completa del puesto laboral para {title}. Buscamos un perfil proactivo y orientado a resultados.",
+            status=status, vacancy_type=random.choice([VacancyType.EXTERNAL, VacancyType.INTERNAL]),
+            is_headcount_increase=random.random() < 0.3, start_date=start_date,
+            area_id=random.choice([area_ti, area_th, area_ops]).id, position_id=random.choice(posiciones).id,
+            requester_id=manager_user_id, process_id=proc_tech.id if is_ti else proc_ops.id,
+            hiring_reason_id=random.choice([hr_reemplazo, hr_aumento]).id, recruiter_id=recruiter_user_id,
+            created_at=datetime.combine(start_date, datetime.min.time()) + timedelta(hours=random.randint(8,16))
+        )
+        session.add(vac)
+        await session.flush()
+        
+        # Generar historial de AUDITORÍA para cada vacante (3-5 registros por vacante con tiempos variables)
+        actions = ["CREATED", "STAGE_UPDATE", "STATUS_CHANGE"]
+        details_list = [
+            "Vacante aperturada con éxito en el sistema.",
+            "Cambio de etapa de selección. Candidatos avanzados en el embudo.",
+            "Cambio de estado general de la convocatoria."
+        ]
+        
+        # Auditoría 1: Creación
+        audit1 = RecruitmentAudit(
+            vacancy_id=vac.id, user_id=recruiter_user_id, action="CREATED",
+            details="Se aperturó y publicó formalmente la vacante para el reclutamiento.",
+            timestamp=vac.created_at
+        )
+        session.add(audit1)
+        
+        # Auditorías 2 y 3: Modificaciones a lo largo de los días
+        for idx in range(1, random.randint(2, 4)):
+            audit_date = start_date + timedelta(days=random.randint(1, 8))
+            if audit_date >= date.today():
+                audit_date = date.today() - timedelta(days=1)
+                
+            act = random.choice(actions)
+            det = random.choice(details_list) if act != "CREATED" else "Configuración inicial guardada."
+            
+            audit = RecruitmentAudit(
+                vacancy_id=vac.id, user_id=recruiter_user_id, action=act, details=det,
+                timestamp=datetime.combine(audit_date, datetime.min.time()) + timedelta(hours=random.randint(8,16))
+            )
+            session.add(audit)
+            
     await session.commit()
-    print(f"🎉 ¡Tenant '{tenant_name}' poblado con éxito con datos semilla completos!")
+    print(f"🎉 ¡Tenant '{tenant_name}' poblado masivamente con {len(bulk_employees)+4} colaboradores y 50 convocatorias completas!")
 
 async def main():
     parser = argparse.ArgumentParser(description="Script para manejar la seed data de un inquilino (Tenant)")
