@@ -151,7 +151,7 @@
             <nav class="hidden md:flex items-center gap-8">
                 <a href="#features" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Nuestros Módulos</a>
                 <a href="#product-tour" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Vista Interactiva</a>
-                <a href="#ownership" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Identidad Corporativa</a>
+                <a href="#commitment" class="text-navy-600 hover:text-primary-600 font-semibold text-sm transition-colors relative after:absolute after:bottom-[-6px] after:left-0 after:w-0 after:h-0.5 after:bg-primary-500 hover:after:w-full after:transition-all after:duration-300">Nuestro Compromiso</a>
             </nav>
 
             <!-- CTA Buttons -->
@@ -689,8 +689,8 @@
         </div>
     </section>
 
-    <!-- Ownership & Corporate Identity (Deep Slate / Elegant Accent Layout) -->
-    <section id="ownership" class="py-24 bg-slate-900 text-slate-300 relative overflow-hidden">
+    <!-- Customer Commitment & Value Proposition (Deep Slate / Elegant Accent Layout) -->
+    <section id="commitment" class="py-24 bg-slate-900 text-slate-300 relative overflow-hidden">
         <div class="absolute inset-0 pointer-events-none">
             <div class="absolute bottom-[-100px] left-1/3 w-80 h-80 bg-indigo-500/10 rounded-full filter blur-[100px]"></div>
         </div>
@@ -699,20 +699,55 @@
             <div class="bg-slate-950 rounded-3xl p-8 sm:p-14 shadow-2xl border border-white/5 flex flex-col md:flex-row items-center gap-10 sm:gap-14">
                 <!-- Large Elegant Icon Display with glowing backshadow -->
                 <div class="h-28 w-28 sm:h-36 sm:w-36 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-3xl flex items-center justify-center text-white flex-shrink-0 text-5xl sm:text-6xl shadow-xl shadow-primary-500/10">
-                    <i class="fa-solid fa-briefcase"></i>
+                    <i class="fa-solid fa-handshake"></i>
                 </div>
                 
-                <div class="text-left">
-                    <span class="text-[10px] text-primary-400 font-extrabold uppercase tracking-widest block mb-2">Identidad & Cumplimiento Legal</span>
+                <div class="text-left flex-1">
+                    <span class="text-[10px] text-primary-400 font-extrabold uppercase tracking-widest block mb-2">Nuestro Compromiso</span>
                     <h2 class="text-2xl sm:text-3xl font-black text-white mb-4">
-                        Información Corporativa y Propiedad
+                        El éxito de tu organización es nuestra prioridad
                     </h2>
-                    <p class="text-slate-300 leading-relaxed mb-4 text-base">
-                        Esta moderna plataforma tecnológica de gestión es desarrollada, operada y mantenida de forma exclusiva por la entidad jurídica <strong class="text-white">{{ settings.BUSINESS_NAME }}</strong>, registrada bajo el identificador tributario oficial <strong class="text-white">RUC {{ settings.BUSINESS_RUC }}</strong>.
+                    <p class="text-slate-300 leading-relaxed mb-6 text-base">
+                        Más que una herramienta, somos el aliado estratégico que necesitas para construir una cultura organizacional sólida, eficiente y transparente. Diseñamos cada módulo pensando exclusivamente en resolver los retos diarios de tus equipos.
                     </p>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Como titular exclusivo del software, <strong class="text-slate-300">DUARUS E.A.S.</strong> asegura la disponibilidad de la plataforma en la nube, brindando altos niveles de protección informática, confidencialidad, y estricto apego a las legislaciones vigentes de protección de datos para todos sus colaboradores y usuarios vinculados a la suite de Gestión de Talento Humano.
-                    </p>
+                    
+                    <!-- Commercial Bullet Points -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-slate-400">
+                        <div class="flex gap-3">
+                            <i class="fa-solid fa-circle-check text-primary-400 mt-1"></i>
+                            <div>
+                                <strong class="text-white block">Adopción Simple y Rápida</strong>
+                                Interfaz intuitiva que tus colaboradores dominarán desde el primer día.
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <i class="fa-solid fa-circle-check text-primary-400 mt-1"></i>
+                            <div>
+                                <strong class="text-white block">Flujos Automatizados</strong>
+                                Aprobaciones instantáneas de permisos y notificaciones vía email sin retrasos.
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <i class="fa-solid fa-circle-check text-primary-400 mt-1"></i>
+                            <div>
+                                <strong class="text-white block">Centralización Inteligente</strong>
+                                Historial completo y expedientes digitales consolidados sin pérdidas.
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <i class="fa-solid fa-circle-check text-primary-400 mt-1"></i>
+                            <div>
+                                <strong class="text-white block">Confidencialidad de Alto Nivel</strong>
+                                Cifrado y seguridad robusta para proteger la privacidad de tu personal.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Subtle Footnote -->
+                    <div class="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+                        <span>Operado y respaldado de manera oficial por <strong class="text-slate-400">{{ settings.BUSINESS_NAME }}</strong></span>
+                        <span>RUC: {{ settings.BUSINESS_RUC }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -735,7 +770,7 @@
                 <div class="flex flex-wrap gap-x-8 gap-y-4 text-sm font-semibold">
                     <a href="#features" class="hover:text-primary-400 transition-colors">Nuestros Módulos</a>
                     <a href="#product-tour" class="hover:text-primary-400 transition-colors">Vista Interactiva</a>
-                    <a href="#ownership" class="hover:text-primary-400 transition-colors">Legal</a>
+                    <a href="#commitment" class="hover:text-primary-400 transition-colors">Nuestro Compromiso</a>
                     <a href="/login" class="hover:text-primary-400 transition-colors"><i class="fa-solid fa-lock text-[10px] mr-1 text-primary-400"></i> Acceso Staff</a>
                 </div>
             </div>
