@@ -583,7 +583,7 @@ async def seed_tenant_data(session: AsyncSession, schema_name: str, tenant_name:
     )
     prov_ops = TrainingProvider(
         business_name="Consultores del Cono Sur", ruc="80011111-1", phone="021400500",
-        email="soporte@cono_sur.py", contact_person="Dra. Cynthia Pratt", address="Av. Santa Teresa 1400"
+        email="soporte@conosur.com.py", contact_person="Dra. Cynthia Pratt", address="Av. Santa Teresa 1400"
     )
     session.add_all([prov_tech, prov_ops])
     await session.flush()
