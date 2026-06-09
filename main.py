@@ -127,8 +127,17 @@ app.include_router(tenants_router)
 app.include_router(admin_router)
 
 @app.get("/")
-async def root():
-    return RedirectResponse(url="/login")
+async def root(request: Request):
+    # Si hay un tenant (estamos en un subdominio), redirigimos al login del tenant
+    if getattr(request.state, "tenant", None) is not None:
+        return RedirectResponse(url="/login")
+    
+    # Si es el dominio principal, mostramos la landing page de la empresa dueña
+    return templates.TemplateResponse(
+        request=request,
+        name="landing.html",
+        context={"request": request, "settings": settings}
+    )
 
 if __name__ == "__main__":
     import uvicorn

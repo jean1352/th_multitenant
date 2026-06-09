@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
     PROJECT_NAME: str = "Talento Up"
+    BUSINESS_NAME: str = "DUARUS E.A.S"
+    BUSINESS_RUC: str = "80170151-1"
     API_V1_STR: str = "/api/v1"
     
     # URL Base para links en correos (Importante para tareas en background)
