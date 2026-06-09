@@ -10,24 +10,21 @@ logger = logging.getLogger(__name__)
 
 class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        host = request.url.hostname
-        # Supongamos que el dominio base es algo como 'localhost' o 'tuapp.com'
-        # Si host es 'cliente1.localhost', el subdominio es 'cliente1'
+        host = request.url.hostname or ""
         
-        parts = host.split(".")
+        # Extraemos el host base configurado en la aplicación
+        from app.core.config import settings
+        from urllib.parse import urlparse
+        
+        parsed_base = urlparse(settings.BASE_URL)
+        base_host = parsed_base.hostname or "localhost"
+        
         subdomain = None
         
-        # Lógica simple para extraer subdominio. 
-        # Si es localhost y tiene más de una parte: parte[0] es subdominio.
-        # Si es un dominio real (ej: app.com) y tiene 3 partes: parte[0] es subdominio.
-        if len(parts) > 1:
-            # Caso especial para localhost: 'tenant.localhost' -> parts = ['tenant', 'localhost']
-            if parts[-1] == "localhost":
-                if len(parts) > 1:
-                    subdomain = parts[0]
-            # Caso para dominios de segundo nivel: 'tenant.myapp.com' -> parts = ['tenant', 'myapp', 'com']
-            elif len(parts) >= 3:
-                subdomain = parts[0]
+        # Si el host actual es distinto al host base, determinamos si hay subdominio
+        if host != base_host:
+            if host.endswith(f".{base_host}"):
+                subdomain = host[:-len(base_host)-1]
 
         if subdomain and subdomain != "www":
             async with AsyncSessionLocal() as db:
