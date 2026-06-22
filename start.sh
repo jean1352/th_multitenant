@@ -20,7 +20,7 @@ docker compose up -d --build
 
 # 3. Esperar a que la base de datos esté lista y saludable
 echo "⏳ Esperando a que el motor de base de datos Postgres esté en línea..."
-until docker compose exec db pg_isready -U admin > /dev/null 2>&1; do
+until docker compose exec db pg_isready -U admin -d postgres > /dev/null 2>&1; do
   echo "⌛ Esperando a la base de datos..."
   sleep 2
 done
