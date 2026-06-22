@@ -311,18 +311,20 @@ async def create_vacancy(
     )
     db.add(new_vacancy)
     await db.flush()
+    vac_id = new_vacancy.id
     
-    await log_audit(db, new_vacancy.id, "CREATED", "Vacante creada", user_id)
+    await log_audit(db, vac_id, "CREATED", "Vacante creada", user_id)
 
     stages = []
-    current_date = new_vacancy.created_at.date()
+    # Usar la fecha actual ya que created_at podría estar en None hasta que se refresque
+    current_date = datetime.now().date()
     holidays = await get_holidays_set(db, current_date)
 
     for config_stage in process.stages_config:
         deadline = await add_business_days(db, current_date, config_stage.sla_days, holidays)
         
         stage = VacancyStage(
-            vacancy_id=new_vacancy.id,
+            vacancy_id=vac_id,
             name=config_stage.name,
             owner=config_stage.owner,
             responsible_id=config_stage.responsible_id,
@@ -335,10 +337,15 @@ async def create_vacancy(
         current_date = deadline
 
     db.add_all(stages)
-    await db.commit()
+    await db.flush()
     
-    # Recargar para devolver objeto completo
-    return await get_vacancy_detail(db, new_vacancy.id)
+    # Recargar para devolver objeto completo (antes del commit para asegurar el search_path en multi-tenant)
+    vac = await get_vacancy_detail(db, vac_id)
+    if not vac:
+        raise ValueError("Error al recuperar la vacante creada.")
+        
+    await db.commit()
+    return vac
 
 
 async def update_vacancy(
@@ -584,9 +591,11 @@ async def update_vacancy(
     if audit_details:
         await log_audit(db, vac.id, "UPDATE", "; ".join(audit_details), user_id)
 
+    await db.flush()
+    # Recargar para devolver objeto actualizado con relaciones cargadas (antes del commit para asegurar el search_path en multi-tenant)
+    updated_vac = await get_vacancy_detail(db, vacancy_id)
     await db.commit()
-    # Devolver objeto actualizado con relaciones cargadas
-    return await get_vacancy_detail(db, vacancy_id)
+    return updated_vac
 
 
 async def delete_vacancy(db: AsyncSession, vacancy_id: int) -> bool:

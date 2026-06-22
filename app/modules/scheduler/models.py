@@ -1,9 +1,9 @@
 import enum
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any, Dict, List
 
-from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, Integer, String, Text, JSON, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -23,13 +23,21 @@ class FrequencyType(str, enum.Enum):
     MONTHLY = "monthly"
     CUSTOM = "custom"
 
+class TriggerType(str, enum.Enum):
+    EVENT_DRIVEN = "EVENT_DRIVEN"
+    CRON_SCHEDULED = "CRON_SCHEDULED"
+
+class EscalationStatus(str, enum.Enum):
+    ACTIVE_ESCALATION = "ACTIVE_ESCALATION"
+    RESOLVED = "RESOLVED"
+
 class AutomationRule(Base):
     __tablename__ = "automation_rules"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     
-    # Identificador único del tipo de lógica
-    rule_type: Mapped[AutomationRuleType] = mapped_column(SQLEnum(AutomationRuleType), unique=True)
+    # Identificador único del tipo de lógica (opcional para reglas personalizadas)
+    rule_type: Mapped[Optional[AutomationRuleType]] = mapped_column(SQLEnum(AutomationRuleType), unique=True, nullable=True)
     
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(Text)
@@ -45,9 +53,30 @@ class AutomationRule(Base):
     
     last_run: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
+    # NUEVOS CAMPOS PARA EL MOTOR DE AUTOMATIZACIÓN AVANZADO
+    trigger_type: Mapped[TriggerType] = mapped_column(SQLEnum(TriggerType), default=TriggerType.CRON_SCHEDULED)
+    trigger_event: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    conditions: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    actions: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
+    escalation_interval: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+class AutomationState(Base):
+    __tablename__ = "automation_states"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    rule_id: Mapped[int] = mapped_column(Integer, ForeignKey("automation_rules.id", ondelete="CASCADE"))
+    target_entity_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    status: Mapped[EscalationStatus] = mapped_column(SQLEnum(EscalationStatus), default=EscalationStatus.ACTIVE_ESCALATION)
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    rule = relationship("AutomationRule")
 
 class TaskExecutionLog(Base):
     __tablename__ = "task_execution_logs"

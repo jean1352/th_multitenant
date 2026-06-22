@@ -83,12 +83,20 @@ async def users_view(
         for s in sedes_orm.scalars().all()
     ]
 
+    from app.modules.auth.models import Role
+    roles_orm = await db.execute(select(Role))
+    custom_roles = [
+        {"id": r.id, "name": r.name}
+        for r in roles_orm.scalars().all()
+    ]
+
     return templates.TemplateResponse(request=request, name="auth/users.html", context=
         {
             "request": request,
             "users": users,
             "areas": areas,
             "sedes": sedes,
+            "custom_roles": custom_roles,
             "current_user": current_user,
             "settings": settings,
         },

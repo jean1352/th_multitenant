@@ -296,10 +296,15 @@ async def enroll_employee(
         training_id=training_id, employee_id=employee_id
     )
     db.add(enrollment)
-    await db.commit()
+    await db.flush()
 
     emp = await db.get(Employee, employee_id)
     training = await db.get(Training, training_id)
+
+    if not emp:
+        raise ValueError("Colaborador no encontrado")
+    if not training:
+        raise ValueError("Capacitación no encontrada")
 
     if emp.all_emails:
         await send_email_notification(
@@ -309,6 +314,7 @@ async def enroll_employee(
             f"Has sido inscrito en el curso {training.name}.",
         )
 
+    await db.commit()
     return enrollment
 
 

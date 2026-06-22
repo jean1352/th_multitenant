@@ -239,6 +239,103 @@ async def run_probation_end(rule_id: int, param_value: int = 90, **kwargs):
                 count += 1
     return f"Alertas de prueba enviadas: {count}"
 
+# --- 6. MOTOR DE AUTOMATIZACIONES AVANZADAS (NUEVO) ---
+async def run_advanced_automations(rule_id: int = None, **kwargs):
+    """
+    Escanea reglas de automatización activas, evalúa dinámicamente sus condiciones
+    y ejecuta acciones aplicando ciclo cerrado y escalamiento.
+    """
+    from app.modules.scheduler.models import AutomationRule, AutomationState, EscalationStatus, TriggerType
+    from app.modules.scheduler.evaluator import AdvancedConditionEvaluator, ActionExecutor
+    import traceback
+    
+    logger.info("🚀 Iniciando motor de automatizaciones avanzadas y escaneo de escalamientos...")
+    rules_run = 0
+    actions_fired = 0
+    states_updated = 0
+    
+    async with AsyncSessionLocal() as db:
+        # Cargar reglas
+        if rule_id:
+            stmt = select(AutomationRule).where(AutomationRule.id == rule_id, AutomationRule.is_active == True)
+        else:
+            stmt = select(AutomationRule).where(AutomationRule.is_active == True)
+            
+        rules = (await db.execute(stmt)).scalars().all()
+        
+        for rule in rules:
+            # Saltar si no tiene condiciones JSON configuradas
+            if not rule.conditions:
+                continue
+                
+            try:
+                # 1. Evaluar condiciones dinámicas
+                matched_entities = await AdvancedConditionEvaluator.evaluate_rule(db, rule)
+                matched_ids = {entity.id for entity in matched_entities}
+                
+                # 2. Cargar estados de escalamiento activos para esta regla
+                stmt_states = select(AutomationState).where(
+                    AutomationState.rule_id == rule.id,
+                    AutomationState.status == EscalationStatus.ACTIVE_ESCALATION
+                )
+                active_states = (await db.execute(stmt_states)).scalars().all()
+                active_state_map = {state.target_entity_id: state for state in active_states}
+                
+                # 3. Procesar nuevas alertas y escalamientos pendientes
+                for entity in matched_entities:
+                    entity_id = entity.id
+                    
+                    # Parsear intervalo de escalamiento (ej. "6h", "1d")
+                    interval_str = rule.escalation_interval or "1d"
+                    hours = 24
+                    if interval_str.endswith("h"):
+                        hours = int(interval_str[:-1])
+                    elif interval_str.endswith("d"):
+                        hours = int(interval_str[:-1]) * 24
+                    interval_td = timedelta(hours=hours)
+                    
+                    if entity_id not in active_state_map:
+                        # NUEVA ALERTA: Ejecutar acciones e insertar estado
+                        fired = await ActionExecutor.execute_actions(db, rule, [entity])
+                        actions_fired += fired
+                        
+                        next_run = datetime.now() + interval_td
+                        new_state = AutomationState(
+                            rule_id=rule.id,
+                            target_entity_id=entity_id,
+                            status=EscalationStatus.ACTIVE_ESCALATION,
+                            next_run_at=next_run
+                        )
+                        db.add(new_state)
+                        states_updated += 1
+                    else:
+                        # RE-ALERTA / ESCALAMIENTO: Si ya se cumplió next_run_at, ejecutar y postergar
+                        state = active_state_map[entity_id]
+                        if datetime.now() >= state.next_run_at:
+                            fired = await ActionExecutor.execute_actions(db, rule, [entity])
+                            actions_fired += fired
+                            
+                            state.next_run_at = datetime.now() + interval_td
+                            db.add(state)
+                            states_updated += 1
+                            
+                # 4. CICLO CERRADO: Resolver alertas que ya NO cumplen la condición
+                for entity_id, state in active_state_map.items():
+                    if entity_id not in matched_ids:
+                        state.status = EscalationStatus.RESOLVED
+                        db.add(state)
+                        states_updated += 1
+                        logger.info(f"Ciclo cerrado: Alerta resuelta para regla {rule.id}, entidad {entity_id}")
+                        
+                rules_run += 1
+            except Exception as e:
+                logger.error(f"Error procesando regla avanzada {rule.id} ({rule.name}): {e}")
+                traceback.print_exc()
+                
+        await db.commit()
+        
+    return f"Reglas: {rules_run}, Disparos: {actions_fired}, Estados actualizados: {states_updated}"
+
 # --- REGISTRO DE FUNCIONES ---
 TASK_REGISTRY = {
     "vacancy_weekly_report": run_vacancy_weekly_report,
@@ -246,5 +343,6 @@ TASK_REGISTRY = {
     "event_reminder": run_event_reminder,
     "contract_expiration": run_contract_expiration,
     "probation_end": run_probation_end,
+    "advanced_automations": run_advanced_automations,
     "sla_daily_check": lambda **k: "SLA Check (Simulado)"
 }

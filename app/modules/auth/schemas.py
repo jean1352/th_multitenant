@@ -32,6 +32,7 @@ class UserBase(BaseModel):
     is_active: bool = True
     sede_id: Optional[int] = None
     area_id: Optional[int] = None
+    role_id: Optional[int] = None
 
 
 class UserCreate(UserBase):
@@ -47,6 +48,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     sede_id: Optional[int] = None
     area_id: Optional[int] = None
+    role_id: Optional[int] = None
 
 
 class UserRead(UserBase):

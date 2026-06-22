@@ -156,3 +156,36 @@ is_recruiter = create_role_decorator([UserRole.ADMIN, UserRole.MANAGER, UserRole
 is_authenticated = create_role_decorator([
     UserRole.ADMIN, UserRole.MANAGER, UserRole.TH, UserRole.EMPLOYEE
 ])
+
+# --- PERMISOS GRANULARES (RBAC DINÁMICO) ---
+def require_permission(permission_code: str):
+    """
+    Dependencia de FastAPI que valida que el usuario autenticado tenga el permiso granular especificado,
+    ya sea a través de su rol estático (ADMIN tiene todo) o de su rol relacional dinámico (RBAC).
+    """
+    async def dependency(
+        user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+    ):
+        # 1. Los Administradores Globales (rol estático ADMIN) tienen acceso completo automático
+        if user.role == UserRole.ADMIN:
+            return user
+            
+        # 2. Si el usuario tiene asignado un rol dinámico en la DB (role_id), validar sus permisos
+        if user.role_id:
+            from app.modules.auth.models import Role
+            stmt = (
+                select(Role)
+                .options(selectinload(Role.permissions))
+                .where(Role.id == user.role_id)
+            )
+            role = (await db.execute(stmt)).scalar_one_or_none()
+            if role:
+                permission_codes = {p.code for p in role.permissions}
+                if permission_code in permission_codes:
+                    return user
+                    
+        raise RolePermissionError(
+            f"Acceso denegado: Se requiere el permiso granular '{permission_code}'."
+        )
+    return Depends(dependency)

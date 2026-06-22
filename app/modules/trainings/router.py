@@ -127,7 +127,7 @@ async def detail_training(
     enrollments_pag = await service.get_enrollments_paginated(
         db, id, page, 10, q, area_id_int
     )
-    employees = (await db.execute(select(Employee))).scalars().all()
+    employees = []
     areas = (await db.execute(select(Area))).scalars().all()
     sedes = (await db.execute(select(Sede))).scalars().all()
     

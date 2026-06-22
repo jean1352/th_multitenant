@@ -80,10 +80,12 @@ async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
         is_active=user_in.is_active,
         sede_id=user_in.sede_id,
         area_id=user_in.area_id,
+        role_id=user_in.role_id,
     )
     db.add(db_user)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_user)
+    await db.commit()
     return db_user
 
 
@@ -106,8 +108,9 @@ async def update_user(
     for key, value in update_data.items():
         setattr(db_user, key, value)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(db_user)
+    await db.commit()
     return db_user
 
 

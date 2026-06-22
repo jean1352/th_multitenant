@@ -12,7 +12,7 @@ from app.modules.auth.models import User, UserRole
 from app.core.security import create_access_token
 
 # Usar DB de test en Postgres
-TEST_DATABASE_URL = "postgresql+asyncpg://admin:W0gR540SOjaL@db:5432/test_db"
+TEST_DATABASE_URL = "postgresql+asyncpg://admin:secret_password@db:5432/test_db"
 
 engine = create_async_engine(
     TEST_DATABASE_URL, 

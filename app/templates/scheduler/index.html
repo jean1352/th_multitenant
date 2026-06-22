@@ -2,9 +2,17 @@
 {% block title %}Automatización - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">Reglas de Automatización</h1>
-    <p class="text-gray-500 text-sm">Configura las políticas globales de envío de notificaciones y alertas.</p>
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Reglas de Automatización</h1>
+        <p class="text-gray-500 text-sm">Configura las políticas globales de envío de notificaciones y alertas.</p>
+    </div>
+    
+    <!-- BOTÓN PARA CREAR AUTOMATIZACIÓN AVANZADA -->
+    <button onclick="openAdvancedModal()" class="bg-indigo-900 text-white font-semibold px-4 py-2.5 rounded-xl text-sm shadow-sm hover:bg-indigo-800 transition-all flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Nueva Automatización
+    </button>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -29,7 +37,7 @@
 
         <!-- TAB CONTENT: RECLUTAMIENTO -->
         <div id="content-recruitment" class="space-y-4 tab-content">
-            {% for rule in rules if rule.rule_type in ['vacancy_weekly_report', 'vacancy_stagnation', 'sla_daily_check'] %}
+            {% for rule in rules if rule.rule_type in ['vacancy_weekly_report', 'vacancy_stagnation', 'sla_daily_check'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['Vacancy']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de reclutamiento configuradas.</p>
@@ -38,7 +46,7 @@
 
         <!-- TAB CONTENT: EVENTOS -->
         <div id="content-events" class="space-y-4 tab-content hidden">
-            {% for rule in rules if rule.rule_type in ['event_reminder'] %}
+            {% for rule in rules if rule.rule_type in ['event_reminder'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['EventEnrollment']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de eventos configuradas.</p>
@@ -47,7 +55,7 @@
 
         <!-- TAB CONTENT: GESTIÓN PERSONAL (NUEVO) -->
         <div id="content-system" class="space-y-4 tab-content hidden">
-            {% for rule in rules if rule.rule_type in ['contract_expiration', 'probation_end'] %}
+            {% for rule in rules if rule.rule_type in ['contract_expiration', 'probation_end'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['Employee', 'Contract', 'BenefitRequest']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de gestión configuradas.</p>
@@ -85,7 +93,7 @@
     </div>
 </div>
 
-<!-- MODAL CONFIGURACIÓN -->
+<!-- MODAL CONFIGURACIÓN REGULAR -->
 <div id="configModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded-lg w-[450px] shadow-xl">
         <h3 class="font-bold mb-4 text-lg" id="modalTitle">Configurar Regla</h3>
@@ -139,20 +147,137 @@
     </div>
 </div>
 
+<!-- MODAL: CREADOR VISUAL DE AUTOMATIZACIONES (VISUAL QUERY BUILDER) -->
+<div id="advancedRuleModal" class="fixed inset-0 bg-gray-900 bg-opacity-60 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-2xl w-[820px] max-h-[92vh] overflow-y-auto shadow-2xl custom-scrollbar">
+        <div class="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 class="font-bold text-xl text-indigo-950 flex items-center gap-2">
+                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Creador de Automatizaciones Avanzadas (Cerebro)
+            </h3>
+            <button onclick="document.getElementById('advancedRuleModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+        </div>
+        
+        <!-- SECCIÓN: PLANTILLAS Y EJEMPLOS RÁPIDOS -->
+        <div class="mb-5">
+            <label class="block text-xs font-bold text-indigo-900 uppercase mb-2">Plantillas y Casos de Uso Pre-configurados</label>
+            <div class="grid grid-cols-3 gap-3">
+                <button type="button" onclick="loadPreset('medical_insurance')" class="p-3 bg-indigo-50/60 hover:bg-indigo-100/70 border border-indigo-150 rounded-xl text-left transition-all group">
+                    <span class="text-xs font-bold text-indigo-950 block mb-0.5 group-hover:text-indigo-900">Seguro de Salud Anual</span>
+                    <span class="text-[10px] text-gray-500 leading-tight block">Notifica tras 365 días del inicio de Seguro en TI.</span>
+                </button>
+                <button type="button" onclick="loadPreset('event_invitation')" class="p-3 bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-150 rounded-xl text-left transition-all group">
+                    <span class="text-xs font-bold text-emerald-950 block mb-0.5 group-hover:text-emerald-900">Asistencia a Taller</span>
+                    <span class="text-[10px] text-gray-500 leading-tight block">Recuerda invitaciones pendientes en Ventas.</span>
+                </button>
+                <button type="button" onclick="loadPreset('critical_vacancy')" class="p-3 bg-amber-50/60 hover:bg-amber-100/70 border border-amber-150 rounded-xl text-left transition-all group">
+                    <span class="text-xs font-bold text-amber-950 block mb-0.5 group-hover:text-amber-900">Vacante Estancada TI</span>
+                    <span class="text-[10px] text-gray-500 leading-tight block">Alerta si una vacante de Tecnología supera 15 días.</span>
+                </button>
+            </div>
+        </div>
+
+        <form id="advancedRuleForm" class="space-y-5 border-t pt-4">
+            <!-- Datos Básicos -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre de la Automatización</label>
+                    <input type="text" id="advName" required class="w-full border p-2.5 rounded-lg text-sm" placeholder="Ej. Alerta Vacantes Stagnadas">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Frecuencia de Escalamiento</label>
+                    <select id="advEscalation" class="w-full border p-2.5 rounded-lg text-sm bg-white">
+                        <option value="6h">Cada 6 Horas</option>
+                        <option value="12h">Cada 12 Horas</option>
+                        <option value="1d">Cada 24 Horas / 1 Día</option>
+                        <option value="3d">Cada 3 Días</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Descripción</label>
+                <textarea id="advDescription" required rows="2" class="w-full border p-2.5 rounded-lg text-sm" placeholder="Explique qué hace y a quién alerta esta regla..."></textarea>
+            </div>
+
+            <!-- Selección de Entidad Core -->
+            <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/60">
+                <label class="block text-xs font-bold text-indigo-950 uppercase mb-1">1. Seleccionar Entidad Base</label>
+                <select id="advModel" class="w-full border p-2.5 rounded-lg text-sm bg-white font-medium text-indigo-900" onchange="changeAdvancedModel()">
+                    <option value="Vacancy">Vacante (Recruitment)</option>
+                    <option value="Contract">Contrato (DocumentCategory / Employees)</option>
+                    <option value="Employee">Colaborador (Employees)</option>
+                    <option value="BenefitRequest">Solicitud de Beneficio (Benefits)</option>
+                    <option value="EventEnrollment">Inscripción a Evento (Calendar)</option>
+                </select>
+            </div>
+
+            <!-- Sección de Condiciones Visual Query Builder -->
+            <div class="border-t pt-4">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase">2. CONDICIONES DE FILTRADO (Operador: AND)</label>
+                    <button type="button" onclick="addConditionRow()" class="text-indigo-900 hover:text-indigo-700 text-xs font-bold flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Agregar Condición
+                    </button>
+                </div>
+                
+                <div id="conditionsContainer" class="space-y-3">
+                    <!-- Las filas de condiciones se insertarán aquí dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Sección de Acción de Email -->
+            <div class="border-t pt-4 space-y-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase">3. ACCIÓN DE NOTIFICACIÓN (EMAIL)</label>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Enviar Correo A:</label>
+                        <select id="advActionTo" class="w-full border p-2.5 rounded-lg text-sm bg-white" onchange="toggleCustomToField()">
+                            <!-- Se poblará dinámicamente con opciones del modelo -->
+                        </select>
+                        <input type="email" id="advActionToCustom" class="w-full border p-2.5 rounded-lg text-sm mt-2 hidden" placeholder="Ej. correo@empresa.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Asunto de Alerta</label>
+                        <input type="text" id="advActionSubject" required class="w-full border p-2.5 rounded-lg text-sm" placeholder="Ej. Alerta: Vacante {title} estancada">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Cuerpo del Correo (Soporta placeholders con llaves {})</label>
+                    <textarea id="advActionBody" required rows="3" class="w-full border p-2.5 rounded-lg text-sm font-mono" placeholder="Hola, la vacante {title} de {area.name} sigue sin cerrarse..."></textarea>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex justify-end gap-3 pt-4 border-t mt-6">
+                <button type="button" onclick="document.getElementById('advancedRuleModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 px-4 py-2.5 text-sm font-medium">Cancelar</button>
+                <button type="submit" class="bg-indigo-900 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-md hover:bg-indigo-800 transition-all">Guardar Automatización</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script type="module">
     import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    // Inyectar catálogos reales de base de datos desde Jinja2
+    const dbAreas = {{ catalog_areas|tojson }};
+    const dbBenefits = {{ catalog_benefits|tojson }};
 
     // --- TABS LOGIC ---
     window.switchTab = (tabName) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('nav button').forEach(btn => {
+        document.querySelectorAll('.mb-4 nav button').forEach(btn => {
             btn.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors";
         });
         document.getElementById(`content-${tabName}`).classList.remove('hidden');
         document.getElementById(`tab-${tabName}`).className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors";
     };
 
-    // --- CONFIG MODAL LOGIC ---
+    // --- REGULAR CONFIG MODAL LOGIC ---
     const modal = document.getElementById('configModal');
     let currentRuleType = null;
     
@@ -184,7 +309,6 @@
             paramLabel.innerText = "Intervalo (Días)";
             paramHelp.innerText = "Ejecutar cada X días.";
         } else {
-            // Lógica para labels dinámicos
             if (currentRuleType === 'vacancy_stagnation') {
                 paramDiv.classList.remove('hidden');
                 paramLabel.innerText = "Días sin movimiento";
@@ -234,5 +358,392 @@
             setTimeout(() => window.location.reload(), 1000);
         } catch(err) { showToast(err.message, 'error'); }
     };
+
+    // ==========================================================
+    // --- NUEVA LÓGICA: VISUAL QUERY BUILDER CON PLANTILLAS ---
+    // ==========================================================
+    const advModal = document.getElementById('advancedRuleModal');
+    
+    // Configuración completa de campos y entidades relacionales
+    const modelFields = {
+        Vacancy: [
+            { path: 'title', label: 'Título de la Vacante' },
+            { path: 'status', label: 'Estado' },
+            { path: 'vacancy_type', label: 'Tipo (internal, external)' },
+            { path: 'start_date', label: 'Fecha de Publicación' },
+            { path: 'area.name', label: 'Nombre del Área' },
+            { path: 'position.name', label: 'Nombre del Cargo' }
+        ],
+        Contract: [
+            { path: 'name', label: 'Nombre del Contrato' },
+            { path: 'end_date', label: 'Fecha de Vencimiento' },
+            { path: 'employee.full_name', label: 'Nombre del Colaborador' },
+            { path: 'employee.institutional_email', label: 'Email del Colaborador' }
+        ],
+        Employee: [
+            { path: 'full_name', label: 'Nombre Completo' },
+            { path: 'institutional_email', label: 'Email Institucional' },
+            { path: 'office_location', label: 'Sede/Ubicación' },
+            { path: 'is_active', label: 'Estado Activo (true/false)' }
+        ],
+        BenefitRequest: [
+            { path: 'benefit.name', label: 'Nombre del Beneficio' },
+            { path: 'status', label: 'Estado de Solicitud' },
+            { path: 'start_date', label: 'Fecha Inicio de Vigencia' },
+            { path: 'employee.full_name', label: 'Nombre del Colaborador' },
+            { path: 'employee.position.area.name', label: 'Área del Colaborador' }
+        ],
+        EventEnrollment: [
+            { path: 'event.title', label: 'Nombre del Evento' },
+            { path: 'status', label: 'Asistencia al Evento' },
+            { path: 'employee.full_name', label: 'Nombre del Colaborador' },
+            { path: 'employee.position.area.name', label: 'Área del Colaborador' }
+        ]
+    };
+
+    const actionToOptions = {
+        Vacancy: [
+            { value: 'area.responsible_email', label: 'Responsable del Área (Dinámico)' },
+            { value: 'custom', label: 'Ingresar Correo Personalizado...' }
+        ],
+        Contract: [
+            { value: 'employee.institutional_email', label: 'Email del Colaborador (Dinámico)' },
+            { value: 'custom', label: 'Ingresar Correo Personalizado...' }
+        ],
+        Employee: [
+            { value: 'institutional_email', label: 'Email del Colaborador (Dinámico)' },
+            { value: 'custom', label: 'Ingresar Correo Personalizado...' }
+        ],
+        BenefitRequest: [
+            { value: 'employee.institutional_email', label: 'Email del Colaborador (Dinámico)' },
+            { value: 'employee.position.area.responsible_email', label: 'Responsable del Área del Colaborador' },
+            { value: 'custom', label: 'Ingresar Correo Personalizado...' }
+        ],
+        EventEnrollment: [
+            { value: 'employee.institutional_email', label: 'Email del Colaborador (Dinámico)' },
+            { value: 'custom', label: 'Ingresar Correo Personalizado...' }
+        ]
+    };
+
+    // Plantillas de Casos de Uso
+    const presets = {
+        medical_insurance: {
+            name: "Renovación Anual Seguro Médico (Tecnología)",
+            description: "Alerta automática al colaborador y al responsable cuando se cumple exactamente un año (365 días) de la vigencia de su Seguro Médico en el área de Tecnología.",
+            model: "BenefitRequest",
+            escalation: "1d",
+            conditions: [
+                { field: "benefit.name", operator: "==", value: "Seguro Médico" },
+                { field: "employee.position.area.name", operator: "==", value: "Tecnología" },
+                { field: "start_date", operator: "days_ago_equals", value: 365 }
+            ],
+            to: "employee.institutional_email",
+            subject: "Renovación Anual de Seguro de Salud - {employee.full_name}",
+            body: "Estimado/a {employee.full_name}, hoy se cumple exactamente un año de la vigencia de tu beneficio de Seguro de Salud. Por favor, coordina con Talento Humano la renovación de tu póliza."
+        },
+        event_invitation: {
+            name: "Invitación de Capacitación Pendiente (Ventas)",
+            description: "Envía recordatorios recurrentes de asistencia cada 12 horas a colaboradores del área de Ventas con una invitación pendiente para el Taller de Liderazgo.",
+            model: "EventEnrollment",
+            escalation: "12h",
+            conditions: [
+                { field: "event.title", operator: "==", value: "Taller de Liderazgo" },
+                { field: "employee.position.area.name", operator: "==", value: "Ventas" },
+                { field: "status", operator: "==", value: "invited" }
+            ],
+            to: "employee.institutional_email",
+            subject: "Recordatorio: Taller de Liderazgo - {employee.full_name}",
+            body: "Hola {employee.full_name}, tienes una invitación pendiente para participar en el '{event.title}'. Por favor, accede al Portal y confirma tu asistencia."
+        },
+        critical_vacancy: {
+            name: "Alerta Vacante de Tecnología Estancada",
+            description: "Alerta automática recurrente cada 6 horas al responsable de área si una vacante de Tecnología lleva más de 15 días publicada sin ser cubierta.",
+            model: "Vacancy",
+            escalation: "6h",
+            conditions: [
+                { field: "status", operator: "==", value: "open" },
+                { field: "area.name", operator: "==", value: "Tecnología" },
+                { field: "start_date", operator: "days_ago_greater_than", value: 15 }
+            ],
+            to: "area.responsible_email",
+            subject: "CRÍTICO: Vacante Estancada en Tecnología - {title}",
+            body: "Estimado/a responsable de área, la vacante de '{title}' para el cargo '{position.name}' lleva más de 15 días abierta sin modificaciones. Revise el flujo de candidatos."
+        }
+    };
+
+    window.openAdvancedModal = () => {
+        document.getElementById('advName').value = '';
+        document.getElementById('advDescription').value = '';
+        document.getElementById('advEscalation').value = '1d';
+        document.getElementById('conditionsContainer').innerHTML = '';
+        
+        changeAdvancedModel();
+        advModal.classList.remove('hidden');
+    };
+
+    window.changeAdvancedModel = () => {
+        const model = document.getElementById('advModel').value;
+        const container = document.getElementById('conditionsContainer');
+        container.innerHTML = '';
+        addConditionRow();
+        
+        // Actualizar dropdown "Enviar Correo A"
+        const toDropdown = document.getElementById('advActionTo');
+        toDropdown.innerHTML = '';
+        actionToOptions[model].forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.value;
+            el.innerText = opt.label;
+            toDropdown.appendChild(el);
+        });
+        
+        toggleCustomToField();
+    };
+
+    window.toggleCustomToField = () => {
+        const val = document.getElementById('advActionTo').value;
+        document.getElementById('advActionToCustom').classList.toggle('hidden', val !== 'custom');
+    };
+
+    // RENDERIZA DINÁMICAMENTE EL VALOR (INPUT VS DROPDOWNS DE CATÁLOGOS)
+    window.updateValueField = (rowId, fieldPath, initialValue = "") => {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        
+        const model = document.getElementById('advModel').value;
+        const valContainer = row.querySelector('.cond-val-container');
+        if (!valContainer) return;
+        
+        let html = '';
+        
+        // Comprobar si es un campo de catálogo o de estado para dar un select dropdown
+        if (fieldPath === 'area.name' || fieldPath === 'employee.position.area.name') {
+            html = `<select class="cond-val border p-2 rounded text-xs bg-white w-44 font-semibold text-gray-800">`;
+            dbAreas.forEach(a => {
+                const selected = a.name === initialValue ? 'selected' : '';
+                html += `<option value="${a.name}" ${selected}>${a.name}</option>`;
+            });
+            html += `</select>`;
+        } else if (fieldPath === 'benefit.name') {
+            html = `<select class="cond-val border p-2 rounded text-xs bg-white w-44 font-semibold text-gray-800">`;
+            dbBenefits.forEach(b => {
+                const selected = b.name === initialValue ? 'selected' : '';
+                html += `<option value="${b.name}" ${selected}>${b.name}</option>`;
+            });
+            html += `</select>`;
+        } else if (fieldPath === 'status') {
+            html = `<select class="cond-val border p-2 rounded text-xs bg-white w-44 font-semibold text-gray-800">`;
+            let states = [];
+            if (model === 'Vacancy') {
+                states = ['open', 'closed'];
+            } else if (model === 'BenefitRequest') {
+                states = ['pending', 'approved', 'rejected'];
+            } else if (model === 'EventEnrollment') {
+                states = ['invited', 'confirmed', 'rejected'];
+            } else {
+                states = ['active', 'inactive'];
+            }
+            states.forEach(s => {
+                const selected = s === initialValue ? 'selected' : '';
+                html += `<option value="${s}" ${selected}>${s.toUpperCase()}</option>`;
+            });
+            html += `</select>`;
+        } else if (fieldPath === 'is_active') {
+            html = `<select class="cond-val border p-2 rounded text-xs bg-white w-44 font-semibold text-gray-800">`;
+            ['true', 'false'].forEach(b => {
+                const selected = (b === String(initialValue)) ? 'selected' : '';
+                html += `<option value="${b}" ${selected}>${b === 'true' ? 'ACTIVO' : 'INACTIVO'}</option>`;
+            });
+            html += `</select>`;
+        } else {
+            const op = row.querySelector('.cond-op').value;
+            const isNumber = op && op.startsWith('days_ago');
+            const type = isNumber ? 'number' : 'text';
+            const placeholder = isNumber ? 'Días (ej: 15 o 365)' : 'Ej. open o 15';
+            html = `<input type="${type}" required class="cond-val border p-2 rounded text-xs w-44 font-medium" value="${initialValue}" placeholder="${placeholder}">`;
+        }
+        
+        valContainer.innerHTML = html;
+    };
+
+    window.addConditionRow = (initialField = "", initialOp = "==", initialVal = "") => {
+        const model = document.getElementById('advModel').value;
+        const container = document.getElementById('conditionsContainer');
+        const rowId = 'cond_row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        
+        const row = document.createElement('div');
+        row.id = rowId;
+        row.className = "flex gap-2 items-center bg-gray-50/50 p-2.5 rounded-lg border border-gray-150";
+        
+        // 1. Selector de Campo
+        let fieldSelect = `<select class="cond-field border p-2 rounded text-xs bg-white flex-1 font-semibold text-gray-700" onchange="updateValueField('${rowId}', this.value)">`;
+        modelFields[model].forEach(f => {
+            const selected = f.path === initialField ? 'selected' : '';
+            fieldSelect += `<option value="${f.path}" ${selected}>${f.label}</option>`;
+        });
+        fieldSelect += `</select>`;
+        
+        // 2. Selector de Operador
+        const ops = [
+            { val: "==", label: "Es igual a (==)" },
+            { val: "!=", label: "No es igual a (!=)" },
+            { val: ">", label: "Es mayor que (&gt;)" },
+            { val: "<", label: "Es menor que (&lt;)" },
+            { val: "days_ago_greater_than", label: "Hace más de X días" },
+            { val: "days_ago_less_than", label: "Hace menos de X días" },
+            { val: "days_ago_equals", label: "Cumple exactamente X días (Hoy)" }
+        ];
+        
+        let opSelect = `<select class="cond-op border p-2 rounded text-xs bg-white w-40 font-semibold text-gray-700" onchange="updateValueField('${rowId}', this.previousElementSibling.value)">`;
+        ops.forEach(o => {
+            const selected = o.val === initialOp ? 'selected' : '';
+            opSelect += `<option value="${o.val}" ${selected}>${o.label}</option>`;
+        });
+        opSelect += `</select>`;
+        
+        // 3. Contenedor de Valor
+        const valContainer = `<div class="cond-val-container"></div>`;
+        
+        // 4. Botón Borrar
+        const delBtn = `
+            <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        `;
+        
+        row.innerHTML = fieldSelect + opSelect + valContainer + delBtn;
+        container.appendChild(row);
+        
+        // Inicializar el valor de la fila
+        const activeField = initialField || modelFields[model][0].path;
+        updateValueField(rowId, activeField, initialVal);
+        
+        return rowId;
+    };
+
+    // CARGAR PLANTILLA PRECONFIGURADA COMPLETAMENTE DINÁMICA
+    window.loadPreset = (presetKey) => {
+        const preset = presets[presetKey];
+        if (!preset) return;
+        
+        document.getElementById('advName').value = preset.name;
+        document.getElementById('advDescription').value = preset.description;
+        document.getElementById('advEscalation').value = preset.escalation;
+        document.getElementById('advModel').value = preset.model;
+        
+        // Cargar las opciones del destinatario del modelo
+        const toDropdown = document.getElementById('advActionTo');
+        toDropdown.innerHTML = '';
+        actionToOptions[preset.model].forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.value;
+            el.innerText = opt.label;
+            toDropdown.appendChild(el);
+        });
+        
+        // Vaciar condiciones
+        const container = document.getElementById('conditionsContainer');
+        container.innerHTML = '';
+        
+        // Generar filas de condiciones mapeadas con sus selects
+        preset.conditions.forEach(c => {
+            addConditionRow(c.field, c.operator, c.value);
+        });
+        
+        // Destinatario
+        if (actionToOptions[preset.model].some(o => o.value === preset.to)) {
+            document.getElementById('advActionTo').value = preset.to;
+            document.getElementById('advActionToCustom').value = '';
+        } else {
+            document.getElementById('advActionTo').value = 'custom';
+            document.getElementById('advActionToCustom').value = preset.to;
+        }
+        
+        toggleCustomToField();
+        
+        document.getElementById('advActionSubject').value = preset.subject;
+        document.getElementById('advActionBody').value = preset.body;
+        
+        showToast('Plantilla cargada con éxito');
+    };
+
+    document.getElementById('advancedRuleForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const model = document.getElementById('advModel').value;
+        const name = document.getElementById('advName').value;
+        const description = document.getElementById('advDescription').value;
+        const escalation = document.getElementById('advEscalation').value;
+        
+        // Compilar condiciones del Visual Builder
+        const conditionRows = document.querySelectorAll('#conditionsContainer > div');
+        const rulesList = [];
+        
+        conditionRows.forEach(row => {
+            const field = row.querySelector('.cond-field').value;
+            const op = row.querySelector('.cond-op').value;
+            let val = row.querySelector('.cond-val').value;
+            
+            if (!isNaN(val) && val.trim() !== '') {
+                val = parseInt(val);
+            } else if (val === 'true') {
+                val = true;
+            } else if (val === 'false') {
+                val = false;
+            }
+            
+            rulesList.push({ field, operator: op, value: val });
+        });
+        
+        if (rulesList.length === 0) {
+            showToast('Debe agregar al menos una condición', 'error');
+            return;
+        }
+        
+        const conditionsJSON = {
+            model: model,
+            operator: "AND",
+            rules: rulesList
+        };
+        
+        const toSelect = document.getElementById('advActionTo').value;
+        const toValue = toSelect === 'custom' ? document.getElementById('advActionToCustom').value : toSelect;
+        
+        if (!toValue) {
+            showToast('Especifique el correo destinatario', 'error');
+            return;
+        }
+        
+        const actionsJSON = [
+            {
+                type: "EMAIL",
+                to: toValue,
+                subject: document.getElementById('advActionSubject').value,
+                body: document.getElementById('advActionBody').value,
+                is_html: false
+            }
+        ];
+        
+        const payload = {
+            name,
+            description,
+            frequency: 'custom',
+            execution_time: '08:00',
+            trigger_type: 'EVENT_DRIVEN',
+            escalation_interval: escalation,
+            conditions: conditionsJSON,
+            actions: actionsJSON
+        };
+        
+        try {
+            await ApiClient.post('/scheduler/api/rules/create', payload);
+            showToast('Automatización avanzada creada con éxito');
+            advModal.classList.add('hidden');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
 </script>
 {% endblock %}

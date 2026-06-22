@@ -167,6 +167,35 @@ def schedule_rule(rule: AutomationRule, tenant: Tenant):
 async def get_rules(db: AsyncSession) -> List[AutomationRule]:
     return (await db.execute(select(AutomationRule).order_by(AutomationRule.id))).scalars().all()
 
+async def create_rule(db: AsyncSession, data: dict) -> AutomationRule:
+    from app.modules.scheduler.models import TriggerType
+    rule = AutomationRule(
+        name=data.get("name"),
+        description=data.get("description"),
+        frequency=data.get("frequency", FrequencyType.DAILY),
+        execution_time=data.get("execution_time", "08:00"),
+        day_of_week=data.get("day_of_week"),
+        day_of_month=data.get("day_of_month"),
+        param_value=data.get("param_value"),
+        trigger_type=data.get("trigger_type", TriggerType.CRON_SCHEDULED),
+        trigger_event=data.get("trigger_event"),
+        conditions=data.get("conditions"),
+        actions=data.get("actions"),
+        escalation_interval=data.get("escalation_interval"),
+        is_active=True
+    )
+    db.add(rule)
+    await db.commit()
+    await db.refresh(rule)
+    
+    # Programar si es activa y de tipo cron
+    from app.core.tenants import get_current_tenant
+    tenant = get_current_tenant()
+    if tenant and rule.is_active and rule.trigger_type == TriggerType.CRON_SCHEDULED:
+        schedule_rule(rule, tenant)
+        
+    return rule
+
 async def update_rule(db: AsyncSession, id: int, data: dict):
     rule = await db.get(AutomationRule, id)
     if not rule: return None

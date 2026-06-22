@@ -10,6 +10,8 @@ from app.modules.auth.models import User
 from app.modules.auth.dependencies import is_admin, is_authenticated, is_recruiter, is_manager
 from app.modules.scheduler import service, schemas
 from app.core.config import settings
+from app.modules.organization import service as org_service
+from app.modules.benefits import service as ben_service
 
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 
@@ -22,6 +24,13 @@ async def index(request: Request, db: Annotated[AsyncSession, Depends(get_db)], 
     rules_orm = await service.get_rules(db)
     logs = await service.get_logs(db)
     
+    # Obtener áreas y tipos de beneficios reales de la base de datos
+    areas_orm = await org_service.get_areas(db)
+    benefits_orm = await ben_service.get_benefit_types(db, only_active=True)
+    
+    areas_list = [{"id": a.id, "name": a.name} for a in areas_orm]
+    benefits_list = [{"id": b.id, "name": b.name} for b in benefits_orm]
+    
     # SERIALIZACIÓN: Convertir ORM a Diccionarios JSON-safe
     rules_data = [
         schemas.AutomationRuleRead.model_validate(r).model_dump(mode="json")
@@ -29,10 +38,27 @@ async def index(request: Request, db: Annotated[AsyncSession, Depends(get_db)], 
     ]
     
     return templates.TemplateResponse(request=request, name="scheduler/index.html", context=
-        {"request": request, "rules": rules_data, "logs": logs, "settings": settings, "current_user": current_user}
+        {
+            "request": request, 
+            "rules": rules_data, 
+            "logs": logs, 
+            "settings": settings, 
+            "current_user": current_user,
+            "catalog_areas": areas_list,
+            "catalog_benefits": benefits_list
+        }
     )
 
 # CORRECCIÓN: Usar Pydantic Schema en lugar de Form(...)
+@router.post("/api/rules/create")
+@is_admin
+async def create_rule_api(
+    rule_data: schemas.RuleCreate,
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    await service.create_rule(db, rule_data.model_dump())
+    return {"message": "Automatización avanzada creada"}
+
 @router.post("/api/rules/{id}/update")
 @is_admin
 async def update_rule_api(

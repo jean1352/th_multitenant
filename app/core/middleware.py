@@ -35,7 +35,13 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 tenant = result.scalar_one_or_none()
                 
                 if not tenant:
-                    raise HTTPException(status_code=404, detail=f"Tenant '{subdomain}' no encontrado o inactivo.")
+                    from app.core.templates import templates
+                    return templates.TemplateResponse(
+                        request=request, 
+                        name="tenant_not_found.html", 
+                        context={"request": request, "subdomain": subdomain, "settings": settings}, 
+                        status_code=404
+                    )
                 
                 set_current_tenant(tenant)
                 request.state.tenant = tenant

@@ -206,6 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (hasActiveDays) {
                 container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-sm font-semibold text-gray-400 italic">No definido / Sin días laborales activos</p>';
             }
         } catch(e) {
             // Not a JSON string, retain the old plain text format

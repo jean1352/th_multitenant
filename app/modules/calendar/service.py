@@ -152,16 +152,19 @@ async def create_event(
     """Crea un evento y recarga la relación event_type para evitar MissingGreenlet."""
     new_evt = CalendarEvent(**evt.model_dump())
     db.add(new_evt)
-    await db.commit()
+    await db.flush()
     
-    # CORRECCIÓN: Recargar el objeto con la relación cargada explícitamente
+    # CORRECCIÓN: Recargar el objeto con la relación cargada explícitamente (antes del commit para asegurar el search_path en multi-tenant)
     stmt = (
         select(CalendarEvent)
         .options(selectinload(CalendarEvent.event_type))
         .where(CalendarEvent.id == new_evt.id)
     )
     result = await db.execute(stmt)
-    return result.scalar_one()
+    loaded_evt = result.scalar_one()
+    
+    await db.commit()
+    return loaded_evt
 
 
 async def delete_event(db: AsyncSession, id: int) -> bool:
