@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from app.core.config import settings
-from app.core.database import engine, Base, AsyncSessionLocal
+from app.core.database import engine, Base, AsyncSessionLocal, auto_upgrade_db_schema
 from app.core.exceptions import RolePermissionError
 from app.core.middleware import TenantMiddleware
 from app.modules.auth.dependencies import NeedsLoginException
@@ -57,10 +57,8 @@ from app.modules.scheduler.service import start_scheduler, sync_jobs_from_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Iniciando aplicación y servicios...")
-    # NOTA: En multi-tenant, Base.metadata.create_all creará las tablas en el esquema 'public' 
-    # (o donde esté configurado por defecto). Las tablas del tenant se crearán al aprovisionar.
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Sincronización automática de base de datos (público y tenants)
+    await auto_upgrade_db_schema()
     
     start_scheduler()
     logger.info("✅ Scheduler iniciado.")
