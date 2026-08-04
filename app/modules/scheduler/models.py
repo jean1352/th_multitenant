@@ -37,12 +37,12 @@ class AutomationRule(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     
     # Identificador único del tipo de lógica (opcional para reglas personalizadas)
-    rule_type: Mapped[Optional[AutomationRuleType]] = mapped_column(SQLEnum(AutomationRuleType), unique=True, nullable=True)
+    rule_type: Mapped[Optional[AutomationRuleType]] = mapped_column(SQLEnum(AutomationRuleType, native_enum=False), unique=True, nullable=True)
     
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(Text)
     
-    frequency: Mapped[FrequencyType] = mapped_column(SQLEnum(FrequencyType), default=FrequencyType.WEEKLY)
+    frequency: Mapped[FrequencyType] = mapped_column(SQLEnum(FrequencyType, native_enum=False), default=FrequencyType.WEEKLY)
     execution_time: Mapped[str] = mapped_column(String, default="08:00")
     day_of_week: Mapped[Optional[int]] = mapped_column(Integer)
     day_of_month: Mapped[Optional[int]] = mapped_column(Integer)
@@ -54,7 +54,7 @@ class AutomationRule(Base):
     last_run: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
     # NUEVOS CAMPOS PARA EL MOTOR DE AUTOMATIZACIÓN AVANZADO
-    trigger_type: Mapped[TriggerType] = mapped_column(SQLEnum(TriggerType), default=TriggerType.CRON_SCHEDULED)
+    trigger_type: Mapped[TriggerType] = mapped_column(SQLEnum(TriggerType, native_enum=False), default=TriggerType.CRON_SCHEDULED)
     trigger_event: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     conditions: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     actions: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
@@ -70,7 +70,7 @@ class AutomationState(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     rule_id: Mapped[int] = mapped_column(Integer, ForeignKey("automation_rules.id", ondelete="CASCADE"))
     target_entity_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    status: Mapped[EscalationStatus] = mapped_column(SQLEnum(EscalationStatus), default=EscalationStatus.ACTIVE_ESCALATION)
+    status: Mapped[EscalationStatus] = mapped_column(SQLEnum(EscalationStatus, native_enum=False), default=EscalationStatus.ACTIVE_ESCALATION)
     next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

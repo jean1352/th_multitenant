@@ -156,7 +156,7 @@ def schedule_rule(rule: AutomationRule, tenant: Tenant):
             replace_existing=True,
             kwargs={
                 "rule_id": rule.id, 
-                "func_name": rule.rule_type.value,
+                "func_name": rule.rule_type.value if rule.rule_type else None,
                 "tenant_id": tenant.id,
                 "param_value": rule.param_value
             }
@@ -252,7 +252,7 @@ async def run_rule_now(db: AsyncSession, id: int):
             job_wrapper,
             kwargs={
                 "rule_id": rule.id, 
-                "func_name": rule.rule_type.value,
+                "func_name": rule.rule_type.value if rule.rule_type else None,
                 "tenant_id": tenant.id,
                 "param_value": rule.param_value
             }
