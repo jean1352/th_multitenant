@@ -64,7 +64,7 @@ class AutomationRuleRead(BaseModel):
     last_run: Optional[datetime] = None
     
     # NUEVOS CAMPOS AVANZADOS
-    trigger_type: TriggerType
+    trigger_type: Optional[TriggerType] = TriggerType.CRON_SCHEDULED
     trigger_event: Optional[str] = None
     conditions: Optional[Dict[str, Any]] = None
     actions: Optional[List[Dict[str, Any]]] = None
