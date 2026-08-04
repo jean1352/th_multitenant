@@ -10,12 +10,12 @@ from app.core.database import Base
 
 class AutomationRuleType(str, enum.Enum):
     # IMPORTANTE: Los valores (derecha) deben coincidir con lo que espera la DB
-    VACANCY_WEEKLY_REPORT = "vacancy_weekly_report"
-    VACANCY_STAGNATION = "vacancy_stagnation"
-    EVENT_REMINDER = "event_reminder"
-    SLA_DAILY_CHECK = "sla_daily_check"
-    CONTRACT_EXPIRATION = "contract_expiration"
-    PROBATION_END = "probation_end"
+    VACANCY_WEEKLY_REPORT = "VACANCY_WEEKLY_REPORT"
+    VACANCY_STAGNATION = "VACANCY_STAGNATION"
+    EVENT_REMINDER = "EVENT_REMINDER"
+    SLA_DAILY_CHECK = "SLA_DAILY_CHECK"
+    CONTRACT_EXPIRATION = "CONTRACT_EXPIRATION"
+    PROBATION_END = "PROBATION_END"
 
 class FrequencyType(str, enum.Enum):
     DAILY = "daily"

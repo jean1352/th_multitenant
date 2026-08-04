@@ -280,13 +280,14 @@ class AdvancedConditionEvaluator:
         # Find starting base model
         model_name = conditions.get("model") or conditions.get("target_table")
         if not model_name:
-            if rule.rule_type == "vacancy_stagnation" or rule.rule_type == "vacancy_weekly_report" or rule.rule_type == "sla_daily_check":
+            rule_type_lower = rule.rule_type.lower() if isinstance(rule.rule_type, str) else (rule.rule_type.value.lower() if rule.rule_type else "")
+            if rule_type_lower == "vacancy_stagnation" or rule_type_lower == "vacancy_weekly_report" or rule_type_lower == "sla_daily_check":
                 model_name = "Vacancy"
-            elif rule.rule_type == "event_reminder":
+            elif rule_type_lower == "event_reminder":
                 model_name = "EventEnrollment"
-            elif rule.rule_type == "contract_expiration":
+            elif rule_type_lower == "contract_expiration":
                 model_name = "Contract"
-            elif rule.rule_type == "probation_end":
+            elif rule_type_lower == "probation_end":
                 model_name = "Employee"
             else:
                 raise ValueError("No model specified in rules and could not infer target table.")

@@ -37,7 +37,7 @@
 
         <!-- TAB CONTENT: RECLUTAMIENTO -->
         <div id="content-recruitment" class="space-y-4 tab-content">
-            {% for rule in rules if rule.rule_type in ['vacancy_weekly_report', 'vacancy_stagnation', 'sla_daily_check'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['Vacancy']) %}
+            {% for rule in rules if (rule.rule_type | string | lower) in ['vacancy_weekly_report', 'vacancy_stagnation', 'sla_daily_check'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['Vacancy']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de reclutamiento configuradas.</p>
@@ -46,7 +46,7 @@
 
         <!-- TAB CONTENT: EVENTOS -->
         <div id="content-events" class="space-y-4 tab-content hidden">
-            {% for rule in rules if rule.rule_type in ['event_reminder'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['EventEnrollment']) %}
+            {% for rule in rules if (rule.rule_type | string | lower) in ['event_reminder'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['EventEnrollment']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de eventos configuradas.</p>
@@ -55,7 +55,7 @@
 
         <!-- TAB CONTENT: GESTIÓN PERSONAL (NUEVO) -->
         <div id="content-system" class="space-y-4 tab-content hidden">
-            {% for rule in rules if rule.rule_type in ['contract_expiration', 'probation_end'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['Employee', 'Contract', 'BenefitRequest']) %}
+            {% for rule in rules if (rule.rule_type | string | lower) in ['contract_expiration', 'probation_end'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['Employee', 'Contract', 'BenefitRequest']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de gestión configuradas.</p>
