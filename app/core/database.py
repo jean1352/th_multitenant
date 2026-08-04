@@ -111,6 +111,17 @@ async def auto_upgrade_db_schema():
                     except Exception as e:
                         print(f"❌ [Auto-Migration] Error agregando {schema_name}.{table_name}.{col_name}: {e}")
 
+    # 2. Función síncrona para migrar la nulidad de rule_type en la tabla automation_rules
+    def migrate_automation_rules_nullability(connection, schema_name: str):
+        inspector = inspect(connection)
+        existing_tables = inspector.get_table_names(schema=schema_name)
+        if "automation_rules" in existing_tables:
+            try:
+                connection.execute(text(f'ALTER TABLE "{schema_name}"."automation_rules" ALTER COLUMN "rule_type" DROP NOT NULL'))
+                print(f"✅ [Auto-Migration] {schema_name}.automation_rules: Removido constraint NOT NULL en 'rule_type'")
+            except Exception as e:
+                print(f"⚠️ [Auto-Migration] No se pudo alterar 'rule_type' en {schema_name}: {e}")
+
     # --- PASO 1: Sincronizar el Esquema Público (Global) ---
     async with engine.begin() as conn:
         print("🌍 Sincronizando esquema público (global)...")
@@ -118,6 +129,8 @@ async def auto_upgrade_db_schema():
         await conn.run_sync(Base.metadata.create_all)
         # Sincronizamos las columnas de 'public'
         await conn.run_sync(lambda connection: sync_schema_columns(connection, "public"))
+        # Aseguramos la nulidad del rule_type
+        await conn.run_sync(lambda connection: migrate_automation_rules_nullability(connection, "public"))
 
     # --- PASO 2: Cargar todos los Tenants registrados ---
     tenant_schemas = []
@@ -133,10 +146,16 @@ async def auto_upgrade_db_schema():
     for schema in tenant_schemas:
         print(f"🏢 Sincronizando esquema de tenant: '{schema}'...")
         async with engine.begin() as conn:
-            # Apuntar temporalmente al esquema del tenant para create_all y alter table
-            await conn.execute(text(f'SET search_path TO "{schema}", public'))
+            # Apuntar temporalmente al esquema del tenant únicamente para create_all,
+            # evitando que detecte las tablas en public y omita crearlas aquí.
+            await conn.execute(text(f'SET search_path TO "{schema}"'))
             await conn.run_sync(Base.metadata.create_all)
+            
+            # Ahora agregamos 'public' al search_path para poder sincronizar columnas/claves foráneas con public
+            await conn.execute(text(f'SET search_path TO "{schema}", public'))
             await conn.run_sync(lambda connection: sync_schema_columns(connection, schema))
+            await conn.run_sync(lambda connection: migrate_automation_rules_nullability(connection, schema))
+            
             # Restablecer el search_path
             await conn.execute(text('SET search_path TO public'))
             
