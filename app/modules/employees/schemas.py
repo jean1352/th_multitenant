@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
-from app.modules.employees.models import MovementType, EmploymentStatus, DocumentCategory
+from app.modules.employees.models import MovementType, EmploymentStatus, DocumentCategory, DocumentVisibility
 from app.modules.organization.schemas import (
     PositionRead, CompanyRead, ContractTypeRead, WorkingDayTypeRead,
     SalaryTypeRead, CurrencyRead, PaymentMethodRead, BankRead, CostCenterRead,
@@ -141,7 +141,12 @@ class DocumentRead(BaseModel):
     upload_date: datetime
     expiration_date: Optional[date] = None
     notes: Optional[str] = None
+    visibility: str = "all"
     model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentVisibilityUpdate(BaseModel):
+    visibility: DocumentVisibility
 
 # --- EMPLOYEE SCHEMAS ---
 # --- EMERGENCY CONTACT SCHEMAS ---

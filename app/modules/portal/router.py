@@ -1,8 +1,9 @@
+import os
 from typing import Annotated, Optional
 from datetime import date, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import select, desc, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -162,12 +163,16 @@ async def portal_profile(
     benefit_history_orm = await benefits_service.get_benefit_history_by_employee(db, employee.id)
     benefit_history = [ben_schemas.BenefitRequestRead.model_validate(r).model_dump(mode="json") for r in benefit_history_orm]
     leader_ctx = await portal_service.get_leader_context(db, employee, current_user)
+    visible_documents = [
+        d for d in employee.documents if (d.visibility or "all") == "all"
+    ]
 
     return templates.TemplateResponse(request=request, name="portal/profile.html", context=
         {
             "request": request,
             "current_user": current_user,
             "employee": employee,
+            "visible_documents": visible_documents,
             "benefit_history": benefit_history,
             "leader_ctx": leader_ctx,
             "settings": settings
@@ -467,6 +472,7 @@ async def portal_leader_employee_detail(
             "leader": employee,
             "leader_ctx": leader_ctx,
             "subordinate": detail["employee"],
+            "visible_documents": detail["visible_documents"],
             "events": detail["events"],
             "vacations": detail["vacations"],
             "is_direct": detail["is_direct"],
@@ -735,8 +741,14 @@ async def leader_upload_document_api(
     file: UploadFile = File(...),
     notes: Optional[str] = Form(None),
     expiration_date: Optional[str] = Form(None),
+    visibility: str = Form("all"),
 ):
     await _require_leader_and_subordinate(db, current_user, emp_id)
+    if visibility not in ("all", "leader_recruitment"):
+        raise HTTPException(
+            400,
+            "Los líderes solo pueden asignar visibilidad 'Todos' o 'Líder y reclutamiento'.",
+        )
     from app.modules.employees import service as emp_service
 
     exp_date = None
@@ -745,6 +757,45 @@ async def leader_upload_document_api(
             exp_date = datetime.strptime(expiration_date, "%Y-%m-%d").date()
         except ValueError:
             pass
-    await emp_service.upload_document(db, emp_id, name, category, file, notes, exp_date)
+    await emp_service.upload_document(
+        db, emp_id, name, category, file, notes, exp_date, visibility=visibility
+    )
     return {"message": "Documento subido correctamente"}
+
+
+@router.get("/documents/{doc_id}/view")
+@is_authenticated
+async def portal_view_document(
+    doc_id: int,
+    current_user: User = Depends(is_authenticated),
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    from app.modules.employees.models import EmployeeDocument
+    from app.modules.employees import service as emp_service
+
+    doc = await db.get(EmployeeDocument, doc_id)
+    if not doc:
+        raise HTTPException(404, "Documento no encontrado")
+
+    vis = doc.visibility or "all"
+    allowed = False
+    if current_user.role in (UserRole.ADMIN, UserRole.TH, UserRole.MANAGER):
+        allowed = True
+    elif current_user.employee_id == doc.employee_id:
+        allowed = vis == "all"
+    elif current_user.employee_id:
+        employee = await get_current_employee(db, current_user)
+        leader_ctx = await portal_service.get_leader_context(db, employee, current_user)
+        if doc.employee_id in leader_ctx["subordinate_employee_ids"]:
+            allowed = vis in ("all", "leader_recruitment")
+
+    if not allowed:
+        raise RolePermissionError("No tienes permisos para acceder a este documento.")
+
+    docs_root = os.path.abspath(emp_service.DOCS_DIR)
+    filename = os.path.basename((doc.file_url or "").strip())
+    abs_path = os.path.abspath(os.path.join(docs_root, filename))
+    if not filename or not abs_path.startswith(docs_root) or not os.path.isfile(abs_path):
+        raise HTTPException(404, "Archivo no encontrado en almacenamiento")
+    return FileResponse(abs_path, filename=filename, content_disposition_type="inline")
 

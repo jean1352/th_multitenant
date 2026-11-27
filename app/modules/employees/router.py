@@ -4,6 +4,7 @@ Router para el módulo de Colaboradores.
 
 import json
 import logging
+import os
 from datetime import date, datetime
 from typing import Annotated, Optional, Union, List
 
@@ -18,7 +19,7 @@ from fastapi import (
     Query,
     BackgroundTasks
 )
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -543,7 +544,8 @@ async def upload_doc_api(
     category: str = Form(...), 
     file: UploadFile = File(...), 
     notes: Optional[str] = Form(None),
-    expiration_date: Optional[str] = Form(None)
+    expiration_date: Optional[str] = Form(None),
+    visibility: str = Form("all"),
 ):
     exp_date = None
     if expiration_date and expiration_date.strip():
@@ -552,8 +554,41 @@ async def upload_doc_api(
         except ValueError:
             pass
 
-    await service.upload_document(db, id, name, category, file, notes, exp_date)
+    await service.upload_document(db, id, name, category, file, notes, exp_date, visibility=visibility)
     return {"message": "Documento subido correctamente"}
+
+
+@router.put("/api/documents/{doc_id}/visibility", response_model=schemas.DocumentRead)
+@is_recruiter
+async def update_doc_visibility_api(
+    doc_id: int,
+    data: schemas.DocumentVisibilityUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    doc = await service.update_document_visibility(db, doc_id, data.visibility.value)
+    if not doc:
+        raise HTTPException(404, "Documento no encontrado")
+    return doc
+
+
+@router.get("/documents/{doc_id}/view")
+@is_recruiter
+async def view_employee_document(
+    doc_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.modules.employees.models import EmployeeDocument
+
+    doc = await db.get(EmployeeDocument, doc_id)
+    if not doc:
+        raise HTTPException(404, "Documento no encontrado")
+    docs_root = os.path.abspath(service.DOCS_DIR)
+    filename = os.path.basename((doc.file_url or "").strip())
+    abs_path = os.path.abspath(os.path.join(docs_root, filename))
+    if not filename or not abs_path.startswith(docs_root) or not os.path.isfile(abs_path):
+        raise HTTPException(404, "Archivo no encontrado en almacenamiento")
+    return FileResponse(abs_path, filename=filename, content_disposition_type="inline")
+
 
 @router.delete("/api/documents/{doc_id}", status_code=204)
 @is_admin

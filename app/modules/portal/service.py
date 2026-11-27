@@ -819,6 +819,9 @@ async def get_subordinate_employee_detail(
         "events": events,
         "vacations": vacations,
         "is_direct": target_emp_id in leader_ctx["direct_employee_ids"],
+        "visible_documents": [
+            d for d in emp.documents if (d.visibility or "all") in ("all", "leader_recruitment")
+        ],
     }
 
 

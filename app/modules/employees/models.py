@@ -54,6 +54,12 @@ class DocumentCategory(str, enum.Enum):
     OTHER = "other"
 
 
+class DocumentVisibility(str, enum.Enum):
+    ALL = "all"
+    LEADER_RECRUITMENT = "leader_recruitment"
+    RECRUITMENT_ONLY = "recruitment_only"
+
+
 class EmergencyContact(Base):
     __tablename__ = "emergency_contacts"
     
@@ -172,6 +178,9 @@ class EmployeeDocument(Base):
     
     expiration_date: Mapped[Optional[date]] = mapped_column(Date)
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    visibility: Mapped[str] = mapped_column(
+        String, default=DocumentVisibility.ALL.value, server_default="all"
+    )
     
     employee: Mapped["Employee"] = relationship("Employee", back_populates="documents")
 

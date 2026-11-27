@@ -29,7 +29,8 @@ from app.modules.employees.models import (
     EmployeeProbationStage,
     EmergencyContact,
     MovementType,
-    DocumentCategory
+    DocumentCategory,
+    DocumentVisibility
 )
 from app.modules.dietary.models import DietaryRestriction
 from app.modules.organization.models import Area, Position, Sede, ContractType, ProbationDuration, ProbationStage
@@ -919,8 +920,12 @@ async def upload_document(
     category: str, 
     file: UploadFile, 
     notes: str = None,
-    expiration_date: date = None
+    expiration_date: date = None,
+    visibility: str = DocumentVisibility.ALL.value,
 ) -> EmployeeDocument:
+    allowed_vis = {v.value for v in DocumentVisibility}
+    vis_val = visibility if visibility in allowed_vis else DocumentVisibility.ALL.value
+
     extension = file.filename.split(".")[-1]
     filename = f"{emp_id}_{uuid4()}.{extension}"
     file_path = os.path.join(DOCS_DIR, filename)
@@ -934,10 +939,27 @@ async def upload_document(
         category=category, 
         file_url=f"/static/uploads/documents/{filename}", 
         notes=notes,
-        expiration_date=expiration_date
+        expiration_date=expiration_date,
+        visibility=vis_val,
     )
     db.add(doc)
     await db.commit()
+    await db.refresh(doc)
+    return doc
+
+
+async def update_document_visibility(
+    db: AsyncSession, doc_id: int, visibility: str
+) -> Optional[EmployeeDocument]:
+    doc = await db.get(EmployeeDocument, doc_id)
+    if not doc:
+        return None
+    allowed_vis = {v.value for v in DocumentVisibility}
+    if visibility not in allowed_vis:
+        raise HTTPException(400, "Visibilidad de documento inválida.")
+    doc.visibility = visibility
+    await db.commit()
+    await db.refresh(doc)
     return doc
 
 async def delete_document(db: AsyncSession, doc_id: int):

@@ -427,6 +427,15 @@
         });
     };
 
+    window.updateDocVisibility = async (docId, visibility) => {
+        try {
+            await ApiClient.put(`/employees/api/documents/${docId}/visibility`, { visibility });
+            showToast('Visibilidad actualizada');
+        } catch(err) {
+            showToast(err.message, 'error');
+        }
+    };
+
     // --- BENEFICIOS ---
     window.removeBenefit = async (id) => {
         openConfirmModal('¿Quitar beneficio?', async () => {

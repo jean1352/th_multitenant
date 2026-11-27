@@ -344,19 +344,23 @@
             </button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {% for doc in subordinate.documents %}
+            {% for doc in visible_documents %}
+            {% set vis = doc.visibility or 'all' %}
             <div class="border border-gray-200 rounded-lg p-4 flex items-start justify-between gap-3 bg-gray-50/50">
                 <div class="min-w-0">
                     <p class="font-semibold text-sm text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
                     <p class="text-[11px] text-gray-500 uppercase">{{ doc.category.value }}</p>
+                    <span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-emerald-100 text-emerald-800' if vis == 'all' else 'bg-amber-100 text-amber-800' }}">
+                        {{ 'Todos' if vis == 'all' else 'Líder y Reclutamiento' }}
+                    </span>
                     {% if doc.expiration_date %}
                     <p class="text-[11px] text-orange-600 font-semibold mt-1">Vence: {{ doc.expiration_date.strftime('%d/%m/%Y') }}</p>
                     {% endif %}
                 </div>
-                <a href="{{ doc.file_url }}" target="_blank" class="text-xs font-bold text-blue-700 hover:underline shrink-0">Ver</a>
+                <a href="/portal/documents/{{ doc.id }}/view" target="_blank" class="text-xs font-bold text-blue-700 hover:underline shrink-0">Ver</a>
             </div>
             {% else %}
-            <p class="text-xs text-gray-400 italic col-span-3">Sin documentos cargados.</p>
+            <p class="text-xs text-gray-400 italic col-span-3">Sin documentos disponibles.</p>
             {% endfor %}
         </div>
     </div>
@@ -555,6 +559,13 @@
                     <option value="education">Educación / Certificado</option>
                     <option value="medical">Médico</option>
                     <option value="id">Identificación</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Visibilidad *</label>
+                <select name="visibility" class="w-full border border-gray-300 rounded-lg p-2 bg-white" required>
+                    <option value="all">Todos (Colaborador, Líder y Reclutamiento)</option>
+                    <option value="leader_recruitment">Líder y Reclutamiento (Oculto al colaborador)</option>
                 </select>
             </div>
             <div>
