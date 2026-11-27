@@ -46,6 +46,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 set_current_tenant(tenant)
                 request.state.tenant = tenant
         else:
+            set_current_tenant(None)
             request.state.tenant = None
 
         response = await call_next(request)

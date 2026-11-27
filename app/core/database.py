@@ -3,8 +3,8 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text
+from sqlalchemy.orm import DeclarativeBase, Session
+from sqlalchemy import event, text
 from app.core.config import settings
 
 # Debugging: Imprimir URL de conexión (Ocultando password)
@@ -51,19 +51,33 @@ def validate_schema_name(schema_name: str) -> str:
     return schema_name
 
 
+@event.listens_for(Session, "after_begin")
+def _apply_tenant_search_path_on_begin(session, transaction, connection):
+    """
+    Asegura que cada transacción (incluida la primera y cualquiera posterior a commit/rollback)
+    aplique SET LOCAL search_path al esquema del tenant asignado a la sesión.
+    """
+    schema_name = session.info.get("tenant_schema")
+    if not schema_name:
+        return
+    schema = validate_schema_name(schema_name)
+    if schema == "public":
+        connection.execute(text("SET LOCAL search_path TO public"))
+    else:
+        connection.execute(text(f'SET LOCAL search_path TO "{schema}", public'))
+
+
 # Dependencia para FastAPI
 async def get_db():
     from app.core.tenants import get_current_tenant
     async with AsyncSessionLocal() as session:
         tenant = get_current_tenant()
-        if tenant:
-            schema = validate_schema_name(tenant.schema_name)
-            # Seteamos el search_path para que las consultas se dirijan al esquema del tenant
-            # Incluimos 'public' al final para que las tablas globales (como 'tenants') sigan siendo accesibles
-            await session.execute(text(f'SET search_path TO "{schema}", public'))
+        schema = validate_schema_name(tenant.schema_name) if tenant else "public"
+        session.info["tenant_schema"] = schema
+        if schema == "public":
+            await session.execute(text("SET LOCAL search_path TO public"))
         else:
-            # Si no hay tenant, nos aseguramos de que la conexión use el esquema público
-            await session.execute(text('SET search_path TO public'))
+            await session.execute(text(f'SET LOCAL search_path TO "{schema}", public'))
         try:
             yield session
         finally:
@@ -78,11 +92,12 @@ async def get_tenant_db(schema_name: Optional[str] = None):
         tenant = get_current_tenant()
         schema_name = tenant.schema_name if tenant else None
     async with AsyncSessionLocal() as session:
-        if schema_name:
-            schema = validate_schema_name(schema_name)
-            await session.execute(text(f'SET search_path TO "{schema}", public'))
+        schema = validate_schema_name(schema_name) if schema_name else "public"
+        session.info["tenant_schema"] = schema
+        if schema == "public":
+            await session.execute(text("SET LOCAL search_path TO public"))
         else:
-            await session.execute(text('SET search_path TO public'))
+            await session.execute(text(f'SET LOCAL search_path TO "{schema}", public'))
         try:
             yield session
         finally:

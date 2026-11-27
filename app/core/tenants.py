@@ -7,7 +7,7 @@ _current_tenant: ContextVar[Optional[Tenant]] = ContextVar("current_tenant", def
 def get_current_tenant() -> Optional[Tenant]:
     return _current_tenant.get()
 
-def set_current_tenant(tenant: Tenant) -> None:
+def set_current_tenant(tenant: Optional[Tenant]) -> None:
     _current_tenant.set(tenant)
 
 def get_tenant_base_url() -> str:
