@@ -175,7 +175,21 @@ async def auto_upgrade_db_schema():
                         col_type = column.type.compile(dialect=connection.dialect)
                         # Armar la sentencia ALTER TABLE segura para el esquema correspondiente
                         alter_query = f'ALTER TABLE "{schema_name}"."{table_name}" ADD COLUMN "{col_name}" {col_type}'
-                        
+
+                        # Si tiene default escalar simple (bool/int/str/enum), rellenar filas previas
+                        if column.default is not None and getattr(column.default, "is_scalar", False):
+                            dval = column.default.arg
+                            if isinstance(dval, bool):
+                                alter_query += f" DEFAULT {'TRUE' if dval else 'FALSE'}"
+                            elif isinstance(dval, (int, float)):
+                                alter_query += f" DEFAULT {dval}"
+                            elif hasattr(dval, "value") and isinstance(dval.value, str):
+                                safe_d = dval.value.replace("'", "''")
+                                alter_query += f" DEFAULT '{safe_d}'"
+                            elif isinstance(dval, str):
+                                safe_d = dval.replace("'", "''")
+                                alter_query += f" DEFAULT '{safe_d}'"
+
                         # Manejo de claves foráneas
                         if column.foreign_keys:
                             for fk in column.foreign_keys:
@@ -227,6 +241,22 @@ async def auto_upgrade_db_schema():
                     print(f"✅ [Auto-Migration] {schema_name}.{tbl}.{col}: Convertido ENUM a VARCHAR")
                 except Exception as e:
                     print(f"⚠️ [Auto-Migration] Error convirtiendo {schema_name}.{tbl}.{col} a VARCHAR: {e}")
+
+        # Rellenar NULL heredados de columnas añadidas sin DEFAULT en migraciones previas
+        legacy_backfills = [
+            ("vacancy_stages", "is_custom", "FALSE"),
+            ("trainings", "modality", "'presencial'"),
+            ("trainings", "requires_manager_approval", "FALSE"),
+        ]
+        for tbl, col, default_sql in legacy_backfills:
+            if tbl in existing_tables:
+                try:
+                    with connection.begin_nested():
+                        connection.execute(
+                            text(f'UPDATE "{schema_name}"."{tbl}" SET "{col}" = {default_sql} WHERE "{col}" IS NULL')
+                        )
+                except Exception as e:
+                    print(f"⚠️ [Auto-Migration] Backfill {schema_name}.{tbl}.{col}: {e}")
 
     # --- PASO 1: Sincronizar el Esquema Público (Global) ---
     async with engine.begin() as conn:

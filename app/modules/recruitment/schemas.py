@@ -141,6 +141,13 @@ class StageRead(BaseModel):
     notes: Optional[str] = None
     is_custom: bool = False
 
+    @field_validator("is_custom", mode="before")
+    @classmethod
+    def default_is_custom_if_none(cls, v):
+        if v is None:
+            return False
+        return v
+
     @computed_field
     def days_taken(self) -> int:
         """Calcula los días hábiles tomados para completar la etapa (excluye fines de semana y feriados)."""
