@@ -1,15 +1,54 @@
+import os
+import shutil
 from typing import List, Optional, Dict, Any
-from fastapi import HTTPException
+from datetime import date, datetime
+from uuid import uuid4
+
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import select, func, or_, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from app.modules.auth.models import User
 from app.modules.benefits.models import (
     BenefitType, EmployeeBenefit, BenefitRequest, BenefitRequestItem, BenefitRequestType, BenefitSubtype, BenefitGrantReason,
-    AuthorizationLevel, BenefitModality, BenefitFrequency
+    AuthorizationLevel, BenefitModality, BenefitFrequency, BenefitRequestAuthorizer, BenefitRequestAttachment
 )
 from app.modules.benefits import schemas
-from app.modules.employees.models import Employee
+from app.modules.employees.models import Employee, EmployeePosition
 from app.modules.organization.models import Position, Area
+
+ATTACHMENTS_DIR = "app/static/uploads/benefit_requests"
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+
+async def resolve_employee_position_id(db: AsyncSession, employee_id: Optional[int], position_id: Optional[int]) -> Optional[int]:
+    if not employee_id:
+        return None
+    
+    # Try to find by employee_id and position_id
+    if position_id:
+        stmt = select(EmployeePosition.id).where(
+            EmployeePosition.employee_id == employee_id,
+            EmployeePosition.position_id == position_id
+        ).order_by(
+            EmployeePosition.is_primary.desc(),
+            EmployeePosition.end_date.is_(None).desc(),
+            EmployeePosition.id.desc()
+        ).limit(1)
+        res = (await db.execute(stmt))
+        resolved_id = res.scalar()
+        if resolved_id:
+            return resolved_id
+            
+    # Fallback to the primary / active position of the employee
+    stmt = select(EmployeePosition.id).where(
+        EmployeePosition.employee_id == employee_id
+    ).order_by(
+        EmployeePosition.is_primary.desc(),
+        EmployeePosition.end_date.is_(None).desc(),
+        EmployeePosition.id.desc()
+    ).limit(1)
+    res = (await db.execute(stmt))
+    return res.scalar()
 
 async def get_benefit_types(db: AsyncSession, only_active: bool = False) -> List[BenefitType]:
     stmt = select(BenefitType).order_by(BenefitType.name)
@@ -209,10 +248,43 @@ async def create_benefit_request(db: AsyncSession, data: schemas.BenefitRequestC
     next_id = max_id + 1
     new_code = f"BE{next_id:03d}"
     
-    # Extraer items
+    # Extraer items y authorizers
     items_data = data.items
-    request_data = data.model_dump(exclude={'items'})
+    authorizers_data = data.authorizers or []
     
+    # Si authorizers_data viene vacío pero viene authorizer_id principal, creamos uno a partir de él
+    if not authorizers_data and data.authorizer_id:
+        authorizers_data = [
+            schemas.BenefitRequestAuthorizerCreate(
+                authorizer_id=data.authorizer_id,
+                authorizer_position_id=data.authorizer_position_id,
+                authorization_level_id=data.authorization_level_id
+            )
+        ]
+        
+    # Resolver los IDs de cargos de los autorizantes a employee_positions.id
+    for auth in authorizers_data:
+        auth.authorizer_position_id = await resolve_employee_position_id(
+            db, auth.authorizer_id, auth.authorizer_position_id
+        )
+    
+    # Establecer los campos legacy basados en el primer autorizante (si existe alguno)
+    request_data = data.model_dump(exclude={'items', 'authorizers'})
+    
+    # Resolver los IDs de cargos del beneficiario y solicitante a employee_positions.id
+    request_data['employee_position_id'] = await resolve_employee_position_id(
+        db, request_data.get('employee_id'), request_data.get('employee_position_id')
+    )
+    request_data['requester_position_id'] = await resolve_employee_position_id(
+        db, request_data.get('requester_id'), request_data.get('requester_position_id')
+    )
+    
+    if authorizers_data:
+        first_auth = authorizers_data[0]
+        request_data['authorizer_id'] = first_auth.authorizer_id
+        request_data['authorizer_position_id'] = first_auth.authorizer_position_id
+        request_data['authorization_level_id'] = first_auth.authorization_level_id
+        
     obj = BenefitRequest(request_code=new_code, **request_data)
     db.add(obj)
     await db.flush() # Para obtener el ID
@@ -220,6 +292,10 @@ async def create_benefit_request(db: AsyncSession, data: schemas.BenefitRequestC
     for item in items_data:
         new_item = BenefitRequestItem(benefit_request_id=obj.id, **item.model_dump())
         db.add(new_item)
+        
+    for auth in authorizers_data:
+        new_auth = BenefitRequestAuthorizer(benefit_request_id=obj.id, **auth.model_dump())
+        db.add(new_auth)
         
     await db.commit()
     await db.refresh(obj)
@@ -236,6 +312,18 @@ async def get_benefit_request_by_id(db: AsyncSession, req_id: int):
         .options(selectinload(BenefitRequest.request_type))\
         .options(selectinload(BenefitRequest.grant_reason))\
         .options(selectinload(BenefitRequest.authorization_level))\
+        .options(
+            selectinload(BenefitRequest.authorizers)
+            .selectinload(BenefitRequestAuthorizer.authorizer)
+        )\
+        .options(
+            selectinload(BenefitRequest.authorizers)
+            .selectinload(BenefitRequestAuthorizer.authorizer_position)
+        )\
+        .options(
+            selectinload(BenefitRequest.authorizers)
+            .selectinload(BenefitRequestAuthorizer.authorization_level)
+        )\
         .options(
             selectinload(BenefitRequest.items)
             .selectinload(BenefitRequestItem.benefit_type)
@@ -256,6 +344,8 @@ async def get_benefit_request_by_id(db: AsyncSession, req_id: int):
             selectinload(BenefitRequest.items)
             .selectinload(BenefitRequestItem.benefit_frequency)
         )\
+        .options(selectinload(BenefitRequest.approved_by))\
+        .options(selectinload(BenefitRequest.attachments).selectinload(BenefitRequestAttachment.uploaded_by))\
         .where(BenefitRequest.id == req_id)
     return (await db.execute(stmt)).scalar_one_or_none()
 
@@ -287,11 +377,16 @@ async def list_benefit_requests(
         selectinload(BenefitRequest.request_type),
         selectinload(BenefitRequest.grant_reason),
         selectinload(BenefitRequest.authorization_level),
+        selectinload(BenefitRequest.authorizers).selectinload(BenefitRequestAuthorizer.authorizer),
+        selectinload(BenefitRequest.authorizers).selectinload(BenefitRequestAuthorizer.authorizer_position),
+        selectinload(BenefitRequest.authorizers).selectinload(BenefitRequestAuthorizer.authorization_level),
         selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_type),
         selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_subtype),
         selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.currency),
         selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_modality),
-        selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_frequency)
+        selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_frequency),
+        selectinload(BenefitRequest.approved_by),
+        selectinload(BenefitRequest.attachments).selectinload(BenefitRequestAttachment.uploaded_by)
     ).limit(limit)
     
     return (await db.execute(stmt)).scalars().all()
@@ -302,26 +397,113 @@ async def update_benefit_request(db: AsyncSession, req_id: int, data: schemas.Be
         return None
         
     items_data = data.items
-    request_data = data.model_dump(exclude={'items'}, exclude_unset=True)
+    authorizers_data = data.authorizers or []
+    
+    # Si authorizers_data viene vacío pero viene authorizer_id principal, creamos uno a partir de él
+    if not authorizers_data and data.authorizer_id:
+        authorizers_data = [
+            schemas.BenefitRequestAuthorizerCreate(
+                authorizer_id=data.authorizer_id,
+                authorizer_position_id=data.authorizer_position_id,
+                authorization_level_id=data.authorization_level_id
+            )
+        ]
+        
+    # Resolver los IDs de cargos de los autorizantes a employee_positions.id
+    for auth in authorizers_data:
+        auth.authorizer_position_id = await resolve_employee_position_id(
+            db, auth.authorizer_id, auth.authorizer_position_id
+        )
+        
+    request_data = data.model_dump(exclude={'items', 'authorizers'}, exclude_unset=True)
+    
+    # Resolver los IDs de cargos del beneficiario y solicitante a employee_positions.id
+    if 'employee_id' in request_data or 'employee_position_id' in request_data:
+        emp_id = request_data.get('employee_id') or obj.employee_id
+        emp_pos_id = request_data.get('employee_position_id') or obj.employee_position_id
+        request_data['employee_position_id'] = await resolve_employee_position_id(db, emp_id, emp_pos_id)
+        
+    if 'requester_id' in request_data or 'requester_position_id' in request_data:
+        req_id_val = request_data.get('requester_id') or obj.requester_id
+        req_pos_id = request_data.get('requester_position_id') or obj.requester_position_id
+        request_data['requester_position_id'] = await resolve_employee_position_id(db, req_id_val, req_pos_id)
+        
+    if authorizers_data:
+        first_auth = authorizers_data[0]
+        request_data['authorizer_id'] = first_auth.authorizer_id
+        request_data['authorizer_position_id'] = first_auth.authorizer_position_id
+        request_data['authorization_level_id'] = first_auth.authorization_level_id
+    else:
+        # Si no hay autorizantes, limpiamos los campos legacy
+        request_data['authorizer_id'] = None
+        request_data['authorizer_position_id'] = None
+        request_data['authorization_level_id'] = None
     
     for k, v in request_data.items():
         setattr(obj, k, v)
         
     # Sincronizar items: Borrar y recrear
     await db.execute(delete(BenefitRequestItem).where(BenefitRequestItem.benefit_request_id == req_id))
-    
     for item in items_data:
         new_item = BenefitRequestItem(benefit_request_id=req_id, **item.model_dump())
         db.add(new_item)
+        
+    # Sincronizar authorizers: Borrar y recrear
+    await db.execute(delete(BenefitRequestAuthorizer).where(BenefitRequestAuthorizer.benefit_request_id == req_id))
+    for auth in authorizers_data:
+        new_auth = BenefitRequestAuthorizer(benefit_request_id=req_id, **auth.model_dump())
+        db.add(new_auth)
         
     await db.commit()
     await db.refresh(obj)
     return await get_benefit_request_by_id(db, obj.id)
 
-async def update_request_status(db: AsyncSession, req_id: int, status: str):
+async def update_request_status(db: AsyncSession, req_id: int, status: str, current_user: Optional[User] = None):
+    obj = await db.get(BenefitRequest, req_id)
+    if not obj:
+        return False
+
+    previous_status = obj.status
+    obj.status = status
+
+    if status == "Aprobada":
+        obj.approved_at = datetime.now()
+        obj.benefit_status = "Activo"
+        if current_user:
+            obj.approved_by_user_id = current_user.id
+
+        # Solo al pasar a "Aprobada" se cargan automáticamente los beneficios
+        if previous_status != "Aprobada":
+            items = (
+                await db.execute(
+                    select(BenefitRequestItem).where(BenefitRequestItem.benefit_request_id == req_id)
+                )
+            ).scalars().all()
+
+            start = obj.grant_date or date.today()
+
+            for item in items:
+                db.add(EmployeeBenefit(
+                    employee_id=obj.employee_id,
+                    benefit_type_id=item.benefit_type_id,
+                    start_date=start,
+                    end_date=item.validity_end_date,
+                    details=item.description_notes,
+                    custom_data=item.custom_data,
+                    is_active=True,
+                ))
+    elif status == "Rechazada":
+        obj.benefit_status = "Rechazado"
+    elif status == "Anulada":
+        obj.benefit_status = "Finalizado"
+
+    await db.commit()
+    return True
+
+async def delete_benefit_request(db: AsyncSession, req_id: int) -> bool:
     obj = await db.get(BenefitRequest, req_id)
     if obj:
-        obj.status = status
+        await db.delete(obj)
         await db.commit()
         return True
     return False
@@ -398,3 +580,104 @@ async def get_employees_by_benefit(
             "details": a.details
         })
     return data
+
+# --- ARCHIVOS ADJUNTOS DE SOLICITUDES ---
+
+async def upload_attachment(
+    db: AsyncSession,
+    req_id: int,
+    name: str,
+    file: UploadFile,
+    current_user: Optional[User] = None
+) -> BenefitRequestAttachment:
+    """Sube un archivo adjunto (pdf, word, ppt, etc.) a una solicitud de beneficio."""
+    request_obj = await db.get(BenefitRequest, req_id)
+    if not request_obj:
+        raise HTTPException(404, "Solicitud no encontrada")
+
+    extension = ""
+    if file.filename and "." in file.filename:
+        extension = file.filename.split(".")[-1]
+    filename = f"{req_id}_{uuid4()}.{extension}" if extension else f"{req_id}_{uuid4()}"
+    file_path = os.path.join(ATTACHMENTS_DIR, filename)
+
+    content = await file.read()
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+
+    attachment = BenefitRequestAttachment(
+        benefit_request_id=req_id,
+        name=name,
+        file_url=f"/static/uploads/benefit_requests/{filename}",
+        uploaded_by_user_id=current_user.id if current_user else None
+    )
+    db.add(attachment)
+    await db.commit()
+    await db.refresh(attachment)
+
+    # Recargar con la relación uploaded_by para su correcta serialización
+    stmt = (
+        select(BenefitRequestAttachment)
+        .options(selectinload(BenefitRequestAttachment.uploaded_by))
+        .where(BenefitRequestAttachment.id == attachment.id)
+    )
+    return (await db.execute(stmt)).scalar_one()
+
+async def delete_attachment(db: AsyncSession, attachment_id: int) -> bool:
+    attachment = await db.get(BenefitRequestAttachment, attachment_id)
+    if not attachment:
+        return False
+
+    # Eliminar el archivo físico si existe
+    if attachment.file_url:
+        rel_path = attachment.file_url.lstrip("/")
+        abs_path = os.path.join("app", rel_path)
+        if os.path.exists(abs_path):
+            try:
+                os.remove(abs_path)
+            except OSError:
+                pass
+
+    await db.delete(attachment)
+    await db.commit()
+    return True
+
+# --- HISTORIAL DE BENEFICIOS DEL COLABORADOR (SOLO REAL / NO PROCESO) ---
+
+async def get_benefit_history_by_employee(
+    db: AsyncSession,
+    employee_id: int,
+    only_approved: bool = False
+) -> List[BenefitRequest]:
+    """Devuelve todas las solicitudes de beneficio de un colaborador (con su estado).
+
+    Por defecto devuelve todas las solicitudes (Pendiente, Aprobada, Rechazada, Anulada).
+    Si `only_approved` es True, solo devuelve las aprobadas (beneficios reales).
+    """
+    stmt = (
+        select(BenefitRequest)
+        .options(
+            selectinload(BenefitRequest.employee),
+            selectinload(BenefitRequest.requester),
+            selectinload(BenefitRequest.authorizer),
+            selectinload(BenefitRequest.request_type),
+            selectinload(BenefitRequest.grant_reason),
+            selectinload(BenefitRequest.authorization_level),
+            selectinload(BenefitRequest.authorizers).selectinload(BenefitRequestAuthorizer.authorizer),
+            selectinload(BenefitRequest.authorizers).selectinload(BenefitRequestAuthorizer.authorizer_position),
+            selectinload(BenefitRequest.authorizers).selectinload(BenefitRequestAuthorizer.authorization_level),
+            selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_type),
+            selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_subtype),
+            selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.currency),
+            selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_modality),
+            selectinload(BenefitRequest.items).selectinload(BenefitRequestItem.benefit_frequency),
+            selectinload(BenefitRequest.approved_by),
+            selectinload(BenefitRequest.attachments).selectinload(BenefitRequestAttachment.uploaded_by),
+        )
+        .where(BenefitRequest.employee_id == employee_id)
+    )
+    if only_approved:
+        stmt = stmt.where(BenefitRequest.status == "Aprobada")
+    stmt = stmt.order_by(desc(BenefitRequest.created_at))
+    result = await db.execute(stmt)
+    return result.scalars().all()

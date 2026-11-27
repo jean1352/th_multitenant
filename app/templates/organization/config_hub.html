@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Configuraciones - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Configuraciones - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="mb-8">
@@ -38,6 +38,7 @@
             <li><a href="/organization/working-day-types" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Tipos de Jornada <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
             <li><a href="/organization/salary-types" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Tipos de Salario <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
             <li><a href="/organization/probation-durations" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Periodo de Prueba <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
+            <li><a href="/organization/exit-categories" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center justify-between group">Categorías de Salida <span class="material-symbols-outlined text-[18px] opacity-30 group-hover:opacity-100 transition-opacity">chevron_right</span></a></li>
         </ul>
     </div>
 

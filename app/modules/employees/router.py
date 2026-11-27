@@ -19,7 +19,6 @@ from fastapi import (
     BackgroundTasks
 )
 from fastapi.responses import HTMLResponse
-from app.core.templates import templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +37,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+from app.core.templates import templates
 
 
 # --- API JSON SEARCH ---
@@ -75,6 +75,7 @@ async def list_employees(
     dietary_id: Optional[str] = None,
     birth_month: Optional[str] = None,
     is_leader: Optional[str] = None,
+    is_active: Optional[str] = "true",
     current_user: User = Depends(get_current_user)
 ):
     # --- Helpers de limpieza ---
@@ -102,6 +103,17 @@ async def list_employees(
     gender_str = parse_str(gender)
     is_leader_bool = parse_bool(is_leader)
 
+    # Filtro de estado: "true" (activos, por defecto), "false" (inactivos), "all" (todos)
+    is_active_param = (is_active or "true").strip()
+    if is_active_param not in ("true", "false", "all"):
+        is_active_param = "true"
+    if is_active_param == "false":
+        is_active_bool = False
+    elif is_active_param == "all":
+        is_active_bool = None
+    else:
+        is_active_bool = True
+
     # Obtener datos paginados
     pagination = await service.get_employees_paginated(
         db, 
@@ -114,7 +126,8 @@ async def list_employees(
         gender_str, 
         dietary_id_int, 
         birth_month_int,
-        is_leader_bool
+        is_leader_bool,
+        is_active_bool
     )
     
     # Cargar catálogos
@@ -157,6 +170,7 @@ async def list_employees(
         "dietary_id": dietary_id_int,
         "birth_month": birth_month_int,
         "is_leader": is_leader,
+        "is_active": is_active_param,
         "limit": limit
     }
 
@@ -215,13 +229,28 @@ async def detail_employee(
     cost_centers = [org_schemas.CostCenterRead.model_validate(x).model_dump() for x in await org_service.get_cost_centers(db, active_only=True)]
     probation_durations = [org_schemas.ProbationDurationRead.model_validate(x).model_dump() for x in await org_service.get_probation_durations(db, active_only=True)]
     relationship_types = [org_schemas.RelationshipTypeRead.model_validate(x).model_dump() for x in await org_service.get_relationship_types(db, active_only=True)]
+    exit_categories = [org_schemas.ExitCategoryRead.model_validate(x).model_dump() for x in await org_service.get_exit_categories(db, active_only=True)]
+
+    # Historial de solicitudes de beneficios del colaborador (todos los estados)
+    benefit_history_orm = await benefits_service.get_benefit_history_by_employee(db, id)
+    benefit_history = [ben_schemas.BenefitRequestRead.model_validate(r).model_dump(mode="json") for r in benefit_history_orm]
 
     emp_data = schemas.EmployeeRead.model_validate(employee)
+
+    # Cuenta de portal vinculada a este colaborador (para el botón de invitación).
+    portal_user = await db.scalar(select(User).where(User.employee_id == id))
+    email_user = None
+    if employee.institutional_email:
+        email_user = await db.scalar(
+            select(User).where(User.email == employee.institutional_email)
+        )
 
     return templates.TemplateResponse(request=request, name="employees/detail.html", context=
         {
             "request": request,
             "employee": emp_data,
+            "portal_user": portal_user,
+            "email_user": email_user,
             "areas": areas_data,
             "benefit_types": benefit_types,
             "companies": companies_data,
@@ -234,6 +263,8 @@ async def detail_employee(
             "cost_centers": cost_centers,
             "probation_durations": probation_durations,
             "relationship_types": relationship_types,
+            "exit_categories": exit_categories,
+            "benefit_history": benefit_history,
             "current_user": current_user,
             "settings": settings
         },
@@ -316,6 +347,26 @@ async def create_employee_api(
     )
     return await service.create_employee(db, emp_data, photo, background_tasks, emergency_contacts)
 
+@router.post("/api/{id}/invite-portal")
+@is_recruiter
+async def invite_portal_api(
+    id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
+):
+    """Crea (o vincula) la cuenta de portal del colaborador y envía la invitación."""
+    employee = await service.get_employee_detail(db, id)
+    if not employee:
+        raise HTTPException(404, "Colaborador no encontrado")
+
+    result = await service.create_or_invite_portal_user(db, employee, background_tasks)
+    return {
+        "message": "Cuenta de portal lista. Invitación enviada.",
+        "user_id": result["id"],
+        "email": result["email"],
+        "created": result["created"],
+    }
+
 @router.put("/api/{id}", response_model=schemas.EmployeeRead)
 @is_recruiter
 async def update_employee_api(
@@ -345,6 +396,7 @@ async def update_employee_api(
     probation_start_date: Optional[str] = Form(None),
     probation_evaluation: Optional[str] = Form(None),
     probation_status: Optional[str] = Form(None),
+    probation_stages_json: Optional[str] = Form(None),
 
     # EMERGENCIA
     emergency_contacts: Optional[str] = Form(None),
@@ -402,6 +454,7 @@ async def update_employee_api(
             "probation_start_date": clean(probation_start_date),
             "probation_evaluation": clean(probation_evaluation),
             "probation_status": clean(probation_status),
+            "probation_stages_json": clean(probation_stages_json),
             "emergency_contacts": clean(emergency_contacts),
             "institutional_email": clean(institutional_email),
             "secondary_emails": clean(secondary_emails),
@@ -506,6 +559,28 @@ async def upload_doc_api(
 @is_admin
 async def delete_doc_api(doc_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     await service.delete_document(db, doc_id)
+    return None
+
+
+@router.post("/api/positions/{emp_pos_id}/probation-attachments", response_model=schemas.ProbationAttachmentRead)
+@is_recruiter
+async def upload_probation_attachment_api(
+    emp_pos_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Sube un archivo adjunto al seguimiento de Periodo de Prueba de un cargo."""
+    return await service.upload_probation_attachment(db, emp_pos_id, name, file, current_user)
+
+
+@router.delete("/api/probation-attachments/{attachment_id}", status_code=204)
+@is_recruiter
+async def delete_probation_attachment_api(attachment_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Elimina un archivo adjunto del seguimiento de Periodo de Prueba."""
+    if not await service.delete_probation_attachment(db, attachment_id):
+        raise HTTPException(404, "Archivo adjunto no encontrado")
     return None
 
 @router.get("/api/{id}/timeline", response_model=List[schemas.TimelineEvent])

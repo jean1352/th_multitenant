@@ -189,6 +189,11 @@
     <div class="bg-white p-6 rounded-lg shadow-xl w-96">
         <h3 class="text-lg font-bold mb-4 text-red-600">Registrar Salida</h3>
         <form id="exitForm" class="space-y-3">
+            <label class="block text-sm font-medium">Categoría de Salida</label>
+            <select name="exit_category_id" class="w-full border p-2 rounded bg-white">
+                <option value="">Seleccione una categoría...</option>
+                {% for cat in exit_categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
+            </select>
             <label class="block text-sm font-medium">Fecha de Salida</label>
             <input type="date" name="date" class="w-full border p-2 rounded" required>
             <label class="block text-sm font-medium">Motivo / Detalles de Liquidación</label>

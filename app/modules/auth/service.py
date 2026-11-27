@@ -38,9 +38,11 @@ async def authenticate_user(
 
 
 def create_user_token(user: User) -> str:
-    """Genera un token JWT para un usuario autenticado."""
+    """Genera un token JWT para un usuario autenticado, fijado al esquema del tenant actual."""
+    tenant = get_current_tenant()
+    tenant_schema = tenant.schema_name if tenant else "public"
     return create_access_token(
-        data={"sub": user.email, "role": user.role.value, "id": user.id}
+        data={"sub": user.email, "role": user.role.value, "id": user.id, "tenant": tenant_schema}
     )
 
 
@@ -163,14 +165,16 @@ async def send_recovery_email(user: User, is_invite: bool = False) -> bool:
     # Token expira en 24 horas para invitaciones, 1 hora para reset
     expire = timedelta(hours=24) if is_invite else timedelta(hours=1)
     
-    # Creamos un token especial con type='reset'
+    tenant = get_current_tenant()
+    tenant_schema = tenant.schema_name if tenant else "public"
+
+    # Creamos un token especial con type='reset' ligado al tenant actual
     reset_token = create_access_token(
-        data={"sub": user.email, "type": "reset", "id": user.id},
+        data={"sub": user.email, "type": "reset", "id": user.id, "tenant": tenant_schema},
         expires_delta=expire
     )
     
     base_url = get_tenant_base_url()
-    tenant = get_current_tenant()
     business_name = tenant.name if tenant else settings.BUSINESS_NAME
     
     link = f"{base_url}/reset-password?token={reset_token}"
@@ -206,9 +210,14 @@ async def send_recovery_email(user: User, is_invite: bool = False) -> bool:
 
 
 async def process_password_reset(db: AsyncSession, token: str, new_password: str) -> bool:
-    """Valida el token y actualiza la contraseña."""
+    """Valida el token (incluido el tenant) y actualiza la contraseña."""
     payload = decode_access_token(token)
     if not payload or payload.get("type") != "reset":
+        return False
+
+    tenant = get_current_tenant()
+    expected_tenant = tenant.schema_name if tenant else "public"
+    if payload.get("tenant") != expected_tenant:
         return False
     
     user_id = payload.get("id")

@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Tipos de Contrato - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Tipos de Contrato - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -120,7 +120,7 @@
     };
 
     window.deleteType = async (id) => {
-        if (!confirm('¿Estás seguro de eliminar este tipo de contrato?')) return;
+        if (!await uiConfirm('¿Estás seguro de eliminar este tipo de contrato?')) return;
         try {
             await ApiClient.delete(`/organization/api/contract-types/${id}`);
             showToast('Eliminado correctamente');

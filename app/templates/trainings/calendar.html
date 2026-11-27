@@ -1,0 +1,62 @@
+{% extends "layouts/base.html" %}
+{% block title %}Calendario de Capacitaciones{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Calendario de Capacitaciones</h1>
+        <p class="text-sm text-gray-500">Vista mensual filtrable por tipo y área.</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="/trainings/" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Plan de Capacitaciones</a>
+    </div>
+</div>
+
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap gap-4 items-center">
+    <select id="calTypeFilter" onchange="reloadCal()" class="border p-2 rounded text-sm bg-white">
+        <option value="all">Todos los tipos</option>
+        <option value="internal">Internas</option>
+        <option value="external">Externas</option>
+        <option value="replica">Réplicas</option>
+    </select>
+    <select id="calAreaFilter" onchange="reloadCal()" class="border p-2 rounded text-sm bg-white">
+        <option value="">Todas las áreas</option>
+        {% for area in areas %}
+        <option value="{{ area.id }}">{{ area.name }}</option>
+        {% endfor %}
+    </select>
+    <div class="flex gap-3 text-xs ml-auto">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-600 inline-block"></span> Interna</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-orange-600 inline-block"></span> Externa</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-teal-600 inline-block"></span> Réplica</span>
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <div id="trainingCalendar"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script>
+    let calendar = null;
+    document.addEventListener('DOMContentLoaded', () => {
+        const el = document.getElementById('trainingCalendar');
+        calendar = new FullCalendar.Calendar(el, {
+            initialView: 'dayGridMonth',
+            locale: 'es',
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listMonth' },
+            events: async (info, successCallback, failureCallback) => {
+                const t = document.getElementById('calTypeFilter').value;
+                const a = document.getElementById('calAreaFilter').value;
+                const params = new URLSearchParams({ training_type: t });
+                if (a) params.append('area_id', a);
+                try {
+                    const resp = await fetch(`/trainings/api/calendar-events?${params.toString()}`);
+                    successCallback(await resp.json());
+                } catch (e) { failureCallback(e); }
+            }
+        });
+        calendar.render();
+    });
+    window.reloadCal = () => { if (calendar) calendar.refetchEvents(); };
+</script>
+{% endblock %}

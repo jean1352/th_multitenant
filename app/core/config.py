@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     SUPERADMIN_EMAIL: str = "superadmin@example.com"
     SUPERADMIN_PASSWORD: str = "superpassword"
 
+    # --- SCHEDULER MULTI-WORKER ---
+    # En producción con múltiples workers/réplicas HTTP, activar solo en un proceso.
+    RUN_SCHEDULER: bool = True
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"

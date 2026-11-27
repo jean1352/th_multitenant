@@ -29,6 +29,8 @@
                             <span class="text-blue-600 font-bold">Actualización</span>
                         {% elif audit.action == 'STAGE_UPDATE' %}
                             <span class="text-purple-600 font-bold">Cambio en Etapa</span>
+                        {% elif audit.action == 'STAGE_DELETED' %}
+                            <span class="text-red-600 font-bold">Eliminación de Etapa</span>
                         {% elif audit.action == 'STATUS_CHANGE' %}
                             <span class="text-orange-600 font-bold">Cambio de Estado</span>
                         {% else %}

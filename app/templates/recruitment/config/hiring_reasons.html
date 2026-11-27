@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Configuración de Motivos de Contratación{% endblock %}
+{% block title %}Configuración de Motivos de Contratación - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -190,7 +190,7 @@
 
             if (!response.ok) {
                 const error = await response.json();
-                alert('Error: ' + (error.detail || 'Ocurrió un error al guardar'));
+                uiToast('Error: ' + (error.detail || 'Ocurrió un error al guardar'), 'error');
                 return;
             }
 
@@ -198,12 +198,12 @@
 
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al conectar con el servidor');
+            uiToast('Error al conectar con el servidor', 'error');
         }
     }
 
     async function deleteReason(id) {
-        if (!confirm('¿Estás seguro de que deseas eliminar este motivo?')) return;
+        if (!await uiConfirm('¿Estás seguro de que deseas eliminar este motivo?')) return;
 
         try {
             const response = await fetch(`/recruitment/api/config/hiring-reasons/${id}`, {
@@ -211,14 +211,14 @@
             });
 
             if (!response.ok) {
-                alert('No se pudo eliminar el motivo. Puede que esté en uso.');
+                uiToast('No se pudo eliminar el motivo. Puede que esté en uso.', 'error');
                 return;
             }
 
             window.location.reload();
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al intentar eliminar');
+            uiToast('Error al intentar eliminar', 'error');
         }
     }
 </script>

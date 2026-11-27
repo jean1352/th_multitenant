@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmar Asistencia - Capacitación</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/ui.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+        <div class="bg-blue-900 p-6 text-center">
+            <h1 class="text-white text-xl font-bold">{{ settings.BUSINESS_NAME }}</h1>
+            <p class="text-blue-200 text-sm">Convocatoria de Capacitación</p>
+        </div>
+        <div class="p-8 text-center" id="content">
+            <span class="text-xs font-bold uppercase px-2 py-1 rounded bg-blue-50 text-blue-700">{{ training.type.value }}</span>
+            <h2 class="text-2xl font-bold text-gray-800 mt-3 mb-2">{{ training.name }}</h2>
+            <p class="text-gray-500 text-sm mb-2">
+                {{ training.start_date.strftime('%d/%m/%Y') }} - {{ training.end_date.strftime('%d/%m/%Y') }}
+            </p>
+            {% if training.location or training.meeting_url %}
+            <p class="text-xs text-gray-500 mb-4">{{ training.location or '' }} {{ training.meeting_url or '' }}</p>
+            {% endif %}
+            <p class="text-gray-600 mb-8 text-sm">{{ training.objective or training.description or 'Sin descripción adicional.' }}</p>
+            <div class="space-y-3">
+                <button onclick="respond('confirm', this)" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                    Sí, confirmo mi asistencia
+                </button>
+                <button onclick="respond('decline', this)" class="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-3 px-4 rounded-lg transition-colors">
+                    No podré asistir
+                </button>
+            </div>
+        </div>
+        <div class="p-8 text-center hidden" id="success">
+            <h3 class="text-lg font-bold text-gray-900" id="successTitle">¡Respuesta registrada!</h3>
+            <p class="text-sm text-gray-500 mt-2" id="successMsg">Gracias por confirmar tu participación.</p>
+        </div>
+    </div>
+    <script>
+        async function respond(action, btn) {
+            btn.disabled = true;
+            try {
+                const res = await fetch('/trainings/public/respond/{{ token }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                if (res.ok) {
+                    document.getElementById('content').classList.add('hidden');
+                    document.getElementById('success').classList.remove('hidden');
+                    if (action === 'decline') {
+                        document.getElementById('successTitle').innerText = 'Inscripción declinada';
+                        document.getElementById('successMsg').innerText = 'Hemos liberado tu cupo correctamente.';
+                    }
+                } else {
+                    uiToast('No se pudo registrar tu respuesta.', 'error');
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                uiToast('Error de conexión.', 'error');
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

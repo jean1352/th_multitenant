@@ -1,0 +1,241 @@
+{% extends "layouts/base.html" %}
+{% block title %}Tablero KPIs - Capacitaciones{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Tablero de Capacitaciones e Indicadores</h1>
+        <p class="text-sm text-gray-500">Métricas de asistencia, aprobación, alertas, réplicas, inversión y satisfacción.</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="/trainings/" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Plan de Capacitaciones</a>
+        <a href="/trainings/replicas" class="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800">Bandeja de Réplicas</a>
+    </div>
+</div>
+
+<!-- FILTROS -->
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+    <form method="GET" class="flex flex-wrap gap-3 items-end">
+        <div>
+            <label class="block text-xs text-gray-500">Desde</label>
+            <input type="date" name="start_date" value="{{ filters.start_date }}" class="border p-2 rounded text-sm">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500">Hasta</label>
+            <input type="date" name="end_date" value="{{ filters.end_date }}" class="border p-2 rounded text-sm">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500">Área</label>
+            <select name="area_id" class="border p-2 rounded text-sm bg-white">
+                <option value="">Todas las áreas</option>
+                {% for a in areas %}<option value="{{ a.id }}" {% if filters.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500">Tipo</label>
+            <select name="training_type" class="border p-2 rounded text-sm bg-white">
+                <option value="all">Todos</option>
+                <option value="internal" {% if filters.training_type == 'internal' %}selected{% endif %}>Interna</option>
+                <option value="external" {% if filters.training_type == 'external' %}selected{% endif %}>Externa</option>
+                <option value="replica" {% if filters.training_type == 'replica' %}selected{% endif %}>Réplica</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500">Modalidad</label>
+            <select name="modality" class="border p-2 rounded text-sm bg-white">
+                <option value="all">Todas</option>
+                <option value="presencial" {% if filters.modality == 'presencial' %}selected{% endif %}>Presencial</option>
+                <option value="virtual" {% if filters.modality == 'virtual' %}selected{% endif %}>Virtual</option>
+                <option value="hibrida" {% if filters.modality == 'hibrida' %}selected{% endif %}>Híbrida</option>
+            </select>
+        </div>
+        <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm">Aplicar Filtros</button>
+    </form>
+</div>
+
+<!-- 9 TARJETAS KPI (SECCIÓN 8) -->
+{% set k = dashboard.kpis %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">% de Asistencia</p>
+        <p class="text-3xl font-black text-blue-900 mt-1">{{ k.attendance_rate }}%</p>
+        <p class="text-xs text-gray-500 mt-1">{{ k.present_records }} presentes de {{ k.scheduled_records }} programados</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">% Participantes Aprobados</p>
+        <p class="text-3xl font-black text-emerald-700 mt-1">{{ k.approval_rate }}%</p>
+        <p class="text-xs text-gray-500 mt-1">{{ k.approved_count }} aprobados de {{ k.closed_enrollments_count }} cerradas</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">% Alertas Enviadas a Tiempo</p>
+        <p class="text-3xl font-black text-indigo-700 mt-1">{{ k.alerts_ontime_rate }}%</p>
+        <p class="text-xs text-gray-500 mt-1">{{ k.ontime_notifs }} a tiempo de {{ k.total_notifs }} programadas</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">% Cumplimiento de Réplicas</p>
+        <p class="text-3xl font-black text-teal-700 mt-1">{{ k.replica_compliance_rate }}%</p>
+        <p class="text-xs text-gray-500 mt-1">{{ k.replicas_completed_on_time }} cumplidas en plazo</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">Réplicas Vencidas (Meta: 0)</p>
+        <p class="text-3xl font-black {% if k.replicas_overdue > 0 %}text-red-600{% else %}text-green-600{% endif %} mt-1">{{ k.replicas_overdue }}</p>
+        <p class="text-xs text-gray-500 mt-1">Compromisos en estado Vencida</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">Personas Alcanzadas por Réplicas</p>
+        <p class="text-3xl font-black text-purple-700 mt-1">{{ k.people_reached_replicas }}</p>
+        <p class="text-xs text-gray-500 mt-1">Asistentes únicos en réplicas</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">Horas por Colaborador</p>
+        <p class="text-3xl font-black text-slate-800 mt-1">{{ k.hours_per_employee }} h</p>
+        <p class="text-xs text-gray-500 mt-1">{{ k.total_approved_hours }} horas aprobadas totales</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">Inversión en Externas Cerradas</p>
+        <p class="text-3xl font-black text-orange-600 mt-1">${{ '{:,.2f}'.format(k.total_investment) }}</p>
+        <p class="text-xs text-gray-500 mt-1">${{ k.investment_per_employee }}/part. &bull; ${{ k.investment_per_hour }}/hora</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <p class="text-xs uppercase font-bold text-gray-400">Satisfacción Promedio (1-5)</p>
+        <p class="text-3xl font-black text-amber-500 mt-1">{{ k.avg_satisfaction }}</p>
+        <p class="text-xs text-gray-500 mt-1">{{ k.surveys_count }} encuestas respondidas</p>
+    </div>
+</div>
+
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <!-- SEMÁFORO DE RÉPLICAS POR ÁREA -->
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <h2 class="font-bold text-gray-800 mb-3">Semáforo de Réplicas por Área</h2>
+        <div class="space-y-2 text-sm">
+            {% for area_name, counts in dashboard.replica_traffic_by_area.items() %}
+            <div class="flex justify-between items-center border-b pb-2">
+                <span class="font-medium">{{ area_name }}</span>
+                <div class="flex gap-2 text-xs font-bold">
+                    <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">{{ counts.green }}</span>
+                    <span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">{{ counts.yellow }}</span>
+                    <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded">{{ counts.red }}</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-400 text-xs">Sin compromisos en el periodo.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- RANKING DE ÁREAS POR ASISTENCIA -->
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <h2 class="font-bold text-gray-800 mb-3">Ranking de Áreas por Asistencia</h2>
+        <div class="space-y-2 text-sm">
+            {% for row in dashboard.area_ranking %}
+            <div class="flex justify-between items-center border-b pb-2">
+                <span>{{ row.area }}</span>
+                <span class="font-bold text-blue-900">{{ row.rate }}% <span class="text-xs text-gray-400">({{ row.present }}/{{ row.total }})</span></span>
+            </div>
+            {% else %}
+            <p class="text-gray-400 text-xs">Sin registros de asistencia.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- PRÓXIMAS A INICIAR / CONCLUIR -->
+    <div class="bg-white p-5 rounded-xl border shadow-sm">
+        <h2 class="font-bold text-gray-800 mb-3">Próximas Capacitaciones</h2>
+        <div class="space-y-2 text-sm">
+            {% for t in dashboard.upcoming_trainings %}
+            <a href="/trainings/{{ t.id }}" class="block border-b pb-2 hover:bg-slate-50 rounded px-1">
+                <p class="font-semibold text-blue-800">{{ t.name }}</p>
+                <p class="text-xs text-gray-500">{{ t.start_date }} - {{ t.end_date }} &bull; {{ t.status | translate_status }}</p>
+            </a>
+            {% else %}
+            <p class="text-gray-400 text-xs">Sin capacitaciones próximas.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-xl border shadow-sm mb-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-3">Asistencia por Área (%)</h2>
+    <canvas id="areaAttendanceChart" height="90"></canvas>
+</div>
+
+<!-- REPORTES EXPORTABLES -->
+<div class="bg-white p-6 rounded-xl border shadow-sm">
+    <h2 class="text-lg font-bold text-gray-800 mb-4">Reportes Exportables (Excel y PDF)</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="border rounded-lg p-4 space-y-2">
+            <p class="font-bold">1. Lista de asistencia por capacitación</p>
+            <select id="repTrainingId" class="w-full border p-1.5 rounded text-xs bg-white">
+                <option value="">Todas las capacitaciones</option>
+                {% for t in trainings_all %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+            <div class="flex gap-2">
+                <button onclick="downloadRep('attendance_list', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
+                <button onclick="downloadRep('attendance_list', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+            </div>
+        </div>
+        <div class="border rounded-lg p-4 space-y-2">
+            <p class="font-bold">2. Historial por colaborador</p>
+            <select id="repEmployeeId" class="w-full border p-1.5 rounded text-xs bg-white">
+                <option value="">Todos los colaboradores</option>
+                {% for e in employees_all %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
+            </select>
+            <div class="flex gap-2">
+                <button onclick="downloadRep('employee_history', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
+                <button onclick="downloadRep('employee_history', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+            </div>
+        </div>
+        <div class="border rounded-lg p-4 space-y-2">
+            <p class="font-bold">3. Estado de réplicas</p>
+            <div class="flex gap-2 pt-2">
+                <button onclick="downloadRep('replicas_status', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
+                <button onclick="downloadRep('replicas_status', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+            </div>
+        </div>
+        <div class="border rounded-lg p-4 space-y-2">
+            <p class="font-bold">4. Inversión en externas</p>
+            <div class="flex gap-2 pt-2">
+                <button onclick="downloadRep('external_investment', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
+                <button onclick="downloadRep('external_investment', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+            </div>
+        </div>
+        <div class="border rounded-lg p-4 space-y-2">
+            <p class="font-bold">5. Registro de alertas enviadas</p>
+            <div class="flex gap-2 pt-2">
+                <button onclick="downloadRep('notifications_log', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
+                <button onclick="downloadRep('notifications_log', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const areaLabels = {{ dashboard.area_ranking | map(attribute='area') | list | tojson }};
+    const areaRates = {{ dashboard.area_ranking | map(attribute='rate') | list | tojson }};
+    if (areaLabels.length > 0 && document.getElementById('areaAttendanceChart')) {
+        new Chart(document.getElementById('areaAttendanceChart'), {
+            type: 'bar',
+            data: {
+                labels: areaLabels,
+                datasets: [{ label: '% Asistencia por Área', data: areaRates, backgroundColor: '#1e3a8a', borderRadius: 6 }]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+        });
+    }
+    function downloadRep(type, fmt) {
+        const params = new URLSearchParams();
+        if (type === 'attendance_list') {
+            const tid = document.getElementById('repTrainingId').value;
+            if (tid) params.append('training_id', tid);
+        }
+        if (type === 'employee_history') {
+            const eid = document.getElementById('repEmployeeId').value;
+            if (eid) params.append('employee_id', eid);
+        }
+        const qs = params.toString() ? `?${params.toString()}` : '';
+        window.location.href = `/trainings/api/reports/${type}/${fmt}${qs}`;
+    }
+</script>
+{% endblock %}
+

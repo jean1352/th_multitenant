@@ -257,6 +257,7 @@
             document.getElementById('edit_probation_duration_id').value = pos.probation_duration_id || '';
             document.getElementById('edit_probation_start_date').value = pos.probation_start_date || '';
             document.getElementById('edit_probation_evaluation').value = pos.probation_evaluation || 'Pendiente';
+            renderEditProbationStages(pos.probation_stages || []);
 
             buildScheduleGrid('edit_schedule_grid', pos.work_schedule);
         }
@@ -264,6 +265,60 @@
     };
 
     window.closeEditHiringModal = () => document.getElementById('editHiringModal').classList.add('hidden');
+    // --- ETAPAS DEL PERIODO DE PRUEBA (edición de contratación) ---
+    let editProbationStagesData = [];
+
+    function serializeEditProbationStages() {
+        const checks = [...document.querySelectorAll('#edit_probation_stages_container .edit-probation-stage-check')];
+        const data = editProbationStagesData.map((s, i) => ({
+            name: s.name,
+            days: s.days,
+            description: s.description || null,
+            is_completed: checks[i] ? checks[i].checked : false,
+        }));
+        document.getElementById('edit_probation_stages_json').value = JSON.stringify(data);
+    }
+
+    function renderEditProbationStages(stages) {
+        editProbationStagesData = stages || [];
+        const container = document.getElementById('edit_probation_stages_container');
+        const jsonInput = document.getElementById('edit_probation_stages_json');
+        container.innerHTML = '';
+        if (!editProbationStagesData.length) {
+            jsonInput.value = '[]';
+            return;
+        }
+        let html = '<p class="text-[10px] font-bold text-gray-500 uppercase mb-2">Etapas del periodo de prueba</p><div class="space-y-2">';
+        editProbationStagesData.forEach((s, i) => {
+            const checked = s.is_completed ? 'checked' : '';
+            const due = s.due_date ? ` · Vence ${s.due_date}` : ` · Día ${s.days}`;
+            const desc = s.description ? `<br><span class="text-gray-400">${s.description}</span>` : '';
+            html += `
+            <label class="flex items-start gap-2 border border-gray-200 rounded-lg p-2 bg-white cursor-pointer hover:border-blue-300">
+                <input type="checkbox" class="edit-probation-stage-check mt-0.5 rounded text-blue-600" ${checked}>
+                <span class="text-xs text-gray-700"><span class="font-bold">${s.name}</span>${due}${desc}</span>
+            </label>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+        serializeEditProbationStages();
+        container.querySelectorAll('.edit-probation-stage-check').forEach(cb => {
+            cb.addEventListener('change', () => serializeEditProbationStages());
+        });
+    }
+
+    document.getElementById('edit_probation_duration_id').addEventListener('change', async (e) => {
+        const durId = e.target.value;
+        if (!durId) { renderEditProbationStages([]); return; }
+        try {
+            const stages = await ApiClient.get(`/organization/api/probation-durations/${durId}/stages`);
+            renderEditProbationStages(stages);
+        } catch (err) {
+            renderEditProbationStages([]);
+        }
+    });
+
+
 
     document.getElementById('editHiringForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -272,6 +327,8 @@
         const scheduleData = serializeScheduleGrid('edit_schedule_grid');
         document.getElementById('edit_work_schedule').value = scheduleData.json;
         document.getElementById('edit_work_days').value = scheduleData.text;
+
+        serializeEditProbationStages();
 
         const formData = new FormData(e.target);
         
@@ -566,6 +623,7 @@
     document.getElementById('exitForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
+        if (!data.exit_category_id) delete data.exit_category_id;
         try {
             await ApiClient.post('/employees/api/{{ employee.id }}/terminate', data);
             showToast('Salida registrada');
@@ -656,5 +714,46 @@
                 window.location.reload();
             } catch(err) { showToast(err.message, 'error'); }
         });
+    };
+
+    // --- ADJUNTOS DE PERIODO DE PRUEBA ---
+    window.uploadProbationAttachment = async (event, posId) => {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const btn = form.querySelector('button[type="submit"]');
+        try {
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Subiendo...';
+            await ApiClient.post(`/employees/api/positions/${posId}/probation-attachments`, formData);
+            showToast('Archivo adjuntado correctamente.');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Adjuntar';
+            showToast(err.message, 'error');
+        }
+        return false;
+    };
+
+    window.deleteProbationAttachment = async (id) => {
+        if (!await uiConfirm('¿Eliminar este archivo adjunto?')) return;
+        try {
+            await ApiClient.delete(`/employees/api/probation-attachments/${id}`);
+            showToast('Archivo eliminado correctamente.');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    };
+
+    // --- ACCESO AL PORTAL / CUENTA DE USUARIO ---
+    window.invitePortal = async () => {
+        if (!await uiConfirm('¿Crear/reenviar la cuenta de portal y enviar la invitación para configurar contraseña?')) return;
+        try {
+            await ApiClient.post('/employees/api/{{ employee.id }}/invite-portal', {});
+            showToast('Cuenta de portal lista e invitación enviada.');
+            setTimeout(() => window.location.reload(), 900);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
     };
 </script>

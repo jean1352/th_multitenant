@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 
 from .models import ProcessStatus, StageOwner, VacancyType
 from app.modules.organization.schemas import PositionRead, AreaRead
+from app.modules.recruitment.business_calendar import count_business_days
 
 
 class UserSimple(BaseModel):
@@ -138,12 +139,20 @@ class StageRead(BaseModel):
     end_date: Optional[date] = None
     deadline_date: Optional[date] = None
     notes: Optional[str] = None
+    is_custom: bool = False
+
+    @field_validator("is_custom", mode="before")
+    @classmethod
+    def default_is_custom_if_none(cls, v):
+        if v is None:
+            return False
+        return v
 
     @computed_field
     def days_taken(self) -> int:
-        """Calcula los días tomados para completar la etapa."""
+        """Calcula los días hábiles tomados para completar la etapa (excluye fines de semana y feriados)."""
         end = self.end_date or date.today()
-        delta = (end - self.start_date).days
+        delta = count_business_days(self.start_date, end)
         return max(1, delta) if self.end_date else max(0, delta)
 
     @computed_field
@@ -156,6 +165,24 @@ class StageRead(BaseModel):
         return "ok"
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VacancyStageCreate(BaseModel):
+    """Esquema para agregar una etapa adicional a una vacante específica.
+
+    Replica los criterios de una etapa ordinaria: nombre, SLA en días,
+    responsable genérico (owner), responsable específico opcional y posición.
+    """
+    name: str
+    sla_days: int = Field(..., ge=1)
+    owner: StageOwner
+    responsible_id: Optional[int] = None
+    order_index: Optional[int] = None
+
+
+class StageDeleteConfirm(BaseModel):
+    """Confirmación de eliminación de etapa con contraseña de administrador."""
+    password: str = Field(..., min_length=1)
 
 
 class VacancyBase(BaseModel):
@@ -263,25 +290,24 @@ class VacancyRead(VacancyBase):
 
     @computed_field
     def total_days_elapsed(self) -> int:
-        """Calcula días transcurridos desde el inicio de la primera etapa."""
+        """Calcula días hábiles transcurridos desde el inicio de la primera etapa
+        (excluye fines de semana y feriados)."""
         # Usamos process_start_date como base en lugar de created_at
         start_date = self.process_start_date
-        start = datetime.combine(start_date, datetime.min.time())
 
         if self.created_at.tzinfo:
-             start = start.replace(tzinfo=self.created_at.tzinfo)
-             now = datetime.now(self.created_at.tzinfo)
+            now = datetime.now(self.created_at.tzinfo)
         else:
-             now = datetime.now()
+            now = datetime.now()
 
         end = self.closed_at or now
 
-        if start.tzinfo and not end.tzinfo:
-            start = start.replace(tzinfo=None)
-        elif not start.tzinfo and end.tzinfo:
-            end = end.replace(tzinfo=None)
+        if isinstance(end, datetime):
+            end_date = end.date()
+        else:
+            end_date = end
 
-        delta = (end - start).days
+        delta = count_business_days(start_date, end_date)
 
         if self.status == ProcessStatus.OPEN:
             return max(1, delta)
@@ -295,18 +321,59 @@ class VacancyRead(VacancyBase):
             return "overdue"
         return "ok"
 
+    @computed_field
+    def rs_sla_days(self) -> int:
+        """Días SLA asignados a etapas de responsabilidad de R&S (Reclutamiento y Selección)."""
+        return sum(
+            s.sla_days_snapshot
+            for s in self.stages
+            if s.owner == StageOwner.RECRUITER
+        )
+
+    @computed_field
+    def area_sla_days(self) -> int:
+        """Días SLA asignados a etapas de responsabilidad del Área solicitante."""
+        return sum(
+            s.sla_days_snapshot
+            for s in self.stages
+            if s.owner == StageOwner.AREA
+        )
+
+    @computed_field
+    def rs_sla_elapsed(self) -> int:
+        """Días hábiles consumidos en etapas de R&S."""
+        return sum(
+            s.days_taken
+            for s in self.stages
+            if s.owner == StageOwner.RECRUITER
+        )
+
+    @computed_field
+    def area_sla_elapsed(self) -> int:
+        """Días hábiles consumidos en etapas del Área."""
+        return sum(
+            s.days_taken
+            for s in self.stages
+            if s.owner == StageOwner.AREA
+        )
+
+    @computed_field
+    def rs_sla_status(self) -> str:
+        """Estado de cumplimiento del SLA de R&S (vencido si alguna etapa R&S está vencida)."""
+        rs_stages = [s for s in self.stages if s.owner == StageOwner.RECRUITER]
+        if rs_stages and any(s.sla_status == "overdue" for s in rs_stages):
+            return "overdue"
+        return "ok"
+
+    @computed_field
+    def area_sla_status(self) -> str:
+        """Estado de cumplimiento del SLA del Área (vencido si alguna etapa del Área está vencida)."""
+        area_stages = [s for s in self.stages if s.owner == StageOwner.AREA]
+        if area_stages and any(s.sla_status == "overdue" for s in area_stages):
+            return "overdue"
+        return "ok"
+
     model_config = ConfigDict(from_attributes=True)
-
-
-class VacancyPagination(BaseModel):
-    """Esquema para respuestas paginadas de vacantes."""
-    items: List[VacancyRead]
-    total: int
-    page: int
-    limit: int
-    total_pages: int
-    has_next: bool
-    has_prev: bool
 
 
 class VacancyDetail(VacancyRead):

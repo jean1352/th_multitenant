@@ -10,9 +10,9 @@ from app.modules.employees.models import MovementType, EmploymentStatus, Documen
 from app.modules.organization.schemas import (
     PositionRead, CompanyRead, ContractTypeRead, WorkingDayTypeRead,
     SalaryTypeRead, CurrencyRead, PaymentMethodRead, BankRead, CostCenterRead,
-    ProbationDurationRead, RelationshipTypeRead
+    ProbationDurationRead, RelationshipTypeRead, ExitCategoryRead
 )
-from app.modules.trainings.models import EnrollmentStatus, TrainingStatus
+from app.modules.trainings.models import EnrollmentStatus, TrainingStatus, TrainingType
 from app.modules.benefits.schemas import EmployeeBenefitRead
 from app.modules.disciplinary.schemas import SanctionRead, RecognitionRead
 from app.modules.dietary.schemas import DietaryRestrictionRead
@@ -31,13 +31,20 @@ class TimelineEvent(BaseModel):
 class TrainingSimple(BaseModel):
     id: int
     name: str
+    type: Optional[TrainingType] = None
+    hours: Optional[float] = 0.0
     start_date: date
+    end_date: Optional[date] = None
     status: TrainingStatus
     model_config = ConfigDict(from_attributes=True)
 
 class EnrollmentSimple(BaseModel):
     id: int
     status: EnrollmentStatus
+    attendance_pct: Optional[float] = None
+    knowledge_score: Optional[float] = None
+    result: Optional[str] = None
+    certificate_file: Optional[str] = None
     training: TrainingSimple
     model_config = ConfigDict(from_attributes=True)
 
@@ -61,7 +68,37 @@ class HistoryRead(HistoryBase):
     contract_type: Optional[ContractTypeRead] = None
     base_salary: Optional[float] = None
     currency: Optional[CurrencyRead] = None
+    exit_category: Optional[ExitCategoryRead] = None
     model_config = ConfigDict(from_attributes=True)
+
+# --- EMPLOYEE PROBATION STAGE SCHEMA ---
+class EmployeeProbationStageRead(BaseModel):
+    id: int
+    name: str
+    days: int
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    sort_order: int = 0
+    is_completed: bool = False
+    completed_at: Optional[date] = None
+    model_config = ConfigDict(from_attributes=True)
+
+# --- PROBATION ATTACHMENT SCHEMAS ---
+class BasicUserInfo(BaseModel):
+    id: int
+    full_name: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProbationAttachmentRead(BaseModel):
+    id: int
+    employee_position_id: int
+    name: str
+    file_url: str
+    upload_date: Optional[datetime] = None
+    uploaded_by: Optional[BasicUserInfo] = None
+    model_config = ConfigDict(from_attributes=True)
+
 
 # --- EMPLOYEE POSITION SCHEMA ---
 class EmployeePositionRead(BaseModel):
@@ -87,6 +124,8 @@ class EmployeePositionRead(BaseModel):
     probation_end_date: Optional[date] = None
     probation_evaluation: Optional[str] = None
     probation_status: Optional[str] = None
+    probation_stages: List[EmployeeProbationStageRead] = []
+    probation_attachments: List[ProbationAttachmentRead] = []
 
     is_primary: bool
     start_date: date
@@ -213,6 +252,7 @@ class EmployeeUpdate(BaseModel):
     probation_end_date: Optional[date] = None
     probation_evaluation: Optional[str] = None
     probation_status: Optional[str] = None
+    probation_stages_json: Optional[str] = None
 
     # CONTACTO Y UBICACIÓN
     address: Optional[str] = None
@@ -266,7 +306,6 @@ class EmployeeList(BaseModel):
     is_active: bool
     employment_status: EmploymentStatus
     birthday: Optional[date] = None
-    photo_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class EmployeeRead(EmployeeBase):
@@ -337,6 +376,14 @@ class AddPositionPayload(BaseModel):
 class ExitPayload(BaseModel):
     date: date
     notes: str
+    exit_category_id: Optional[int] = None
+
+class ProbationStageCheck(BaseModel):
+    id: int
+    is_completed: bool = False
+
+class ProbationStagesUpdatePayload(BaseModel):
+    stages: List[ProbationStageCheck] = []
 
 class RehirePayload(BaseModel):
     new_position_id: int

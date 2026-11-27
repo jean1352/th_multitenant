@@ -2,6 +2,9 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 sqlalchemy>=2.0.25
 asyncpg>=0.29.0
+# Requerido por SQLAlchemy asyncio (create_async_engine + asyncpg). Sin esto,
+# uvicorn falla con: "The SQLAlchemy asyncio module requires ... 'greenlet'".
+greenlet>=3.0.0
 pydantic>=2.6.0
 pydantic-settings>=2.1.0
 python-dotenv>=1.0.0

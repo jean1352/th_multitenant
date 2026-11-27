@@ -4,44 +4,99 @@
         <h3 class="text-lg font-bold text-gray-800">Análisis de Rendimiento</h3>
         <p class="text-sm text-gray-500">Filtra los indicadores de SLA y Tiempos por área.</p>
     </div>
-    <div class="flex items-center gap-3 mt-3 md:mt-0">
+    <div class="flex flex-wrap items-center gap-3 mt-3 md:mt-0">
         <label for="slaAreaFilter" class="text-sm font-medium text-gray-700">Área:</label>
-        <select id="slaAreaFilter" class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors w-64" onchange="updateStageCharts(this.value)">
+        <select id="slaAreaFilter" class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors w-56" onchange="updateStageCharts()">
             <option value="">Todas las Áreas</option>
             {% for area in areas %}
                 <option value="{{ area.id }}">{{ area.name }}</option>
             {% endfor %}
         </select>
+
+        <label for="slaStartDate" class="text-sm font-medium text-gray-700">Desde:</label>
+        <input type="date" id="slaStartDate" class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors" onchange="updateStageCharts()">
+
+        <label for="slaEndDate" class="text-sm font-medium text-gray-700">Hasta:</label>
+        <input type="date" id="slaEndDate" class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors" onchange="updateStageCharts()">
+
+        <button type="button" onclick="clearStageFilters()" class="text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-2 bg-blue-50 hover:bg-blue-100 transition-colors">
+            <i class="fas fa-eraser mr-1"></i> Limpiar
+        </button>
     </div>
 </div>
 
-<!-- ROW 2: SLA Comparativo -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-    <!-- CUMPLIMIENTO SLA POR ETAPAS -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+<!-- ROW 2: SLA por Etapas -->
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="text-lg font-bold text-gray-800">SLA por Etapas</h3>
+            <p class="text-xs text-gray-500">Eficiencia individual de cada paso</p>
+        </div>
+        <button onclick="downloadChart('chartSlaStages', 'SLA_Etapas')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        </button>
+    </div>
+    <div class="relative h-64"><canvas id="chartSlaStages"></canvas></div>
+</div>
+
+<!-- ROW 2b: Tres formas de SLA (Global, R&S, Área) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+    <!-- SLA GLOBAL -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow" onclick="openSlaDetail('global')">
         <div class="flex justify-between items-center mb-4">
             <div>
-                <h3 class="text-lg font-bold text-gray-800">SLA por Etapas</h3>
-                <p class="text-xs text-gray-500">Eficiencia individual de cada paso</p>
+                <h3 class="text-lg font-bold text-gray-800">SLA Global</h3>
+                <p class="text-xs text-gray-500">Todo el proceso vs planificado</p>
             </div>
-            <button onclick="downloadChart('chartSlaStages', 'SLA_Etapas')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+            <button onclick="event.stopPropagation(); downloadChart('chartSlaVacancy', 'SLA_Global')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             </button>
         </div>
-        <div class="relative h-64"><canvas id="chartSlaStages"></canvas></div>
+        <div class="relative h-56"><canvas id="chartSlaVacancy"></canvas></div>
+        <p class="text-xs text-blue-600 font-medium mt-3">Ver detalle de casos y etapas →</p>
     </div>
 
-    <!-- CUMPLIMIENTO SLA POR VACANTE (GLOBAL) -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <!-- SLA R&S -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow" onclick="openSlaDetail('rs')">
         <div class="flex justify-between items-center mb-4">
             <div>
-                <h3 class="text-lg font-bold text-gray-800">SLA Global por Vacante</h3>
-                <p class="text-xs text-gray-500">Tiempo total del proceso vs Planificado</p>
+                <h3 class="text-lg font-bold text-gray-800">SLA R&amp;S</h3>
+                <p class="text-xs text-gray-500">Etapas de Reclutamiento</p>
             </div>
-            <button onclick="downloadChart('chartSlaVacancy', 'SLA_Vacante')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+            <button onclick="event.stopPropagation(); downloadChart('chartSlaRs', 'SLA_RS')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             </button>
         </div>
-        <div class="relative h-64"><canvas id="chartSlaVacancy"></canvas></div>
+        <div class="relative h-56"><canvas id="chartSlaRs"></canvas></div>
+        <p class="text-xs text-blue-600 font-medium mt-3">Ver detalle de casos y etapas →</p>
     </div>
+
+    <!-- SLA ÁREA -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow" onclick="openSlaDetail('area')">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">SLA Área</h3>
+                <p class="text-xs text-gray-500">Etapas del área solicitante</p>
+            </div>
+            <button onclick="event.stopPropagation(); downloadChart('chartSlaArea', 'SLA_Area')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            </button>
+        </div>
+        <div class="relative h-56"><canvas id="chartSlaArea"></canvas></div>
+        <p class="text-xs text-blue-600 font-medium mt-3">Ver detalle de casos y etapas →</p>
+    </div>
+</div>
+
+<!-- ROW 2c: Cumplimiento R&S vs Área -->
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="text-lg font-bold text-gray-800">% Cumplimiento: R&amp;S vs Área</h3>
+            <p class="text-xs text-gray-500">Comparativa del porcentaje de cumplimiento de SLA entre Reclutamiento y Selección y el Área solicitante</p>
+        </div>
+        <button onclick="downloadChart('chartSlaComparison', 'Cumplimiento_RS_vs_Area')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        </button>
+    </div>
+    <div class="relative h-64"><canvas id="chartSlaComparison"></canvas></div>
 </div>

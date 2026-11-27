@@ -3,7 +3,7 @@ Router para el módulo de Organización.
 Define los endpoints de la API y las vistas HTML.
 """
 
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -13,7 +13,6 @@ from fastapi import (
     Query
 )
 from fastapi.responses import HTMLResponse
-from app.core.templates import templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -24,6 +23,7 @@ from app.modules.organization import schemas, service
 from app.core.config import settings
 
 router = APIRouter(prefix="/organization", tags=["organization"])
+from app.core.templates import templates
 
 
 # --- VISTAS HTML ---
@@ -172,7 +172,16 @@ async def view_cost_centers(request: Request, db: Annotated[AsyncSession, Depend
 @is_recruiter
 async def view_probation_durations(request: Request, db: Annotated[AsyncSession, Depends(get_db)], current_user: User = Depends(get_current_user)):
     data = [schemas.ProbationDurationRead.model_validate(x).model_dump() for x in await service.get_probation_durations(db)]
-    return templates.TemplateResponse(request=request, name="organization/generic_catalog.html", context={"items": data, "title": "Duraciones de Periodo de Prueba", "api_path": "/organization/api/probation-durations", "has_code": False, "has_days": True, "hide_description": True, "settings": settings, "current_user": current_user})
+    for item in data:
+        stages = await service.get_probation_stages(db, item["id"])
+        item["stages"] = [schemas.ProbationStageRead.model_validate(s).model_dump() for s in stages]
+    return templates.TemplateResponse(request=request, name="organization/probation_durations.html", context={"items": data, "title": "Duraciones de Periodo de Prueba", "api_path": "/organization/api/probation-durations", "settings": settings, "current_user": current_user})
+
+@router.get("/exit-categories", response_class=HTMLResponse)
+@is_recruiter
+async def view_exit_categories(request: Request, db: Annotated[AsyncSession, Depends(get_db)], current_user: User = Depends(get_current_user)):
+    data = [schemas.ExitCategoryRead.model_validate(x).model_dump() for x in await service.get_exit_categories(db)]
+    return templates.TemplateResponse(request=request, name="organization/generic_catalog.html", context={"items": data, "title": "Categorías de Salida", "api_path": "/organization/api/exit-categories", "has_code": False, "settings": settings, "current_user": current_user})
 
 @router.get("/relationship-types", response_class=HTMLResponse)
 @is_recruiter
@@ -382,6 +391,41 @@ async def delete_probation_duration_api(id: int, db: Annotated[AsyncSession, Dep
     if not await service.delete_probation_duration(db, id): raise HTTPException(404, "Duración no encontrada")
     return None
 
+# PROBATION STAGES
+@router.get("/api/probation-durations/{id}/stages", response_model=List[schemas.ProbationStageRead])
+@is_recruiter
+async def read_probation_stages_api(id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    return await service.get_probation_stages(db, id)
+
+@router.put("/api/probation-durations/{id}/stages", response_model=List[schemas.ProbationStageRead])
+@is_admin
+async def replace_probation_stages_api(id: int, stages: List[schemas.ProbationStageBase], db: Annotated[AsyncSession, Depends(get_db)]):
+    return await service.replace_probation_stages(db, id, stages)
+
+# EXIT CATEGORIES
+@router.get("/api/exit-categories", response_model=List[schemas.ExitCategoryRead])
+@is_recruiter
+async def read_exit_categories_api(db: Annotated[AsyncSession, Depends(get_db)]):
+    return await service.get_exit_categories(db)
+
+@router.post("/api/exit-categories", response_model=schemas.ExitCategoryRead)
+@is_admin
+async def create_exit_category_api(data: schemas.ExitCategoryCreate, db: Annotated[AsyncSession, Depends(get_db)]):
+    return await service.create_exit_category(db, data)
+
+@router.put("/api/exit-categories/{id}", response_model=schemas.ExitCategoryRead)
+@is_admin
+async def update_exit_category_api(id: int, data: schemas.ExitCategoryUpdate, db: Annotated[AsyncSession, Depends(get_db)]):
+    updated = await service.update_exit_category(db, id, data)
+    if not updated: raise HTTPException(404, "Categoría no encontrada")
+    return updated
+
+@router.delete("/api/exit-categories/{id}", status_code=204)
+@is_admin
+async def delete_exit_category_api(id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    if not await service.delete_exit_category(db, id): raise HTTPException(404, "Categoría no encontrada")
+    return None
+
 # RELATIONSHIP TYPES
 @router.get("/api/relationship-types", response_model=List[schemas.RelationshipTypeRead])
 @is_recruiter
@@ -540,6 +584,6 @@ async def delete_position_api(
 @is_recruiter
 async def get_chart_data_api(
     db: Annotated[AsyncSession, Depends(get_db)],
-    mode: str = Query("hierarchy", enum=["hierarchy", "structure", "people"])
+    mode: Literal["hierarchy", "structure", "people"] = Query("hierarchy")
 ):
     return await service.get_org_chart_data(db, mode)

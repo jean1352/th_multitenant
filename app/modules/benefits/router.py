@@ -1,8 +1,7 @@
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, File, Form, UploadFile
 from fastapi.responses import HTMLResponse
-from app.core.templates import templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -13,6 +12,7 @@ from app.modules.benefits import service, schemas
 from app.core.config import settings
 
 router = APIRouter(prefix="/benefits", tags=["benefits"])
+from app.core.templates import templates
 
 @router.get("/config", response_class=HTMLResponse)
 @is_recruiter
@@ -147,6 +147,8 @@ async def view_edit_request(id: int, request: Request, db: Annotated[AsyncSessio
     req_orm = await service.get_benefit_request_by_id(db, id)
     if not req_orm:
         raise HTTPException(404, "Solicitud no encontrada")
+    if req_orm.status != "Pendiente":
+        raise HTTPException(400, "Solo se pueden editar solicitudes en estado Pendiente")
         
     req_data = schemas.BenefitRequestRead.model_validate(req_orm).model_dump(mode="json")
     
@@ -163,6 +165,22 @@ async def view_edit_request(id: int, request: Request, db: Annotated[AsyncSessio
         "request": request, "req": req_data, "request_types": request_types, "subtypes": subtypes,
         "grant_reasons": grant_reasons, "benefit_types": benefit_types, "currencies": currencies,
         "auth_levels": auth_levels, "modalities": modalities, "frequencies": frequencies,
+        "settings": settings, "current_user": current_user
+    })
+
+
+@router.get("/requests/{id}", response_class=HTMLResponse)
+@is_recruiter
+async def view_request_detail(id: int, request: Request, db: Annotated[AsyncSession, Depends(get_db)], current_user: User = Depends(get_current_user)):
+    """Vista de solo lectura de una solicitud de beneficio (cualquier estado)."""
+    req_orm = await service.get_benefit_request_by_id(db, id)
+    if not req_orm:
+        raise HTTPException(404, "Solicitud no encontrada")
+
+    req_data = schemas.BenefitRequestRead.model_validate(req_orm).model_dump(mode="json")
+
+    return templates.TemplateResponse(request=request, name="benefits/requests/detail.html", context={
+        "request": request, "req": req_data,
         "settings": settings, "current_user": current_user
     })
 
@@ -263,17 +281,53 @@ async def api_create_request(data: schemas.BenefitRequestCreate, db: Annotated[A
 @router.put("/api/requests/{id}", response_model=schemas.BenefitRequestRead)
 @is_recruiter
 async def api_update_request(id: int, data: schemas.BenefitRequestCreate, db: Annotated[AsyncSession, Depends(get_db)]):
-    updated = await service.update_benefit_request(db, id, data)
-    if not updated:
+    req_orm = await service.get_benefit_request_by_id(db, id)
+    if not req_orm:
         raise HTTPException(404, "Solicitud no encontrada")
+    if req_orm.status != "Pendiente":
+        raise HTTPException(400, "Solo se pueden editar solicitudes en estado Pendiente")
+    updated = await service.update_benefit_request(db, id, data)
     return updated
 
 @router.put("/api/requests/{id}/status")
 @is_recruiter
-async def api_update_request_status(id: int, data: schemas.BenefitRequestUpdateStatus, db: Annotated[AsyncSession, Depends(get_db)]):
-    if not await service.update_request_status(db, id, data.status):
+async def api_update_request_status(id: int, data: schemas.BenefitRequestUpdateStatus, db: Annotated[AsyncSession, Depends(get_db)], current_user: User = Depends(get_current_user)):
+    if not await service.update_request_status(db, id, data.status, current_user):
         raise HTTPException(404, "Solicitud no encontrada")
     return {"message": "Estado actualizado"}
+
+@router.delete("/api/requests/{id}", status_code=204)
+@is_admin
+async def api_delete_request(id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Eliminar una solicitud de beneficio (solo administradores, no aprobadas)."""
+    req_orm = await service.get_benefit_request_by_id(db, id)
+    if not req_orm:
+        raise HTTPException(404, "Solicitud no encontrada")
+    if req_orm.status == "Aprobada":
+        raise HTTPException(400, "No se puede eliminar una solicitud que ya ha sido aprobada")
+    if not await service.delete_benefit_request(db, id):
+        raise HTTPException(404, "Solicitud no encontrada")
+    return None
+
+@router.post("/api/requests/{id}/attachments", response_model=schemas.BenefitRequestAttachmentRead)
+@is_recruiter
+async def api_upload_attachment(
+    id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Sube un archivo adjunto (pdf, word, ppt, etc.) a una solicitud (cualquier estado)."""
+    return await service.upload_attachment(db, id, name, file, current_user)
+
+@router.delete("/api/attachments/{attachment_id}", status_code=204)
+@is_recruiter
+async def api_delete_attachment(attachment_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Elimina un archivo adjunto de una solicitud."""
+    if not await service.delete_attachment(db, attachment_id):
+        raise HTTPException(404, "Archivo adjunto no encontrado")
+    return None
 
 @router.post("/api/types", response_model=schemas.BenefitTypeRead)
 @is_manager

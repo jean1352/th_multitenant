@@ -140,6 +140,55 @@
         } catch (e) { showToast(e.message, 'error'); }
     };
 
+    // --- ADD STAGE MODAL ---
+    const addStageModal = document.getElementById('addStageModal');
+    window.openAddStageModal = () => {
+        document.getElementById('addStageForm').reset();
+        document.getElementById('addStagePosition').value = '';
+        addStageModal.classList.remove('hidden');
+    };
+    window.closeAddStageModal = () => addStageModal.classList.add('hidden');
+
+    document.getElementById('btnSaveAddStage').addEventListener('click', async () => {
+        const form = document.getElementById('addStageForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        if (!data.responsible_id) delete data.responsible_id;
+        if (!data.order_index || data.order_index === '') {
+            delete data.order_index;
+        } else {
+            data.order_index = parseInt(data.order_index, 10);
+        }
+        data.sla_days = parseInt(data.sla_days, 10);
+
+        try {
+            await ApiClient.post(`/recruitment/api/vacancies/{{ vacancy.id }}/stages`, data);
+            showToast('Etapa agregada');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    // --- DELETE STAGE MODAL ---
+    const deleteStageModal = document.getElementById('deleteStageModal');
+    window.openDeleteStageModal = (stage) => {
+        document.getElementById('deleteStageId').value = stage.id;
+        document.getElementById('deleteStageName').innerText = stage.name;
+        document.getElementById('deleteStagePassword').value = '';
+        deleteStageModal.classList.remove('hidden');
+    };
+    window.closeDeleteStageModal = () => deleteStageModal.classList.add('hidden');
+
+    document.getElementById('btnConfirmDeleteStage').addEventListener('click', async () => {
+        const id = document.getElementById('deleteStageId').value;
+        const password = document.getElementById('deleteStagePassword').value;
+        try {
+            await ApiClient.post(`/recruitment/api/stages/${id}/delete`, { password });
+            showToast('Etapa eliminada');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
     // --- EDIT VACANCY MODAL (CASCADA) ---
     const editVacancyModal = document.getElementById('editVacancyModal');
 
@@ -378,4 +427,106 @@
             setTimeout(() => window.location.reload(), 1000);
         } catch (e) { showToast(e.message, 'error'); }
     });
+
+    // --- AUDITORÍA DE SLA (detalle de días contados vs excluidos) ---
+    let slaDetailData = null;
+
+    window.openSlaDetail = async (scope) => {
+        const modal = document.getElementById('slaDetailModal');
+        const content = document.getElementById('slaDetailContent');
+        modal.classList.remove('hidden');
+
+        if (!slaDetailData) {
+            content.innerHTML = '<div class="py-10 text-center text-gray-500">Cargando detalle de SLA...</div>';
+            try {
+                slaDetailData = await ApiClient.get('/recruitment/api/vacancies/{{ vacancy.id }}/sla-detail');
+            } catch (e) {
+                content.innerHTML = `<div class="py-10 text-center text-red-500">Error al cargar: ${e.message}</div>`;
+                return;
+            }
+        }
+        renderSlaDetail(scope);
+    };
+
+    window.closeSlaDetail = () => {
+        document.getElementById('slaDetailModal').classList.add('hidden');
+    };
+
+    function renderSlaDetail(scope) {
+        if (!slaDetailData) return;
+        const content = document.getElementById('slaDetailContent');
+
+        document.querySelectorAll('#slaTabs .sla-tab').forEach(t => {
+            const active = t.dataset.scope === scope;
+            t.classList.toggle('bg-blue-900', active);
+            t.classList.toggle('text-white', active);
+            t.classList.toggle('bg-gray-100', !active);
+            t.classList.toggle('text-gray-700', !active);
+        });
+
+        if (scope === 'global') {
+            content.innerHTML = renderSlaRange(slaDetailData.global);
+        } else if (scope === 'rs') {
+            content.innerHTML = renderSlaStages('reclutador', 'R&S (Reclutamiento y Selección)');
+        } else {
+            content.innerHTML = renderSlaStages('area', 'Área Solicitante');
+        }
+    }
+
+    function renderSlaStages(owner, title) {
+        const stages = (slaDetailData.stages || []).filter(s => s.owner === owner);
+        if (!stages.length) {
+            return `<p class="py-6 text-gray-500 text-center">No hay etapas de ${title} en esta vacante.</p>`;
+        }
+        return stages.map(renderSlaRange).join('');
+    }
+
+    function renderSlaRange(r) {
+        const planned = r.sla_days != null ? `<span class="font-semibold">${r.sla_days} planificados</span>` : '';
+        const over = (r.sla_days != null && r.counted_days > r.sla_days)
+            ? `<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">${r.counted_days - r.sla_days} fuera de SLA</span>`
+            : '';
+        return `
+            <div class="mb-4">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="font-semibold text-gray-900">${r.label}</span>
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">${r.start_date} → ${r.end_date}</span>
+                    <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-semibold">${r.counted_days} día(s) hábil(es) contados / ${planned}</span>
+                    ${r.deadline_date ? `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Límite: ${r.deadline_date}</span>` : ''}
+                    ${over}
+                </div>
+                ${renderSlaDays(r.days, r.sla_days)}
+            </div>`;
+    }
+
+    function renderSlaDays(days, sla_days) {
+        if (!days || !days.length) return '<p class="text-gray-400 text-xs">Sin días en el rango.</p>';
+        let counted = 0;
+        return `<div class="grid grid-cols-1 sm:grid-cols-2 gap-1">${days.map(d => {
+            let badge;
+            let rowClass = '';
+            if (d.status === 'inicio') {
+                badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-blue-100 text-blue-800">Inicio</span>';
+            } else if (d.status === 'contado') {
+                counted += 1;
+                const overSla = sla_days != null && counted > sla_days;
+                if (overSla) {
+                    badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-red-500 text-white">Fuera SLA</span>';
+                    rowClass = 'bg-red-50';
+                } else {
+                    badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-green-100 text-green-800">Contado</span>';
+                }
+            } else {
+                badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-red-100 text-red-700">Excluido</span>';
+            }
+            const reason = d.reason ? `<span class="text-gray-500">— ${d.reason}</span>` : '';
+            const excludeClass = d.status === 'excluido' ? 'bg-red-50/50' : '';
+            return `<div class="flex items-center gap-2 border rounded px-2 py-1 ${rowClass || excludeClass}">
+                ${badge}
+                <span class="font-medium text-gray-800">${d.date}</span>
+                <span class="text-gray-400 text-xs">${d.weekday}</span>
+                ${reason}
+            </div>`;
+        }).join('')}</div>`;
+    }
 </script>

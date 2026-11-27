@@ -11,7 +11,8 @@ from fastapi import BackgroundTasks
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import AsyncSessionLocal
+from app.core.database import get_tenant_db
+from app.core.tenants import get_current_tenant
 from app.core.email_utils import send_email_async
 from app.modules.notifications.models import EmailStatus, NotificationLog
 from app.modules.notifications import schemas
@@ -20,13 +21,19 @@ logger = logging.getLogger(__name__)
 
 
 async def _process_email_task(
-    recipient: str, subject: str, body: str, is_html: bool = False
+    recipient: str,
+    subject: str,
+    body: str,
+    is_html: bool = False,
+    cc: Optional[List[str]] = None,
+    attachments: Optional[List[tuple]] = None,
+    tenant_schema: Optional[str] = None,
 ):
     """
-    Lógica interna de envío y logueo con su propia sesión de DB.
+    Lógica interna de envío y logueo con su propia sesión de DB aislada al tenant.
     Se ejecuta en segundo plano.
     """
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db(tenant_schema) as db:
         log_entry = NotificationLog(
             recipient=recipient,
             subject=subject,
@@ -37,11 +44,11 @@ async def _process_email_task(
         await db.commit()  # Guardar estado pendiente
 
         # LÓGICA MULTI-CORREO:
-        recipients_list = [r.strip() for r in recipient.split(",")] if "," in recipient else [recipient]
+        recipients_list = [r.strip() for r in recipient.split(",") if r.strip()] if "," in recipient else [recipient]
 
         # Pasamos el flag is_html al utilitario de correo
         success = await send_email_async(
-            recipients_list, subject, body, is_html=is_html
+            recipients_list, subject, body, is_html=is_html, cc=cc, attachments=attachments
         )
 
         log_entry.status = EmailStatus.SENT if success else EmailStatus.FAILED
@@ -60,13 +67,18 @@ async def send_email_notification(
     body: str,
     background_tasks: Optional[BackgroundTasks] = None,
     is_html: bool = False,
+    cc: Optional[Union[List[str], str]] = None,
+    attachments: Optional[List[tuple]] = None,
 ) -> Optional[NotificationLog]:
     """
     Envía una notificación por correo electrónico.
     """
     if background_tasks:
+        cc_list = [c.strip() for c in cc.split(",")] if isinstance(cc, str) else cc
+        tenant = get_current_tenant()
+        tenant_schema = tenant.schema_name if tenant else None
         background_tasks.add_task(
-            _process_email_task, recipient, subject, body, is_html
+            _process_email_task, recipient, subject, body, is_html, cc_list, attachments, tenant_schema
         )
         return None
 
@@ -80,10 +92,10 @@ async def send_email_notification(
     db.add(log_entry)
     await db.flush()
 
-    recipients_list = [r.strip() for r in recipient.split(",")] if "," in recipient else [recipient]
+    recipients_list = [r.strip() for r in recipient.split(",") if r.strip()] if "," in recipient else [recipient]
 
     success = await send_email_async(
-        recipients_list, subject, body, is_html=is_html
+        recipients_list, subject, body, is_html=is_html, cc=cc, attachments=attachments
     )
 
     if success:

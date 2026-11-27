@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Gestión de Empresas - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Gestión de Empresas - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -106,7 +106,7 @@
     };
 
     window.deleteCompany = async (id) => {
-        if (!confirm('¿Estás seguro de eliminar esta empresa?')) return;
+        if (!await uiConfirm('¿Estás seguro de eliminar esta empresa?')) return;
         try {
             await ApiClient.delete(`/organization/api/companies/${id}`);
             showToast('Empresa eliminada');

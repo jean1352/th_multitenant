@@ -4,7 +4,8 @@ from datetime import date, datetime
 from typing import Optional
 
 import matplotlib
-import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 import pandas as pd
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import desc, or_, select
@@ -14,6 +15,7 @@ from weasyprint import HTML
 
 from app.modules.organization.models import Area, Position
 from app.modules.recruitment import schemas
+from app.modules.recruitment.business_calendar import refresh_holidays_cache
 from app.core.config import settings
 from app.modules.recruitment.models import (
     ProcessStatus,
@@ -58,6 +60,8 @@ async def generate_excel_report(
     end_date: Optional[date] = None,
 ) -> io.BytesIO:
     """Genera un archivo Excel con el reporte de vacantes."""
+    await refresh_holidays_cache(db)
+
     stmt = (
         select(
             Vacancy,
@@ -68,9 +72,17 @@ async def generate_excel_report(
         .join(RecruitmentProcess, Vacancy.process_id == RecruitmentProcess.id)
         .options(
             selectinload(Vacancy.stages).selectinload(VacancyStage.responsible),
+            selectinload(Vacancy.process),
+            selectinload(Vacancy.area).options(
+                selectinload(Area.sede),
+                selectinload(Area.positions).selectinload(Position.parent),
+                selectinload(Area.positions).selectinload(Position.area),
+            ),
             selectinload(Vacancy.position).selectinload(Position.parent),
             selectinload(Vacancy.position).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Vacancy.audits).selectinload(RecruitmentAudit.user),
+            selectinload(Vacancy.hiring_reason),
+            selectinload(Vacancy.recruiter),
         )
     )
     stmt = _apply_report_filters(stmt, area_id, status, start_date, end_date)
@@ -92,7 +104,9 @@ async def generate_excel_report(
                 "Estado": vac.status.value,
                 "Tipo": vac.vacancy_type.value if vac.vacancy_type else "Pendiente",
                 "Aumento Dotación": "Sí" if vac.is_headcount_increase else "No",
-                "SLA": "OK" if dto.global_sla_status == "ok" else "Vencido",
+                "SLA Global": "OK" if dto.global_sla_status == "ok" else "Vencido",
+                "SLA R&S": "OK" if dto.rs_sla_status == "ok" else "Vencido",
+                "SLA Área": "OK" if dto.area_sla_status == "ok" else "Vencido",
                 "Progreso": f"{dto.progress_percent}%",
                 "Fecha Creación": vac.created_at.strftime("%Y-%m-%d"),
             }
@@ -106,31 +120,32 @@ async def generate_excel_report(
 
 
 def generate_chart_base64(data: dict, title: str, chart_type="bar"):
-    """Genera un gráfico en base64 para incrustar en PDF."""
-    plt.figure(figsize=(6, 4))
+    """Genera un gráfico thread-safe en base64 para incrustar en PDF."""
+    fig = Figure(figsize=(6, 4))
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
     labels = list(data.keys())
     values = list(data.values())
     if sum(values) == 0:
-        plt.text(
+        ax.text(
             0.5, 0.5, "Sin datos", ha="center", va="center", color="gray"
         )
-        plt.axis("off")
+        ax.axis("off")
     else:
         if chart_type == "bar":
-            plt.barh(labels, values, color="#003366")
-            plt.xlabel("Cantidad")
+            ax.barh(labels, values, color="#003366")
+            ax.set_xlabel("Cantidad")
         elif chart_type == "pie":
-            plt.pie(
+            ax.pie(
                 values,
                 labels=labels,
                 autopct="%1.1f%%",
                 colors=["#10B981", "#EF4444", "#F59E0B"],
             )
-    plt.title(title)
-    plt.tight_layout()
+    ax.set_title(title)
+    fig.tight_layout()
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    plt.close()
+    fig.savefig(buffer, format="png")
     buffer.seek(0)
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
@@ -144,16 +159,24 @@ async def generate_pdf_report(
     end_date: Optional[date] = None,
 ) -> bytes:
     """Genera un reporte PDF ejecutivo."""
+    await refresh_holidays_cache(db)
+
     stmt = (
         select(Vacancy)
         .join(Area)
         .options(
             selectinload(Vacancy.stages).selectinload(VacancyStage.responsible),
             selectinload(Vacancy.process),
-            selectinload(Vacancy.area),
+            selectinload(Vacancy.area).options(
+                selectinload(Area.sede),
+                selectinload(Area.positions).selectinload(Position.parent),
+                selectinload(Area.positions).selectinload(Position.area),
+            ),
             selectinload(Vacancy.position).selectinload(Position.parent),
             selectinload(Vacancy.position).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Vacancy.audits).selectinload(RecruitmentAudit.user),
+            selectinload(Vacancy.hiring_reason),
+            selectinload(Vacancy.recruiter),
         )
     )
     stmt = _apply_report_filters(stmt, area_id, status, start_date, end_date)

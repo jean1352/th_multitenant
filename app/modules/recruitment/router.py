@@ -16,13 +16,12 @@ from fastapi import (
     Response,
 )
 from fastapi.responses import HTMLResponse, StreamingResponse
-from app.core.templates import templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, verify_password
 from app.modules.auth.dependencies import get_current_user, is_recruiter, is_admin, is_manager
 from app.modules.auth.models import User
 from app.modules.employees.models import Employee
@@ -33,6 +32,7 @@ from app.modules.recruitment import schemas, service
 from app.core.config import settings
 
 router = APIRouter(prefix="/recruitment", tags=["recruitment"])
+from app.core.templates import templates
 
 
 # --- FILTROS JINJA ---
@@ -125,10 +125,46 @@ async def get_dashboard_chart_data(
 @is_recruiter
 async def get_stage_stats_api(
     db: Annotated[AsyncSession, Depends(get_db)],
-    area_id: Optional[int] = None
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
 ):
-    """API: Obtener estadísticas detalladas de etapas (SLA y Cuellos de Botella) con filtro de área."""
-    return await service.get_stage_performance_stats(db, area_id)
+    """API: Estadísticas de etapas (SLA, Cumplimiento R&S/Área y Cuellos de Botella) con filtros de área y periodo."""
+    return await service.get_stage_performance_stats(db, area_id, start_date, end_date)
+
+
+@router.get("/api/dashboard/sla-details")
+@is_recruiter
+async def get_sla_details_api(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    form: str = Query(default="global"),
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+):
+    """API: Detalle de los casos A Tiempo / Fuera de Plazo para una forma de SLA."""
+    try:
+        return await service.get_sla_details(db, form, area_id, start_date, end_date)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/api/dashboard/bottleneck-report/export")
+@is_recruiter
+async def export_bottleneck_report(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+):
+    """Exporta el informe de cuellos de botella a Excel."""
+    excel_file = await service.generate_bottleneck_excel_report(db, area_id, start_date, end_date)
+    filename = f"cuellos_botella_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        excel_file,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # --- VISTAS HTML (PROTEGIDAS) ---
@@ -174,9 +210,9 @@ async def list_vacancies_view(
     sede_id: Optional[str] = None,
     area_id: Optional[str] = None,
     sla_status: Optional[str] = None,
-    scope: str = Query("mine", regex="^(mine|all)$"),
+    scope: str = Query("mine", pattern="^(mine|all)$"),
     sort: str = Query("created_at"),
-    order: str = Query("desc", regex="^(asc|desc)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
 ):
     """Vista de listado de vacantes."""
     
@@ -294,6 +330,24 @@ async def detail_vacancy_view(
 
     recruiters = await service.get_recruiters(db)
 
+    # Usuarios para asignación de responsables en etapas adicionales
+    users_orm = await service.get_users_for_assignment(db)
+    users_data = []
+    for u in users_orm:
+        sede_name = (
+            u.sede.name
+            if u.sede
+            else (u.area.sede.name if u.area and u.area.sede else "Sin Sede")
+        )
+        users_data.append(
+            {
+                "id": u.id,
+                "full_name": u.full_name,
+                "area_name": u.area.name if u.area else "Sin Área",
+                "sede_name": sede_name,
+            }
+        )
+
     # Motivos de edición de etapas
     stage_edit_reasons = await service.get_stage_edit_reasons(db, active_only=True)
     edit_reasons_data = [
@@ -323,6 +377,7 @@ async def detail_vacancy_view(
             "sedes": sedes,
             "hiring_reasons": hiring_reasons_data,
             "recruiters": recruiters,
+            "users": users_data,
             "edit_reasons": edit_reasons_data,
             "contract_types": contract_types_data,
             "companies": companies_data, # <--- Pasamos las empresas
@@ -404,28 +459,38 @@ async def detail_process_view(
 
 # --- API ENDPOINTS ---
 
-@router.get("/api/vacancies", response_model=schemas.VacancyPagination)
+@router.get("/api/vacancies")
 @is_recruiter
 async def list_vacancies_api(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: User = Depends(get_current_user),
     page: int = Query(1, ge=1),
     q: Optional[str] = None,
-    status: Optional[str] = "open",
+    status: Optional[str] = None,
     sede_id: Optional[int] = None,
     area_id: Optional[int] = None,
     sla_status: Optional[str] = None,
-    scope: str = Query("all", regex="^(mine|all)$"),
+    scope: str = Query("all", pattern="^(mine|all)$"),
     sort_by: str = Query("created_at"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
 ):
-    """API: Listado paginado de vacantes."""
-    # Determine user ID for scope filter
-    current_user_id = current_user.id if scope == "mine" else None
-
-    return await service.get_vacancies_paginated(
-        db, page, 20, q, status, sede_id, area_id, sla_status, scope, current_user_id, sort_by, sort_order
+    """API: Listado paginado de vacantes (JSON) con filtros y ordenamiento."""
+    user_id = await get_current_user_id(request)
+    pagination = await service.get_vacancies_paginated(
+        db, page, 10, q, status, sede_id, area_id, sla_status, scope, user_id, sort_by, sort_order
     )
+    return {
+        "items": [
+            schemas.VacancyRead.model_validate(v).model_dump(mode="json")
+            for v in pagination["items"]
+        ],
+        "total": pagination["total"],
+        "page": pagination["page"],
+        "limit": pagination["limit"],
+        "total_pages": pagination["total_pages"],
+        "has_next": pagination["has_next"],
+        "has_prev": pagination["has_prev"],
+    }
 
 
 @router.get("/api/vacancies/{vacancy_id}", response_model=schemas.VacancyRead)
@@ -438,6 +503,18 @@ async def get_vacancy_api(
     if not vacancy:
         raise HTTPException(404, "Vacante no encontrada")
     return vacancy
+
+
+@router.get("/api/vacancies/{vacancy_id}/sla-detail")
+@is_recruiter
+async def get_vacancy_sla_detail_api(
+    vacancy_id: int, db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """API: Detalle auditable del SLA (días contados vs excluidos, con motivo)."""
+    detail = await service.get_sla_detail(db, vacancy_id)
+    if not detail:
+        raise HTTPException(404, "Vacante no encontrada")
+    return detail
 
 
 @router.post("/api/vacancies", response_model=schemas.VacancyRead, status_code=201)
@@ -473,6 +550,29 @@ async def update_vacancy_api(
         return updated
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@router.post(
+    "/api/vacancies/{vacancy_id}/stages", response_model=schemas.VacancyRead
+)
+@is_recruiter
+async def add_vacancy_stage_api(
+    vacancy_id: int,
+    stage_data: schemas.VacancyStageCreate,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """API: Agrega una etapa adicional a una vacante específica."""
+    user_id = await get_current_user_id(request)
+    try:
+        updated = await service.add_stage_to_vacancy(
+            db, vacancy_id, stage_data, user_id
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not updated:
+        raise HTTPException(404, "Vacante no encontrada")
+    return updated
 
 
 @router.delete("/api/vacancies/{vacancy_id}", status_code=204)
@@ -515,11 +615,11 @@ async def update_stage_api(
         updated = await service.update_stage(
             db, stage_id, stage_data, background_tasks, user_id
         )
-        if not updated:
-            raise HTTPException(404, "Etapa no encontrada")
-        return updated
     except ValueError as e:
         raise HTTPException(400, str(e))
+    if not updated:
+        raise HTTPException(404, "Etapa no encontrada")
+    return updated
 
 
 @router.post("/api/stages/{stage_id}/notify", status_code=200)
@@ -540,6 +640,27 @@ async def notify_stage_owner_api(
         }
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@router.post("/api/stages/{stage_id}/delete", response_model=schemas.VacancyRead)
+@is_admin
+async def delete_vacancy_stage_api(
+    stage_id: int,
+    confirm: schemas.StageDeleteConfirm,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User = Depends(get_current_user),
+):
+    """API: Elimina una etapa adicional de una vacante (requiere contraseña de admin)."""
+    if not verify_password(confirm.password, current_user.hashed_password):
+        raise HTTPException(403, "Contraseña incorrecta.")
+    try:
+        updated = await service.delete_vacancy_stage(db, stage_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not updated:
+        raise HTTPException(404, "Etapa no encontrada")
+    return updated
 
 
 # --- PROCESS API ---

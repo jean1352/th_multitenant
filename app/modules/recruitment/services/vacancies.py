@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks
@@ -11,7 +11,16 @@ from app.modules.employees.models import Employee, EmployeeHistory, MovementType
 from app.modules.notifications.service import send_email_notification
 from app.modules.organization.models import Area, Position, Sede
 from app.modules.recruitment import schemas
-from app.modules.recruitment.business_calendar import add_business_days, get_holidays_set
+from app.modules.recruitment.business_calendar import (
+    add_business_days,
+    classify_days,
+    count_business_days,
+    get_holidays_set,
+    get_holidays_with_names,
+    next_business_day,
+    refresh_holidays_cache,
+    weekday_name,
+)
 from app.modules.recruitment.models import (
     ProcessStatus,
     RecruitmentAudit,
@@ -71,6 +80,37 @@ async def get_vacancy_counts(db: AsyncSession) -> Dict[str, int]:
     return final_counts
 
 
+def _vacancy_business_days_elapsed(vac: Vacancy) -> int:
+    """Días hábiles transcurridos de una vacante (excluye fines de semana y feriados).
+
+    Espejo de VacancyRead.total_days_elapsed para poder filtrar por SLA en Python.
+    """
+    stages = sorted(vac.stages, key=lambda s: s.order_index) if vac.stages else []
+    if stages:
+        start_date = stages[0].start_date
+    else:
+        start_date = vac.created_at.date()
+
+    if vac.created_at.tzinfo:
+        now = datetime.now(vac.created_at.tzinfo)
+    else:
+        now = datetime.now()
+
+    end = vac.closed_at or now
+    end_date = end.date() if isinstance(end, datetime) else end
+
+    delta = count_business_days(start_date, end_date)
+
+    if vac.status == ProcessStatus.OPEN:
+        return max(1, delta)
+    return max(0, delta)
+
+
+def _vacancy_total_sla(vac: Vacancy) -> int:
+    """Suma de días SLA de todas las etapas de una vacante."""
+    return sum(s.sla_days_snapshot for s in vac.stages)
+
+
 async def get_vacancies_paginated(
     db: AsyncSession,
     page: int = 1,
@@ -86,6 +126,9 @@ async def get_vacancies_paginated(
     sort_order: Optional[str] = "desc"
 ) -> Dict[str, Any]:
     """Obtiene lista paginada de vacantes con filtros avanzados y ordenamiento."""
+    # Cargar feriados para que el contador de días hábiles sea correcto.
+    await refresh_holidays_cache(db)
+
     offset = (page - 1) * limit
     
     # Subquery para calcular el SLA total de cada vacante
@@ -152,25 +195,9 @@ async def get_vacancies_paginated(
     if area_id:
         query = query.where(Area.id == area_id)
 
-    if sla_status:
-        days_elapsed_expr = func.extract(
-            'day', 
-            func.coalesce(Vacancy.closed_at, func.now()) - Vacancy.created_at
-        )
-        total_sla_expr = func.coalesce(sla_subquery.c.total_sla, 0)
-
-        if sla_status == "ok":
-            query = query.where(days_elapsed_expr <= total_sla_expr)
-        elif sla_status == "overdue":
-            query = query.where(days_elapsed_expr > total_sla_expr)
-
-    # Conteo Total
-    count_query = select(func.count()).select_from(query.subquery())
-    total_items = await db.scalar(count_query) or 0
-
     # Ordenamiento
     order_column = Vacancy.created_at
-    
+
     if sort_by == 'title': order_column = Vacancy.title
     elif sort_by == 'area': order_column = Area.name
     elif sort_by == 'recruiter': order_column = User.full_name
@@ -179,27 +206,56 @@ async def get_vacancies_paginated(
     elif sort_by == 'sla': order_column = func.coalesce(sla_subquery.c.total_sla, 0)
 
     if sort_order == 'asc':
-        query = query.order_by(order_column.asc())
+        order_clause = order_column.asc()
     else:
-        query = query.order_by(order_column.desc())
-        
-    query = query.order_by(Vacancy.id.desc())
+        order_clause = order_column.desc()
 
-    # Paginación
-    query = query.offset(offset).limit(limit)
-    result = await db.execute(query)
+    if sla_status:
+        # El filtro por SLA no puede expresarse de forma portable en SQL usando
+        # días hábiles, así que se traen todas las vacantes que cumplen el resto
+        # de filtros, se filtran en Python y se pagina en memoria.
+        query = query.order_by(order_clause).order_by(Vacancy.id.desc())
+        result = await db.execute(query)
 
-    vacancies = []
-    for row in result:
-        vac = row[0]
-        # Asignamos atributos planos para compatibilidad con schemas antiguos si es necesario
-        vac.area_name = row[1]
-        vac.sede_name = row[2]
-        vac.process_name = row[3]
-        vacancies.append(vac)
+        all_vacancies = []
+        for row in result:
+            vac = row[0]
+            vac.area_name = row[1]
+            vac.sede_name = row[2]
+            vac.process_name = row[3]
+            all_vacancies.append(vac)
+
+        filtered = []
+        for vac in all_vacancies:
+            elapsed = _vacancy_business_days_elapsed(vac)
+            total_sla = _vacancy_total_sla(vac)
+            if sla_status == "ok" and elapsed <= total_sla:
+                filtered.append(vac)
+            elif sla_status == "overdue" and elapsed > total_sla:
+                filtered.append(vac)
+
+        total_items = len(filtered)
+        vacancies = filtered[offset:offset + limit]
+    else:
+        # Camino rápido: conteo y paginación directamente en SQL.
+        count_query = select(func.count()).select_from(query.subquery())
+        total_items = await db.scalar(count_query) or 0
+
+        query = query.order_by(order_clause).order_by(Vacancy.id.desc())
+        query = query.offset(offset).limit(limit)
+        result = await db.execute(query)
+
+        vacancies = []
+        for row in result:
+            vac = row[0]
+            # Asignamos atributos planos para compatibilidad con schemas antiguos si es necesario
+            vac.area_name = row[1]
+            vac.sede_name = row[2]
+            vac.process_name = row[3]
+            vacancies.append(vac)
 
     total_pages = (total_items + limit - 1) // limit
-    
+
     return {
         "items": vacancies,
         "total": total_items,
@@ -215,6 +271,8 @@ async def get_vacancy_by_id(db: AsyncSession, vacancy_id: int) -> Optional[Vacan
     """
     Obtiene una vacante por ID con las relaciones necesarias cargadas para edición (API).
     """
+    await refresh_holidays_cache(db)
+
     stmt = (
         select(Vacancy)
         .options(
@@ -243,6 +301,8 @@ async def get_vacancy_detail(
     """
     Obtiene el detalle completo de una vacante para la vista HTML.
     """
+    await refresh_holidays_cache(db)
+
     stmt = (
         select(Vacancy)
         .options(
@@ -288,6 +348,71 @@ async def get_vacancy_detail(
     return vac
 
 
+async def get_sla_detail(db: AsyncSession, vacancy_id: int) -> Optional[Dict[str, Any]]:
+    """Detalle auditable del SLA de una vacante: días contados vs excluidos (fin de semana / feriado)."""
+    vac = await get_vacancy_detail(db, vacancy_id)
+    if not vac:
+        return None
+
+    stages = sorted(vac.stages, key=lambda s: s.order_index)
+    start = stages[0].start_date if stages else vac.created_at.date()
+
+    if vac.created_at.tzinfo:
+        now = datetime.now(vac.created_at.tzinfo)
+    else:
+        now = datetime.now()
+
+    if vac.closed_at:
+        end = vac.closed_at.date() if isinstance(vac.closed_at, datetime) else vac.closed_at
+    else:
+        end = now.date()
+
+    holidays = await get_holidays_with_names(db, start, end)
+
+    def _format_day(entry: Dict[str, Any]) -> Dict[str, Any]:
+        d = entry["date"]
+        return {
+            "date": d.isoformat(),
+            "weekday": weekday_name(d),
+            "status": entry["status"],
+            "reason": entry["reason"],
+        }
+
+    def _build_range(label, owner, s_start, s_end, sla_days, deadline=None):
+        classified = classify_days(s_start, s_end, holidays)
+        return {
+            "label": label,
+            "owner": owner,
+            "start_date": s_start.isoformat(),
+            "end_date": s_end.isoformat(),
+            "deadline_date": deadline.isoformat() if deadline else None,
+            "sla_days": sla_days,
+            "counted_days": len(classified["counted"]),
+            "days": [_format_day(d) for d in classified["days"]],
+        }
+
+    total_sla_days = sum(s.sla_days_snapshot for s in stages)
+
+    global_bd = _build_range("SLA Global", "global", start, end, total_sla_days)
+
+    stages_bd = []
+    for s in stages:
+        s_start = s.start_date
+        s_end = s.end_date or now.date()
+        owner = s.owner.value if hasattr(s.owner, "value") else str(s.owner)
+        stages_bd.append(
+            _build_range(s.name, owner, s_start, s_end, s.sla_days_snapshot, s.deadline_date)
+        )
+
+    return {
+        "vacancy_id": vac.id,
+        "title": vac.title,
+        "today": now.date().isoformat(),
+        "global": global_bd,
+        "stages": stages_bd,
+    }
+
+
 async def create_vacancy(
     db: AsyncSession, vacancy_in: schemas.VacancyCreate, user_id: int
 ) -> Vacancy:
@@ -311,20 +436,18 @@ async def create_vacancy(
     )
     db.add(new_vacancy)
     await db.flush()
-    vac_id = new_vacancy.id
     
-    await log_audit(db, vac_id, "CREATED", "Vacante creada", user_id)
+    await log_audit(db, new_vacancy.id, "CREATED", "Vacante creada", user_id)
 
     stages = []
-    # Usar la fecha actual ya que created_at podría estar en None hasta que se refresque
-    current_date = datetime.now().date()
+    current_date = new_vacancy.created_at.date()
     holidays = await get_holidays_set(db, current_date)
 
     for config_stage in process.stages_config:
         deadline = await add_business_days(db, current_date, config_stage.sla_days, holidays)
         
         stage = VacancyStage(
-            vacancy_id=vac_id,
+            vacancy_id=new_vacancy.id,
             name=config_stage.name,
             owner=config_stage.owner,
             responsible_id=config_stage.responsible_id,
@@ -334,18 +457,186 @@ async def create_vacancy(
             deadline_date=deadline,
         )
         stages.append(stage)
-        current_date = deadline
+        # La siguiente etapa inicia el siguiente día hábil posterior al deadline
+        # para que las etapas no se solapen en el tiempo.
+        current_date = next_business_day(deadline, holidays)
 
     db.add_all(stages)
-    await db.flush()
-    
-    # Recargar para devolver objeto completo (antes del commit para asegurar el search_path en multi-tenant)
-    vac = await get_vacancy_detail(db, vac_id)
-    if not vac:
-        raise ValueError("Error al recuperar la vacante creada.")
-        
     await db.commit()
-    return vac
+    
+    # Recargar para devolver objeto completo
+    return await get_vacancy_detail(db, new_vacancy.id)
+
+
+async def add_stage_to_vacancy(
+    db: AsyncSession,
+    vacancy_id: int,
+    stage_in: schemas.VacancyStageCreate,
+    user_id: Optional[int] = None,
+) -> Optional[Vacancy]:
+    """Agrega una etapa adicional a una vacante específica (sin tocar la plantilla).
+
+    La etapa se inserta en la posición indicada (o al final por defecto),
+    reordenando las etapas posteriores y recalculando las fechas en cadena
+    (efecto dominó) con días hábiles, igual que una etapa ordinaria.
+    """
+    vac = await get_vacancy_detail(db, vacancy_id)
+    if not vac:
+        return None
+
+    if vac.status != ProcessStatus.OPEN:
+        raise ValueError("Solo se pueden agregar etapas a vacantes abiertas.")
+
+    stages = sorted(vac.stages, key=lambda s: s.order_index)
+    max_index = max((s.order_index for s in stages), default=-1)
+
+    # Posición de inserción (None = al final; de lo contrario acotada a [0, max+1])
+    if stage_in.order_index is None:
+        order_index = max_index + 1
+    else:
+        order_index = max(0, min(stage_in.order_index, max_index + 1))
+
+    # Desplazar a la derecha las etapas que quedan después de la inserción
+    for s in stages:
+        if s.order_index >= order_index:
+            s.order_index += 1
+
+    new_stage = VacancyStage(
+        vacancy_id=vac.id,
+        name=stage_in.name,
+        owner=stage_in.owner,
+        responsible_id=stage_in.responsible_id,
+        sla_days_snapshot=stage_in.sla_days,
+        order_index=order_index,
+        is_custom=True,
+    )
+    # Asociar a la relación para que la colección refleje la nueva etapa
+    # (también correcto con expire_on_commit=False, p. ej. en los tests).
+    vac.stages.append(new_stage)
+
+    # Recalcular fechas en cadena (efecto dominó) desde la posición insertada.
+    # Se trabaja sobre la lista ordenada (las posiciones reales del flujo),
+    # independientemente de si order_index es 0-based o 1-based.
+    holidays = await get_holidays_set(db, vac.created_at.date())
+    ordered = sorted(stages + [new_stage], key=lambda s: s.order_index)
+    pos = ordered.index(new_stage)
+
+    if pos == 0:
+        current_anchor_date = vac.created_at.date()
+    else:
+        prev_stage = ordered[pos - 1]
+        current_anchor_date = (
+            prev_stage.end_date
+            or prev_stage.deadline_date
+            or vac.created_at.date()
+        )
+
+    for i in range(pos, len(ordered)):
+        s = ordered[i]
+        if i == 0:
+            s.start_date = vac.created_at.date()
+        else:
+            s.start_date = next_business_day(current_anchor_date, holidays)
+        if s.sla_days_snapshot:
+            s.deadline_date = await add_business_days(
+                db, s.start_date, s.sla_days_snapshot, holidays
+            )
+        current_anchor_date = s.end_date or s.deadline_date
+
+    await log_audit(
+        db,
+        vac.id,
+        "STAGE_ADDED",
+        f"Etapa '{stage_in.name}' agregada en la posición {order_index + 1}.",
+        user_id,
+    )
+
+    await db.commit()
+
+    return await get_vacancy_detail(db, vac.id)
+
+
+async def delete_vacancy_stage(
+    db: AsyncSession,
+    stage_id: int,
+    user_id: Optional[int] = None,
+) -> Optional[Vacancy]:
+    """Elimina una etapa adicional de una vacante específica.
+
+    Reordena las etapas restantes y recalcula sus fechas en cadena (efecto
+    dominó), registrando la eliminación en la auditoría.
+    """
+    stmt = (
+        select(VacancyStage)
+        .options(selectinload(VacancyStage.vacancy).selectinload(Vacancy.stages))
+        .where(VacancyStage.id == stage_id)
+    )
+    result = await db.execute(stmt)
+    stage = result.scalar_one_or_none()
+    if not stage:
+        return None
+
+    if not stage.is_custom:
+        raise ValueError(
+            "Solo se pueden eliminar etapas adicionales agregadas a esta vacante."
+        )
+
+    vac = stage.vacancy
+    if vac.status != ProcessStatus.OPEN:
+        raise ValueError("Solo se pueden eliminar etapas de vacantes abiertas.")
+
+    deleted_name = stage.name
+
+    # Posición real (índice de array) de la etapa a eliminar dentro del flujo.
+    stages_sorted = sorted(vac.stages, key=lambda s: s.order_index)
+    pos = stages_sorted.index(stage)
+
+    # Eliminar de la relación (dispara delete-orphan) y de la sesión.
+    vac.stages.remove(stage)
+    await db.delete(stage)
+
+    # Reordenar las etapas restantes de forma contigua (0-based).
+    siblings = sorted(vac.stages, key=lambda s: s.order_index)
+    for idx, s in enumerate(siblings):
+        s.order_index = idx
+
+    # Recalcular fechas en cadena (efecto dominó) desde la posición eliminada.
+    holidays = await get_holidays_set(db, vac.created_at.date())
+
+    if siblings:
+        if pos == 0:
+            current_anchor_date = vac.created_at.date()
+        else:
+            prev_stage = siblings[pos - 1]
+            current_anchor_date = (
+                prev_stage.end_date
+                or prev_stage.deadline_date
+                or vac.created_at.date()
+            )
+
+        for i in range(pos, len(siblings)):
+            s = siblings[i]
+            if i == 0:
+                s.start_date = vac.created_at.date()
+            else:
+                s.start_date = next_business_day(current_anchor_date, holidays)
+            if s.sla_days_snapshot:
+                s.deadline_date = await add_business_days(
+                    db, s.start_date, s.sla_days_snapshot, holidays
+                )
+            current_anchor_date = s.end_date or s.deadline_date
+
+    await log_audit(
+        db,
+        vac.id,
+        "STAGE_DELETED",
+        f"Etapa '{deleted_name}' eliminada de la posición {pos + 1}.",
+        user_id,
+    )
+
+    await db.commit()
+
+    return await get_vacancy_detail(db, vac.id)
 
 
 async def update_vacancy(
@@ -591,11 +882,9 @@ async def update_vacancy(
     if audit_details:
         await log_audit(db, vac.id, "UPDATE", "; ".join(audit_details), user_id)
 
-    await db.flush()
-    # Recargar para devolver objeto actualizado con relaciones cargadas (antes del commit para asegurar el search_path en multi-tenant)
-    updated_vac = await get_vacancy_detail(db, vacancy_id)
     await db.commit()
-    return updated_vac
+    # Devolver objeto actualizado con relaciones cargadas
+    return await get_vacancy_detail(db, vacancy_id)
 
 
 async def delete_vacancy(db: AsyncSession, vacancy_id: int) -> bool:

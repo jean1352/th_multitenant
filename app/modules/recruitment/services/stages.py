@@ -6,7 +6,11 @@ from sqlalchemy.orm import selectinload
 
 from app.modules.notifications.service import send_email_notification
 from app.modules.recruitment import schemas
-from app.modules.recruitment.business_calendar import add_business_days, get_holidays_set
+from app.modules.recruitment.business_calendar import (
+    add_business_days,
+    get_holidays_set,
+    next_business_day,
+)
 from app.modules.recruitment.models import VacancyStage
 from app.modules.recruitment.services.audit import log_audit
 
@@ -85,13 +89,14 @@ async def update_stage(
         holidays = await get_holidays_set(db, current_anchor_date)
 
         for next_stage in next_stages:
-            # Actualizar inicio
-            next_stage.start_date = current_anchor_date
+            # Actualizar inicio: la siguiente etapa inicia el siguiente día hábil
+            # posterior al cierre (o deadline) de la etapa anterior para no solaparse.
+            next_stage.start_date = next_business_day(current_anchor_date, holidays)
             
             # Recalcular deadline usando SLA real (días hábiles)
             if next_stage.sla_days_snapshot:
                 next_stage.deadline_date = await add_business_days(
-                    db, current_anchor_date, next_stage.sla_days_snapshot, holidays
+                    db, next_stage.start_date, next_stage.sla_days_snapshot, holidays
                 )
             
             # La fecha base para la subsiguiente etapa será:

@@ -46,7 +46,7 @@
 
         <!-- TAB CONTENT: EVENTOS -->
         <div id="content-events" class="space-y-4 tab-content hidden">
-            {% for rule in rules if (rule.rule_type | string | lower) in ['event_reminder'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['EventEnrollment']) %}
+            {% for rule in rules if (rule.rule_type | string | lower) in ['event_reminder', 'training_reminder'] or (rule.trigger_type == 'EVENT_DRIVEN' and rule.conditions and rule.conditions.get('model') in ['EventEnrollment']) %}
                 {% include "scheduler/rule_card.html" %}
             {% else %}
                 <p class="text-gray-400 text-center py-8 bg-gray-50 rounded border border-dashed">No hay reglas de eventos configuradas.</p>

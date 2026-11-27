@@ -282,12 +282,28 @@ async def seed_default_rules(db: AsyncSession):
             "param_value": 10 # Días por defecto
         },
         {
+            "rule_type": AutomationRuleType.SLA_DAILY_CHECK,
+            "name": "Alertas de SLA por Etapa",
+            "description": "Notifica al solicitante cuando una etapa está próxima a vencer (X días hábiles antes) o ya venció su SLA.",
+            "frequency": FrequencyType.DAILY,
+            "execution_time": "07:30",
+            "param_value": 1 # Días hábiles de anticipación
+        },
+        {
             "rule_type": AutomationRuleType.EVENT_REMINDER,
             "name": "Recordatorio de Eventos",
             "description": "Envía recordatorio a invitados que no han respondido, X días antes del evento.",
             "frequency": FrequencyType.DAILY,
             "execution_time": "10:00",
             "param_value": 2 # Días antes
+        },
+        {
+            "rule_type": AutomationRuleType.TRAINING_REMINDER,
+            "name": "Recordatorio de Capacitaciones",
+            "description": "Notifica a los empleados inscritos X días antes del inicio y del cierre de las capacitaciones.",
+            "frequency": FrequencyType.DAILY,
+            "execution_time": "09:30",
+            "param_value": 3 # Días de anticipación
         },
         {
             "rule_type": AutomationRuleType.CONTRACT_EXPIRATION,

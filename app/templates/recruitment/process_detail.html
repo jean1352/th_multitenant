@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% block title %}Configurar {{ process.name }} - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Configurar {{ process.name }} - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="mb-6">
@@ -144,7 +144,7 @@
 
     window.deleteStage = async (id) => {
         // ADVERTENCIA FUERTE
-        if(!confirm('⚠️ ADVERTENCIA CRÍTICA ⚠️\n\nEsta acción eliminará la etapa de la plantilla Y TAMBIÉN de todas las vacantes activas que usen este proceso.\n\nEsto recalculará los tiempos de SLA de las vacantes afectadas.\n\n¿Estás seguro de continuar?')) return;
+        if(!await uiConfirm('⚠️ ADVERTENCIA CRÍTICA ⚠️\n\nEsta acción eliminará la etapa de la plantilla Y TAMBIÉN de todas las vacantes activas que usen este proceso.\n\nEsto recalculará los tiempos de SLA de las vacantes afectadas.\n\n¿Estás seguro de continuar?')) return;
         
         try {
             await ApiClient.delete(`/recruitment/api/processes/stages/${id}`);

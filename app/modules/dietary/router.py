@@ -1,7 +1,6 @@
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from fastapi.responses import HTMLResponse
-from app.core.templates import templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +13,7 @@ from app.modules.organization.models import Sede, Area
 from app.core.config import settings
 
 router = APIRouter(prefix="/dietary", tags=["dietary"])
+from app.core.templates import templates
 
 # --- VISTAS ---
 

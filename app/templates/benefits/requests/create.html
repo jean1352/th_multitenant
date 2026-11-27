@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Nueva Solicitud de Beneficios{% endblock %}
+{% block title %}Nueva Solicitud de Beneficios - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex justify-between items-center">
@@ -101,7 +101,7 @@
 
                 <div class="p-6 space-y-6">
                     {# FORMULARIO PARA AGREGAR BENEFICIO #}
-                    <div class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
+                    <div id="aggregator_area" class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
                         <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-3">Agregar Beneficio</h4>
                         
                         <div class="grid grid-cols-2 gap-4">
@@ -174,7 +174,7 @@
                             </div>
 
                             <div class="col-span-2 flex justify-end">
-                                <button type="button" onclick="addBenefitToList()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                                <button type="button" id="add_benefit_btn" onclick="addBenefitToList()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
                                     <i class="fas fa-plus"></i> Agregar Beneficio
                                 </button>
                             </div>
@@ -189,7 +189,7 @@
                                     <th class="p-3">Beneficio</th>
                                     <th class="p-3">Detalles / Importe</th>
                                     <th class="p-3">Vigencia</th>
-                                    <th class="p-3 w-10"></th>
+                                    <th class="p-3 w-48 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="benefits_list_body">
@@ -230,22 +230,51 @@
                         </select>
                     </div>
 
-                    <div class="flex flex-col col-span-2 auth-required hidden">
-                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Nivel de Autorización *</label>
-                        <select name="authorization_level_id" id="auth_level_id" class="w-full border p-2.5 rounded-lg text-sm bg-amber-50">
-                            <option value="">Seleccionar nivel...</option>
-                            {% for lvl in auth_levels %}<option value="{{ lvl.id }}">{{ lvl.name }}</option>{% endfor %}
-                        </select>
+                    <!-- Campos para buscar y agregar autorizantes (múltiples) -->
+                    <div class="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border border-amber-100 p-4 rounded-xl bg-amber-50/50">
+                        <div class="flex flex-col">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Nivel de Autorización</label>
+                            <select id="temp_auth_level_id" class="w-full border p-2.5 rounded-lg text-sm bg-white">
+                                <option value="">Seleccionar nivel...</option>
+                                {% for lvl in auth_levels %}<option value="{{ lvl.id }}">{{ lvl.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="relative flex flex-col">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Autorizante</label>
+                            <input type="text" id="auth_search" placeholder="Cédula o Nombre..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white" autocomplete="off">
+                            <div id="auth_results" class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto mt-14"></div>
+                            <div id="auth_details" class="hidden mt-2 p-2 bg-amber-100/60 rounded-lg text-xs flex justify-between items-center">
+                                <div>
+                                    <input type="hidden" id="temp_authorizer_id">
+                                    <input type="hidden" id="temp_authorizer_position_id">
+                                    <span id="lbl_auth_name" class="font-bold">-</span>
+                                </div>
+                                <button type="button" onclick="addAuthorizerToList()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="col-span-2 relative">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Autorizante</label>
-                        <input type="text" id="auth_search" placeholder="Cédula o Nombre..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" autocomplete="off">
-                        <div id="auth_results" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto mt-1"></div>
-                        <div id="auth_details" class="hidden mt-2 p-3 bg-amber-50 rounded-lg border border-amber-100 text-xs">
-                            <input type="hidden" name="authorizer_id" id="authorizer_id">
-                            <input type="hidden" name="authorizer_position_id" id="authorizer_position_id">
-                            <span id="lbl_auth_name" class="font-bold">-</span>
+                    <!-- Tabla de autorizantes agregados (n-firmantes) -->
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Firmantes / Autorizantes Seleccionados *</label>
+                        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                            <table class="w-full text-sm text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-50 text-[10px] font-black uppercase text-gray-500 border-b border-gray-200">
+                                        <th class="p-3">Autorizante</th>
+                                        <th class="p-3">Nivel de Autorización</th>
+                                        <th class="p-3 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="authorizers_list_body">
+                                    <tr id="empty_authorizers_row">
+                                        <td colspan="3" class="p-4 text-center text-gray-400 italic text-xs">No se han agregado autorizantes.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -325,9 +354,73 @@
         }
     }
 
+    const addedAuthorizers = [];
+
+    window.addAuthorizerToList = () => {
+        const authId = document.getElementById('temp_authorizer_id').value;
+        if (!authId) { showToast('Seleccione un autorizante', 'error'); return; }
+        
+        const levelSelect = document.getElementById('temp_auth_level_id');
+        const levelId = levelSelect.value;
+        const levelName = levelId ? levelSelect.selectedOptions[0].text : '-';
+        const name = document.getElementById('lbl_auth_name').innerText;
+        const positionId = document.getElementById('temp_authorizer_position_id').value || null;
+
+        // Evitar duplicados
+        if (addedAuthorizers.some(a => a.authorizer_id === parseInt(authId))) {
+            showToast('Este autorizante ya ha sido agregado', 'error');
+            return;
+        }
+
+        addedAuthorizers.push({
+            authorizer_id: parseInt(authId),
+            authorizer_name: name,
+            authorizer_position_id: positionId ? parseInt(positionId) : null,
+            authorization_level_id: levelId ? parseInt(levelId) : null,
+            authorization_level_name: levelName
+        });
+
+        renderAuthorizersTable();
+
+        // Limpiar campos de selección de autorizante
+        document.getElementById('temp_authorizer_id').value = '';
+        document.getElementById('temp_authorizer_position_id').value = '';
+        document.getElementById('lbl_auth_name').innerText = '-';
+        document.getElementById('auth_search').value = '';
+        document.getElementById('auth_details').classList.add('hidden');
+        document.getElementById('temp_auth_level_id').value = '';
+    };
+
+    window.removeAuthorizer = (index) => {
+        addedAuthorizers.splice(index, 1);
+        renderAuthorizersTable();
+    };
+
+    function renderAuthorizersTable() {
+        const body = document.getElementById('authorizers_list_body');
+        if (addedAuthorizers.length === 0) {
+            body.innerHTML = '<tr id="empty_authorizers_row"><td colspan="3" class="p-4 text-center text-gray-400 italic text-xs">No se han agregado autorizantes.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = '';
+        addedAuthorizers.forEach((auth, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-gray-50 hover:bg-gray-50 transition-colors text-xs";
+            tr.innerHTML = `
+                <td class="p-3 font-semibold text-gray-800">${auth.authorizer_name}</td>
+                <td class="p-3 text-gray-600">${auth.authorization_level_name}</td>
+                <td class="p-3 text-right">
+                    <button type="button" onclick="removeAuthorizer(${idx})" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
     setupSearch('employee_search', 'employee_results', 'employee_details', 'employee');
     setupSearch('req_search', 'req_results', 'req_details', 'requester');
-    setupSearch('auth_search', 'auth_results', 'auth_details', 'authorizer');
+    setupSearch('auth_search', 'auth_results', 'auth_details', 'temp_authorizer');
 
     window.toggleAuthLevel = () => {
         const status = document.getElementById('status_select').value;
@@ -337,7 +430,9 @@
     };
 
     // --- LÓGICA DE BENEFICIOS ---
-    window.renderDynamicFields = (typeId) => {
+    let editingBenefitIndex = null;
+
+    window.renderDynamicFields = (typeId, values = null) => {
         const area = document.getElementById('dynamic_fields_area');
         const benefit = benefitTypes.find(b => b.id == typeId);
         if (!benefit || !benefit.fields_schema || !benefit.fields_schema.fields) {
@@ -346,15 +441,16 @@
         area.classList.remove('hidden');
         let html = '<div class="grid grid-cols-2 gap-3">';
         benefit.fields_schema.fields.forEach(f => {
+            const val = (values && values[f.name]) ? values[f.name] : '';
             html += `<div class="${f.type === 'text' ? 'col-span-2' : ''}">
                 <label class="text-[9px] font-bold text-gray-400 uppercase">${f.name}</label>`;
             if (f.type === 'select') {
                 html += `<select class="dynamic-f border w-full p-1.5 rounded text-xs bg-white" data-name="${f.name}">
                     <option value="">Seleccionar...</option>
-                    ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+                    ${f.options.map(o => `<option value="${o}" ${o === val ? 'selected' : ''}>${o}</option>`).join('')}
                 </select>`;
             } else {
-                html += `<input type="${f.type}" class="dynamic-f border w-full p-1.5 rounded text-xs" data-name="${f.name}">`;
+                html += `<input type="${f.type}" class="dynamic-f border w-full p-1.5 rounded text-xs" data-name="${f.name}" value="${val}">`;
             }
             html += `</div>`;
         });
@@ -374,7 +470,7 @@
             benefit_type_id: parseInt(typeId),
             benefit_type_name: benefitType.name,
             benefit_subtype_id: parseInt(document.getElementById('add_benefit_subtype_id').value) || null,
-            benefit_subtype_name: document.getElementById('add_benefit_subtype_id').selectedOptions[0].text,
+            benefit_subtype_name: document.getElementById('add_benefit_subtype_id').value ? document.getElementById('add_benefit_subtype_id').selectedOptions[0].text : 'Ninguno',
             currency_id: parseInt(document.getElementById('add_currency_id').value) || null,
             currency_symbol: document.getElementById('add_currency_id').value ? document.getElementById('add_currency_id').selectedOptions[0].text.split(' - ')[0] : '',
             custom_data: Object.keys(customData).length ? customData : null,
@@ -386,17 +482,71 @@
             benefit_frequency_id: parseInt(document.getElementById('add_benefit_frequency_id').value) || null
         };
 
-        addedBenefits.push(item);
+        if (editingBenefitIndex !== null) {
+            addedBenefits[editingBenefitIndex] = item;
+            editingBenefitIndex = null;
+            // Restore button label
+            const btn = document.getElementById('add_benefit_btn');
+            btn.innerHTML = '<i class="fas fa-plus"></i> Agregar Beneficio';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            showToast('Beneficio actualizado en la lista');
+        } else {
+            addedBenefits.push(item);
+            showToast('Beneficio agregado a la lista');
+        }
+        
         renderBenefitsTable();
         
         // Limpiar campos del agregador
         document.getElementById('add_benefit_type_id').value = '';
         renderDynamicFields('');
+        document.getElementById('add_benefit_subtype_id').value = '';
+        document.getElementById('add_currency_id').value = '';
+        document.getElementById('add_validity_start_date').value = '';
+        document.getElementById('add_validity_end_date').value = '';
+        document.getElementById('add_benefit_modality_id').value = '';
+        document.getElementById('add_benefit_frequency_id').value = '';
         document.getElementById('add_description_notes').value = '';
         document.getElementById('add_approved_amount').value = '';
     };
 
+    window.editBenefit = (index) => {
+        const item = addedBenefits[index];
+        editingBenefitIndex = index;
+
+        // Set simple field values
+        document.getElementById('add_benefit_type_id').value = item.benefit_type_id;
+        document.getElementById('add_benefit_subtype_id').value = item.benefit_subtype_id || '';
+        document.getElementById('add_currency_id').value = item.currency_id || '';
+        document.getElementById('add_description_notes').value = item.description_notes || '';
+        document.getElementById('add_approved_amount').value = item.approved_amount || '';
+        document.getElementById('add_validity_start_date').value = item.validity_start_date || '';
+        document.getElementById('add_validity_end_date').value = item.validity_end_date || '';
+        document.getElementById('add_benefit_modality_id').value = item.benefit_modality_id || '';
+        document.getElementById('add_benefit_frequency_id').value = item.benefit_frequency_id || '';
+
+        // Render dynamic fields with existing custom data
+        window.renderDynamicFields(item.benefit_type_id, item.custom_data);
+
+        // Change button label
+        const btn = document.getElementById('add_benefit_btn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Actualizar Beneficio';
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        
+        // Scroll to aggregator area
+        document.getElementById('aggregator_area').scrollIntoView({ behavior: 'smooth' });
+    };
+
     window.removeBenefit = (index) => {
+        if (editingBenefitIndex === index) {
+            editingBenefitIndex = null;
+            const btn = document.getElementById('add_benefit_btn');
+            btn.innerHTML = '<i class="fas fa-plus"></i> Agregar Beneficio';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        }
         addedBenefits.splice(index, 1);
         renderBenefitsTable();
     };
@@ -424,8 +574,13 @@
                 <td class="p-3">
                     <div class="text-[10px] text-gray-500">${item.validity_start_date || '?'} al ${item.validity_end_date || '?'}</div>
                 </td>
-                <td class="p-3 text-right">
-                    <button type="button" onclick="removeBenefit(${idx})" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
+                <td class="p-3 text-right whitespace-nowrap">
+                    <button type="button" onclick="editBenefit(${idx})" class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 border border-blue-200 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors mr-1" title="Editar item">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" onclick="removeBenefit(${idx})" class="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border border-red-200 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors" title="Eliminar">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
                 </td>
             `;
             body.appendChild(tr);
@@ -441,13 +596,30 @@
         const payload = Object.fromEntries(formData.entries());
         
         // Limpiar nulos y tipos
-        ['authorization_level_id', 'authorizer_id', 'authorizer_position_id', 'employee_position_id', 'requester_position_id'].forEach(k => {
+        ['employee_position_id', 'requester_position_id'].forEach(k => {
             if (!payload[k]) delete payload[k]; else payload[k] = parseInt(payload[k]);
         });
         payload.request_type_id = parseInt(payload.request_type_id);
         payload.grant_reason_id = parseInt(payload.grant_reason_id);
         payload.employee_id = parseInt(payload.employee_id);
         payload.requester_id = parseInt(payload.requester_id);
+        
+        // Agregar los autorizantes
+        payload.authorizers = addedAuthorizers.map(auth => ({
+            authorizer_id: auth.authorizer_id,
+            authorizer_position_id: auth.authorizer_position_id,
+            authorization_level_id: auth.authorization_level_id
+        }));
+
+        if (payload.authorizers.length > 0) {
+            payload.authorizer_id = payload.authorizers[0].authorizer_id;
+            payload.authorizer_position_id = payload.authorizers[0].authorizer_position_id;
+            payload.authorization_level_id = payload.authorizers[0].authorization_level_id;
+        } else {
+            payload.authorizer_id = null;
+            payload.authorizer_position_id = null;
+            payload.authorization_level_id = null;
+        }
         
         // Agregar los items
         payload.items = addedBenefits.map(item => {

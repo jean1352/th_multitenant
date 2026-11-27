@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Editar Solicitud - {{ req.request_code }}{% endblock %}
+{% block title %}Editar Solicitud - {{ req.request_code }} - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex justify-between items-center">
@@ -98,7 +98,7 @@
 
                 <div class="p-6 space-y-6">
                     {# FORMULARIO PARA AGREGAR BENEFICIO #}
-                    <div class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
+                    <div id="aggregator_area" class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
                         <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-3">Agregar Beneficio</h4>
                         
                         <div class="grid grid-cols-2 gap-4">
@@ -170,7 +170,7 @@
                             </div>
 
                             <div class="col-span-2 flex justify-end">
-                                <button type="button" onclick="addBenefitToList()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                                <button type="button" id="add_benefit_btn" onclick="addBenefitToList()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
                                     <i class="fas fa-plus"></i> Agregar Beneficio
                                 </button>
                             </div>
@@ -185,7 +185,7 @@
                                     <th class="p-3">Beneficio</th>
                                     <th class="p-3">Detalles / Importe</th>
                                     <th class="p-3">Vigencia</th>
-                                    <th class="p-3 w-10"></th>
+                                    <th class="p-3 w-48 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="benefits_list_body">
@@ -225,22 +225,51 @@
                         </select>
                     </div>
 
-                    <div class="flex flex-col col-span-2 auth-required {% if req.status != 'Aprobada' and req.status != 'Rechazada' %}hidden{% endif %}">
-                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Nivel de Autorización *</label>
-                        <select name="authorization_level_id" id="auth_level_id" class="w-full border p-2.5 rounded-lg text-sm bg-amber-50" {% if req.status == 'Aprobada' or req.status == 'Rechazada' %}required{% endif %}>
-                            <option value="">Seleccionar nivel...</option>
-                            {% for lvl in auth_levels %}<option value="{{ lvl.id }}" {% if req.authorization_level_id == lvl.id %}selected{% endif %}>{{ lvl.name }}</option>{% endfor %}
-                        </select>
+                    <!-- Campos para buscar y agregar autorizantes (múltiples) -->
+                    <div class="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border border-amber-100 p-4 rounded-xl bg-amber-50/50">
+                        <div class="flex flex-col">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase mb-1">Nivel de Autorización</label>
+                            <select id="temp_auth_level_id" class="w-full border p-2.5 rounded-lg text-sm bg-white">
+                                <option value="">Seleccionar nivel...</option>
+                                {% for lvl in auth_levels %}<option value="{{ lvl.id }}">{{ lvl.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="relative flex flex-col">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Autorizante</label>
+                            <input type="text" id="auth_search" placeholder="Cédula o Nombre..." class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white" autocomplete="off">
+                            <div id="auth_results" class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto mt-14"></div>
+                            <div id="auth_details" class="hidden mt-2 p-2 bg-amber-100/60 rounded-lg text-xs flex justify-between items-center">
+                                <div>
+                                    <input type="hidden" id="temp_authorizer_id">
+                                    <input type="hidden" id="temp_authorizer_position_id">
+                                    <span id="lbl_auth_name" class="font-bold">-</span>
+                                </div>
+                                <button type="button" onclick="addAuthorizerToList()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="col-span-2 relative">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Autorizante</label>
-                        <input type="text" id="auth_search" placeholder="{% if req.authorizer %}Seleccionado: {{ req.authorizer.full_name }}{% else %}Buscar...{% endif %}" class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none {% if req.authorizer %}bg-gray-50{% endif %}" autocomplete="off">
-                        <div id="auth_results" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto mt-1"></div>
-                        <div id="auth_details" class="{% if not req.authorizer %}hidden{% endif %} mt-2 p-3 bg-amber-50 rounded-lg border border-amber-100 text-xs">
-                            <input type="hidden" name="authorizer_id" id="authorizer_id" value="{{ req.authorizer_id or '' }}">
-                            <input type="hidden" name="authorizer_position_id" id="authorizer_position_id" value="{{ req.authorizer_position_id or '' }}">
-                            <span id="lbl_auth_name" class="font-bold">{{ req.authorizer.full_name if req.authorizer else '-' }}</span>
+                    <!-- Tabla de autorizantes agregados (n-firmantes) -->
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Firmantes / Autorizantes Seleccionados *</label>
+                        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                            <table class="w-full text-sm text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-50 text-[10px] font-black uppercase text-gray-500 border-b border-gray-200">
+                                        <th class="p-3">Autorizante</th>
+                                        <th class="p-3">Nivel de Autorización</th>
+                                        <th class="p-3 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="authorizers_list_body">
+                                    <tr id="empty_authorizers_row">
+                                        <td colspan="3" class="p-4 text-center text-gray-400 italic text-xs">No se han agregado autorizantes.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -270,6 +299,51 @@
     </div>
 </form>
 
+{# --- ARCHIVOS ADJUNTOS (disponible en cualquier estado) --- #}
+<div class="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+    <h3 class="text-xs font-black text-blue-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+        <i class="fas fa-paperclip"></i> Archivos Adjuntos (PDF, Word, PPT)
+    </h3>
+    <p class="text-xs text-gray-500 mb-4">Adjunta o elimina archivos de esta solicitud. Disponible en cualquier estado.</p>
+
+    <div class="space-y-3 mb-5">
+        {% for att in req.attachments %}
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div class="w-9 h-9 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center">
+                <i class="fas fa-file"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-gray-800 text-sm truncate">{{ att.name }}</div>
+                <div class="text-[10px] text-gray-500">
+                    {% if att.upload_date %}{{ att.upload_date[:19].replace('T', ' ') if att.upload_date is string else att.upload_date }}{% endif %}
+                    {% if att.uploaded_by %} · Subido por {{ att.uploaded_by.full_name }}{% endif %}
+                </div>
+            </div>
+            <a href="{{ att.file_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-bold whitespace-nowrap">Ver</a>
+            <button type="button" onclick="deleteAttachment({{ att.id }})" class="text-red-500 hover:text-red-700 text-xs font-bold whitespace-nowrap">Eliminar</button>
+        </div>
+        {% else %}
+        <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-100">
+            <p class="text-gray-400 font-medium italic">No hay archivos adjuntos en esta solicitud.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form id="attachmentForm" class="flex flex-col md:flex-row gap-3 items-end">
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nombre del archivo</label>
+            <input type="text" name="name" placeholder="Ej: Resolución, Formulario firmado..." class="w-full border border-gray-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
+        </div>
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Archivo (PDF, Word, PPT)</label>
+            <input type="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx" class="w-full border border-gray-300 p-2 rounded-lg text-sm" required>
+        </div>
+        <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-sm transition-all whitespace-nowrap">
+            <i class="fas fa-upload mr-1"></i> Adjuntar
+        </button>
+    </form>
+</div>
+
 <script type="module">
     import { ApiClient, showToast } from '/static/js/api_client.js';
 
@@ -277,7 +351,7 @@
     const initialItems = {{ req['items'] | tojson | safe }};
     const addedBenefits = initialItems.map(item => ({
         benefit_type_id: item.benefit_type_id,
-        benefit_type_name: item.benefit_type.name,
+        benefit_type_name: item.benefit_type ? item.benefit_type.name : 'Desconocido',
         benefit_subtype_id: item.benefit_subtype_id,
         benefit_subtype_name: item.benefit_subtype ? item.benefit_subtype.name : 'Ninguno',
         currency_id: item.currency_id,
@@ -292,6 +366,79 @@
     }));
 
     renderBenefitsTable();
+
+    const initialAuthorizers = {{ req['authorizers'] | tojson | safe }} || [];
+    const addedAuthorizers = initialAuthorizers.map(auth => ({
+        authorizer_id: auth.authorizer_id,
+        authorizer_name: auth.authorizer ? auth.authorizer.full_name : '-',
+        authorizer_position_id: auth.authorizer_position_id,
+        authorization_level_id: auth.authorization_level_id,
+        authorization_level_name: auth.authorization_level ? auth.authorization_level.name : '-'
+    }));
+
+    window.addAuthorizerToList = () => {
+        const authId = document.getElementById('temp_authorizer_id').value;
+        if (!authId) { showToast('Seleccione un autorizante', 'error'); return; }
+        
+        const levelSelect = document.getElementById('temp_auth_level_id');
+        const levelId = levelSelect.value;
+        const levelName = levelId ? levelSelect.selectedOptions[0].text : '-';
+        const name = document.getElementById('lbl_auth_name').innerText;
+        const positionId = document.getElementById('temp_authorizer_position_id').value || null;
+
+        // Evitar duplicados
+        if (addedAuthorizers.some(a => a.authorizer_id === parseInt(authId))) {
+            showToast('Este autorizante ya ha sido agregado', 'error');
+            return;
+        }
+
+        addedAuthorizers.push({
+            authorizer_id: parseInt(authId),
+            authorizer_name: name,
+            authorizer_position_id: positionId ? parseInt(positionId) : null,
+            authorization_level_id: levelId ? parseInt(levelId) : null,
+            authorization_level_name: levelName
+        });
+
+        renderAuthorizersTable();
+
+        // Limpiar campos de selección de autorizante
+        document.getElementById('temp_authorizer_id').value = '';
+        document.getElementById('temp_authorizer_position_id').value = '';
+        document.getElementById('lbl_auth_name').innerText = '-';
+        document.getElementById('auth_search').value = '';
+        document.getElementById('auth_details').classList.add('hidden');
+        document.getElementById('temp_auth_level_id').value = '';
+    };
+
+    window.removeAuthorizer = (index) => {
+        addedAuthorizers.splice(index, 1);
+        renderAuthorizersTable();
+    };
+
+    function renderAuthorizersTable() {
+        const body = document.getElementById('authorizers_list_body');
+        if (addedAuthorizers.length === 0) {
+            body.innerHTML = '<tr id="empty_authorizers_row"><td colspan="3" class="p-4 text-center text-gray-400 italic text-xs">No se han agregado autorizantes.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = '';
+        addedAuthorizers.forEach((auth, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-gray-50 hover:bg-gray-50 transition-colors text-xs";
+            tr.innerHTML = `
+                <td class="p-3 font-semibold text-gray-800">${auth.authorizer_name}</td>
+                <td class="p-3 text-gray-600">${auth.authorization_level_name}</td>
+                <td class="p-3 text-right">
+                    <button type="button" onclick="removeAuthorizer(${idx})" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    renderAuthorizersTable();
 
     // --- BÚSQUEDA DE PERSONAS (Igual que en create) ---
     function setupSearch(inputId, resultsId, detailsId, prefix) {
@@ -337,7 +484,7 @@
 
     setupSearch('employee_search', 'employee_results', 'employee_details', 'employee');
     setupSearch('req_search', 'req_results', 'req_details', 'requester');
-    setupSearch('auth_search', 'auth_results', 'auth_details', 'authorizer');
+    setupSearch('auth_search', 'auth_results', 'auth_details', 'temp_authorizer');
 
     window.toggleAuthLevel = () => {
         const status = document.getElementById('status_select').value;
@@ -347,7 +494,9 @@
     };
 
     // --- LÓGICA DE BENEFICIOS ---
-    window.renderDynamicFields = (typeId) => {
+    let editingBenefitIndex = null;
+
+    window.renderDynamicFields = (typeId, values = null) => {
         const area = document.getElementById('dynamic_fields_area');
         const benefit = benefitTypes.find(b => b.id == typeId);
         if (!benefit || !benefit.fields_schema || !benefit.fields_schema.fields) {
@@ -356,15 +505,16 @@
         area.classList.remove('hidden');
         let html = '<div class="grid grid-cols-2 gap-3">';
         benefit.fields_schema.fields.forEach(f => {
+            const val = (values && values[f.name]) ? values[f.name] : '';
             html += `<div class="${f.type === 'text' ? 'col-span-2' : ''}">
                 <label class="text-[9px] font-bold text-gray-400 uppercase">${f.name}</label>`;
             if (f.type === 'select') {
                 html += `<select class="dynamic-f border w-full p-1.5 rounded text-xs bg-white" data-name="${f.name}">
                     <option value="">Seleccionar...</option>
-                    ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+                    ${f.options.map(o => `<option value="${o}" ${o === val ? 'selected' : ''}>${o}</option>`).join('')}
                 </select>`;
             } else {
-                html += `<input type="${f.type}" class="dynamic-f border w-full p-1.5 rounded text-xs" data-name="${f.name}">`;
+                html += `<input type="${f.type}" class="dynamic-f border w-full p-1.5 rounded text-xs" data-name="${f.name}" value="${val}">`;
             }
             html += `</div>`;
         });
@@ -384,7 +534,7 @@
             benefit_type_id: parseInt(typeId),
             benefit_type_name: benefitType.name,
             benefit_subtype_id: parseInt(document.getElementById('add_benefit_subtype_id').value) || null,
-            benefit_subtype_name: document.getElementById('add_benefit_subtype_id').selectedOptions[0].text,
+            benefit_subtype_name: document.getElementById('add_benefit_subtype_id').value ? document.getElementById('add_benefit_subtype_id').selectedOptions[0].text : 'Ninguno',
             currency_id: parseInt(document.getElementById('add_currency_id').value) || null,
             currency_symbol: document.getElementById('add_currency_id').value ? document.getElementById('add_currency_id').selectedOptions[0].text.split(' - ')[0] : '',
             custom_data: Object.keys(customData).length ? customData : null,
@@ -396,13 +546,71 @@
             benefit_frequency_id: parseInt(document.getElementById('add_benefit_frequency_id').value) || null
         };
 
-        addedBenefits.push(item);
+        if (editingBenefitIndex !== null) {
+            addedBenefits[editingBenefitIndex] = item;
+            editingBenefitIndex = null;
+            // Restore button label
+            const btn = document.getElementById('add_benefit_btn');
+            btn.innerHTML = '<i class="fas fa-plus"></i> Agregar Beneficio';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            showToast('Beneficio actualizado en la lista');
+        } else {
+            addedBenefits.push(item);
+            showToast('Beneficio agregado a la lista');
+        }
+        
         renderBenefitsTable();
-        document.getElementById('add_benefit_type_id').value = ''; renderDynamicFields('');
-        document.getElementById('add_description_notes').value = ''; document.getElementById('add_approved_amount').value = '';
+        
+        // Limpiar campos del agregador
+        document.getElementById('add_benefit_type_id').value = '';
+        renderDynamicFields('');
+        document.getElementById('add_benefit_subtype_id').value = '';
+        document.getElementById('add_currency_id').value = '';
+        document.getElementById('add_validity_start_date').value = '';
+        document.getElementById('add_validity_end_date').value = '';
+        document.getElementById('add_benefit_modality_id').value = '';
+        document.getElementById('add_benefit_frequency_id').value = '';
+        document.getElementById('add_description_notes').value = '';
+        document.getElementById('add_approved_amount').value = '';
+    };
+
+    window.editBenefit = (index) => {
+        const item = addedBenefits[index];
+        editingBenefitIndex = index;
+
+        // Set simple field values
+        document.getElementById('add_benefit_type_id').value = item.benefit_type_id;
+        document.getElementById('add_benefit_subtype_id').value = item.benefit_subtype_id || '';
+        document.getElementById('add_currency_id').value = item.currency_id || '';
+        document.getElementById('add_description_notes').value = item.description_notes || '';
+        document.getElementById('add_approved_amount').value = item.approved_amount || '';
+        document.getElementById('add_validity_start_date').value = item.validity_start_date || '';
+        document.getElementById('add_validity_end_date').value = item.validity_end_date || '';
+        document.getElementById('add_benefit_modality_id').value = item.benefit_modality_id || '';
+        document.getElementById('add_benefit_frequency_id').value = item.benefit_frequency_id || '';
+
+        // Render dynamic fields with existing custom data
+        window.renderDynamicFields(item.benefit_type_id, item.custom_data);
+
+        // Change button label
+        const btn = document.getElementById('add_benefit_btn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Actualizar Beneficio';
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        
+        // Scroll to aggregator area
+        document.getElementById('aggregator_area').scrollIntoView({ behavior: 'smooth' });
     };
 
     window.removeBenefit = (index) => {
+        if (editingBenefitIndex === index) {
+            editingBenefitIndex = null;
+            const btn = document.getElementById('add_benefit_btn');
+            btn.innerHTML = '<i class="fas fa-plus"></i> Agregar Beneficio';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        }
         addedBenefits.splice(index, 1);
         renderBenefitsTable();
     };
@@ -429,8 +637,13 @@
                 <td class="p-3">
                     <div class="text-[10px] text-gray-500">${item.validity_start_date || '?'} al ${item.validity_end_date || '?'}</div>
                 </td>
-                <td class="p-3 text-right">
-                    <button type="button" onclick="removeBenefit(${idx})" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
+                <td class="p-3 text-right whitespace-nowrap">
+                    <button type="button" onclick="editBenefit(${idx})" class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 border border-blue-200 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors mr-1" title="Editar item">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" onclick="removeBenefit(${idx})" class="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border border-red-200 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors" title="Eliminar">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
                 </td>
             `;
             body.appendChild(tr);
@@ -443,9 +656,27 @@
         if (!addedBenefits.length) { showToast('Debe agregar al menos un beneficio', 'error'); return; }
         const formData = new FormData(e.target);
         const payload = Object.fromEntries(formData.entries());
-        ['authorization_level_id', 'authorizer_id', 'authorizer_position_id', 'employee_position_id', 'requester_position_id'].forEach(k => {
+        ['employee_position_id', 'requester_position_id'].forEach(k => {
             if (!payload[k]) delete payload[k]; else payload[k] = parseInt(payload[k]);
         });
+        
+        // Agregar los autorizantes
+        payload.authorizers = addedAuthorizers.map(auth => ({
+            authorizer_id: auth.authorizer_id,
+            authorizer_position_id: auth.authorizer_position_id,
+            authorization_level_id: auth.authorization_level_id
+        }));
+
+        if (payload.authorizers.length > 0) {
+            payload.authorizer_id = payload.authorizers[0].authorizer_id;
+            payload.authorizer_position_id = payload.authorizers[0].authorizer_position_id;
+            payload.authorization_level_id = payload.authorizers[0].authorization_level_id;
+        } else {
+            payload.authorizer_id = null;
+            payload.authorizer_position_id = null;
+            payload.authorization_level_id = null;
+        }
+
         payload.items = addedBenefits.map(item => {
             const { benefit_type_name, benefit_subtype_name, currency_symbol, ...cleanItem } = item;
             return cleanItem;
@@ -456,6 +687,34 @@
             showToast('Solicitud actualizada correctamente');
             setTimeout(() => window.location.href = '/benefits/requests', 1000);
         } catch(err) { e.submitter.disabled = false; e.submitter.innerHTML = 'Guardar Cambios'; showToast(err.message, 'error'); }
+    });
+
+    // --- ARCHIVOS ADJUNTOS ---
+    window.deleteAttachment = async (id) => {
+        if (!await uiConfirm('¿Eliminar este archivo adjunto?')) return;
+        try {
+            await ApiClient.delete(`/benefits/api/attachments/${id}`);
+            showToast('Archivo eliminado correctamente.');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    };
+
+    document.getElementById('attachmentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const btn = form.querySelector('button[type="submit"]');
+        try {
+            btn.disabled = true; btn.innerHTML = 'Adjuntando...';
+            await ApiClient.post('/benefits/api/requests/{{ req.id }}/attachments', formData);
+            showToast('Archivo adjuntado correctamente.');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Adjuntar';
+            showToast(err.message, 'error');
+        }
     });
 </script>
 {% endblock %}

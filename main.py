@@ -53,6 +53,7 @@ from app.modules.tenants.admin_router import router as admin_router
 
 # Importar Servicio Scheduler
 from app.modules.scheduler.service import start_scheduler, sync_jobs_from_db
+from app.modules.recruitment.business_calendar import refresh_holidays_cache
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,11 +61,17 @@ async def lifespan(app: FastAPI):
     # Sincronización automática de base de datos (público y tenants)
     await auto_upgrade_db_schema()
     
-    start_scheduler()
-    logger.info("✅ Scheduler iniciado.")
+    if settings.RUN_SCHEDULER:
+        start_scheduler()
+        logger.info("✅ Scheduler iniciado.")
+    else:
+        logger.info("⏸️ Scheduler deshabilitado en este worker (RUN_SCHEDULER=False).")
     
     async with AsyncSessionLocal() as db:
-        await sync_jobs_from_db(db)
+        if settings.RUN_SCHEDULER:
+            await sync_jobs_from_db(db)
+        # Cargar días no laborables (feriados) al cache para el contador de días hábiles (SLA).
+        await refresh_holidays_cache(db)
         from app.modules.auth.service import ensure_superadmin
         await ensure_superadmin(db)
         
@@ -105,7 +112,22 @@ async def permission_exception_handler(request: Request, exc: RolePermissionErro
 
 @app.exception_handler(NeedsLoginException)
 async def auth_exception_handler(request: Request, exc: NeedsLoginException):
-    # Redirige a la ruta de login de tu aplicación
+    # Para peticiones AJAX/API devolvemos 401 JSON (el frontend gestiona el logout).
+    # Para navegación normal redirigimos al login.
+    accept = request.headers.get("accept", "")
+    x_requested_with = request.headers.get("x-requested-with", "")
+    is_api = (
+        "/api/" in request.url.path
+        or "application/json" in accept
+        or x_requested_with == "XMLHttpRequest"
+    )
+
+    if is_api:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "No has iniciado sesión o la sesión expiró."},
+        )
+
     return RedirectResponse(url="/login", status_code=303)
 
 # --- ROUTERS ---

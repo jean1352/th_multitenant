@@ -105,6 +105,10 @@ class BenefitRequest(Base):
     benefit_status: Mapped[str] = mapped_column(String, default="Pendiente") # Activo, Suspendido, Finalizado, Pendiente, Rechazado
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    # 7. Auditoría de Aprobación
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+
     # Relaciones
     employee: Mapped["Employee"] = relationship("Employee", foreign_keys=[employee_id])
     employee_position: Mapped[Optional["EmployeePosition"]] = relationship("app.modules.employees.models.EmployeePosition", foreign_keys=[employee_position_id])
@@ -120,6 +124,10 @@ class BenefitRequest(Base):
     authorization_level: Mapped[Optional["AuthorizationLevel"]] = relationship("AuthorizationLevel")
 
     items: Mapped[List["BenefitRequestItem"]] = relationship("BenefitRequestItem", back_populates="benefit_request", cascade="all, delete-orphan")
+    authorizers: Mapped[List["BenefitRequestAuthorizer"]] = relationship("BenefitRequestAuthorizer", back_populates="benefit_request", cascade="all, delete-orphan")
+    approved_by: Mapped[Optional["User"]] = relationship("app.modules.auth.models.User", foreign_keys=[approved_by_user_id])
+
+    attachments: Mapped[List["BenefitRequestAttachment"]] = relationship("BenefitRequestAttachment", back_populates="benefit_request", cascade="all, delete-orphan")
 
 class BenefitRequestItem(Base):
     """Items individuales de una solicitud de beneficios."""
@@ -149,3 +157,34 @@ class BenefitRequestItem(Base):
     currency: Mapped[Optional["Currency"]] = relationship("app.modules.organization.models.Currency")
     benefit_modality: Mapped[Optional["BenefitModality"]] = relationship("BenefitModality")
     benefit_frequency: Mapped[Optional["BenefitFrequency"]] = relationship("BenefitFrequency")
+
+class BenefitRequestAuthorizer(Base):
+    """Firmantes / Autorizantes de una Solicitud de Beneficio."""
+    __tablename__ = "benefit_request_authorizers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    benefit_request_id: Mapped[int] = mapped_column(ForeignKey("benefit_requests.id", ondelete="CASCADE"))
+    authorizer_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
+    authorizer_position_id: Mapped[Optional[int]] = mapped_column(ForeignKey("employee_positions.id"), nullable=True)
+    authorization_level_id: Mapped[Optional[int]] = mapped_column(ForeignKey("authorization_levels.id"), nullable=True)
+
+    # Relaciones
+    benefit_request: Mapped["BenefitRequest"] = relationship("BenefitRequest", back_populates="authorizers")
+    authorizer: Mapped["Employee"] = relationship("Employee", foreign_keys=[authorizer_id])
+    authorizer_position: Mapped[Optional["EmployeePosition"]] = relationship("app.modules.employees.models.EmployeePosition", foreign_keys=[authorizer_position_id])
+    authorization_level: Mapped[Optional["AuthorizationLevel"]] = relationship("AuthorizationLevel")
+
+class BenefitRequestAttachment(Base):
+    """Archivos adjuntos (pdf, word, ppt, etc.) de una Solicitud de Beneficio."""
+    __tablename__ = "benefit_request_attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    benefit_request_id: Mapped[int] = mapped_column(ForeignKey("benefit_requests.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String)
+    file_url: Mapped[str] = mapped_column(String)
+    upload_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    uploaded_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    # Relaciones
+    benefit_request: Mapped["BenefitRequest"] = relationship("BenefitRequest", back_populates="attachments")
+    uploaded_by: Mapped[Optional["User"]] = relationship("app.modules.auth.models.User", foreign_keys=[uploaded_by_user_id])

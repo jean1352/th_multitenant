@@ -7,7 +7,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse
-from app.core.templates import templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -18,6 +17,7 @@ from app.modules.auth.dependencies import is_admin
 from app.core.config import settings
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+from app.core.templates import templates
 
 
 @router.get("/", response_class=HTMLResponse)

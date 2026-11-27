@@ -164,6 +164,7 @@ class Vacancy(Base):
     position: Mapped["Position"] = relationship("app.modules.organization.models.Position")
     hiring_reason: Mapped["HiringReason"] = relationship()
     recruiter: Mapped["User"] = relationship("app.modules.auth.models.User", foreign_keys=[recruiter_id])
+    requester: Mapped["User"] = relationship("app.modules.auth.models.User", foreign_keys=[requester_id])
 
 
 class VacancyStage(Base):
@@ -180,6 +181,9 @@ class VacancyStage(Base):
     )
     sla_days_snapshot: Mapped[int] = mapped_column(Integer)
     order_index: Mapped[int] = mapped_column(Integer)
+    # True si la etapa fue agregada manualmente a una vacante específica
+    # (adicional); False si proviene de la plantilla del proceso.
+    is_custom: Mapped[bool] = mapped_column(Boolean, default=False)
 
     start_date: Mapped[date] = mapped_column(
         Date, default=func.current_date()

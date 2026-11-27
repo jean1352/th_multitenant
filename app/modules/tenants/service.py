@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.modules.tenants.models import Tenant
-from app.core.database import Base, engine
+from app.core.database import Base, engine, validate_schema_name, AsyncSessionLocal
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ async def create_tenant(db: AsyncSession, name: str, subdomain: str) -> Tenant:
     """
     Crea un nuevo tenant, su esquema en la base de datos y todas las tablas necesarias.
     """
-    schema_name = f"tenant_{subdomain.replace('-', '_')}"
+    schema_name = validate_schema_name(f"tenant_{subdomain.replace('-', '_')}")
     
     # 1. Crear el registro en la tabla pública
     new_tenant = Tenant(
@@ -27,15 +27,18 @@ async def create_tenant(db: AsyncSession, name: str, subdomain: str) -> Tenant:
         await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"'))
         
         # 3. Crear las tablas en el nuevo esquema
-        # Para esto, temporalmente seteamos el search_path en la conexión de creación
         await conn.execute(text(f'SET search_path TO "{schema_name}"'))
-        
-        # Ejecutamos create_all para el esquema actual
-        # Base.metadata.create_all es síncrono, necesitamos run_sync
         await conn.run_sync(Base.metadata.create_all)
-        
-        # Restablecemos el search_path a public para que la conexión no quede sucia en el pool
         await conn.execute(text('SET search_path TO public'))
+
+    # 4. Sembrar reglas por defecto de automatización en el nuevo tenant
+    try:
+        from app.modules.scheduler.service import seed_default_rules
+        async with AsyncSessionLocal() as tenant_db:
+            await tenant_db.execute(text(f'SET search_path TO "{schema_name}", public'))
+            await seed_default_rules(tenant_db)
+    except Exception as e:
+        logger.warning(f"No se pudieron sembrar reglas iniciales para '{schema_name}': {e}")
         
     logger.info(f"Tenant '{name}' creado con esquema '{schema_name}'")
     return new_tenant

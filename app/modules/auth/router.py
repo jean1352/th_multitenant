@@ -46,8 +46,15 @@ async def logout(response: Response):
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_view(request: Request, token: str):
+    from app.core.tenants import get_current_tenant
     payload = decode_access_token(token)
-    valid = payload is not None and payload.get("type") == "reset"
+    tenant = get_current_tenant()
+    expected_tenant = tenant.schema_name if tenant else "public"
+    valid = (
+        payload is not None
+        and payload.get("type") == "reset"
+        and payload.get("tenant") == expected_tenant
+    )
     
     return templates.TemplateResponse(request=request, name="auth/reset_password.html", context= 
         {"request": request, "token": token, "valid": valid, "settings": settings}
@@ -125,6 +132,7 @@ async def login_api(
         value=f"Bearer {token}",
         httponly=True,
         samesite="lax",
+        secure=(settings.BASE_SCHEME == "https"),
     )
     
     return {
@@ -149,6 +157,7 @@ async def refresh_token_api(
         value=f"Bearer {new_token}",
         httponly=True,
         samesite="lax",
+        secure=(settings.BASE_SCHEME == "https"),
     )
     
     return {

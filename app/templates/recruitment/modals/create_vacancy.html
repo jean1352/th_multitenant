@@ -10,15 +10,15 @@
                 <h3 class="text-lg leading-6 font-medium text-gray-900">Nueva Vacante</h3>
                 <form id="createVacancyForm" class="mt-4 space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Título de la Publicación</label>
-                        <input type="text" name="title" required placeholder="Ej: Analista de Marketing"
+                        <label for="vacancy_title" class="block text-sm font-medium text-gray-700">Título de la Publicación</label>
+                        <input id="vacancy_title" type="text" name="title" required placeholder="Ej: Analista de Marketing"
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2">
                     </div>
 
                     <!-- CASCADA: SEDE -> AREA -> CARGO -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Sede</label>
+                            <label for="sede_select" class="block text-sm font-medium text-gray-700">Sede</label>
                             <select id="sede_select"
                                 class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white"
                                 onchange="loadAreas(this.value)">
@@ -29,7 +29,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Área Solicitante</label>
+                            <label for="area_select" class="block text-sm font-medium text-gray-700">Área Solicitante</label>
                             <select name="area_id" id="area_select" required disabled
                                 class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-gray-50"
                                 onchange="loadPositions(this.value)">
@@ -39,7 +39,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Cargo / Puesto (Estructura)</label>
+                        <label for="position_select" class="block text-sm font-medium text-gray-700">Cargo / Puesto (Estructura)</label>
                         <select name="position_id" id="position_select" required disabled
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-gray-50">
                             <option value="">Primero seleccione Área</option>
@@ -47,8 +47,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Proceso de Selección</label>
-                        <select name="process_id" required
+                        <label for="vacancy_process" class="block text-sm font-medium text-gray-700">Proceso de Selección</label>
+                        <select id="vacancy_process" name="process_id" required
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
                             <option value="">Seleccione Plantilla...</option>
                             {% for proc in processes %}
@@ -58,8 +58,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Motivo de Contratación</label>
-                        <select name="hiring_reason_id"
+                        <label for="vacancy_hiring_reason" class="block text-sm font-medium text-gray-700">Motivo de Contratación</label>
+                        <select id="vacancy_hiring_reason" name="hiring_reason_id"
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
                             <option value="">Seleccione Motivo...</option>
                             {% for reason in hiring_reasons %}
@@ -69,8 +69,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Responsable / Reclutador</label>
-                        <select name="recruiter_id"
+                        <label for="vacancy_recruiter" class="block text-sm font-medium text-gray-700">Responsable / Reclutador</label>
+                        <select id="vacancy_recruiter" name="recruiter_id"
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2 bg-white">
                             <option value="">Asignar a...</option>
                             {% for u in recruiters %}
@@ -89,8 +89,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Descripción / Perfil</label>
-                        <textarea name="description" rows="3" required
+                        <label for="vacancy_description" class="block text-sm font-medium text-gray-700">Descripción / Perfil</label>
+                        <textarea id="vacancy_description" name="description" rows="3" required
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2"></textarea>
                     </div>
                 </form>

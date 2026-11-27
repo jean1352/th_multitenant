@@ -1,121 +1,153 @@
 {% extends "layouts/base.html" %}
-{% block title %}{{ training.name }}{% endblock %}
+{% block title %}{{ training.name }} - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 {% block content %}
 <div class="mb-6">
-    <a href="/trainings/" class="text-blue-600 hover:underline text-sm">&larr; Volver</a>
-    <div class="flex justify-between items-start mt-2">
+    <a href="/trainings/" class="text-blue-600 hover:underline text-sm">&larr; Volver al Plan</a>
+    <div class="flex flex-col md:flex-row justify-between items-start mt-2 gap-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">{{ training.name }}</h1>
-            
-            <!-- INFO TIPO DE CAPACITACIÓN -->
-            <div class="text-gray-600 mt-1 flex gap-4 items-center flex-wrap">
-                <span class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    {{ training.start_date.strftime('%d/%m') }} - {{ training.end_date.strftime('%d/%m/%Y') }}
-                </span>
-                
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded">{{ training.code or ('#' ~ training.id) }}</span>
+                <h1 class="text-3xl font-bold text-gray-900">{{ training.name }}</h1>
+            </div>
+            <div class="text-gray-600 mt-2 flex gap-3 items-center flex-wrap text-sm">
+                <span>{{ training.start_date.strftime('%d/%m/%Y') }} - {{ training.end_date.strftime('%d/%m/%Y') }}</span>
+                <span>&bull; {{ training.modality or 'presencial' }} &bull; {{ training.hours or 0 }} h</span>
+                {% if training.capacity %}<span>&bull; Cupo: {{ training.capacity }}</span>{% endif %}
                 {% if training.type.value == 'internal' %}
-                    <span class="bg-purple-50 text-purple-800 px-2 py-0.5 rounded text-sm border border-purple-200 font-medium">INTERNA</span>
-                    {% if training.internal_instructor %}
-                        <a href="/employees/{{ training.internal_instructor.id }}" class="text-blue-600 hover:underline text-sm flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                            {{ training.internal_instructor.full_name }}
-                        </a>
-                    {% else %}
-                        <span class="text-gray-400 text-sm italic">Instructor no asignado</span>
-                    {% endif %}
+                    <span class="bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold text-xs">INTERNA</span>
+                    <span>Facilitador: <strong>{{ training.internal_instructor.full_name if training.internal_instructor else 'Sin asignar' }}</strong></span>
+                {% elif training.type.value == 'replica' %}
+                    <span class="bg-teal-50 text-teal-800 px-2 py-0.5 rounded border border-teal-200 font-bold text-xs">RÉPLICA</span>
+                    <span>Facilitador: <strong>{{ training.internal_instructor.full_name if training.internal_instructor else 'Sin asignar' }}</strong></span>
+                    {% if training.source_training %}<a href="/trainings/{{ training.source_training.id }}" class="text-blue-600 underline text-xs">Origen: {{ training.source_training.name }}</a>{% endif %}
                 {% else %}
-                    <span class="bg-orange-50 text-orange-800 px-2 py-0.5 rounded text-sm border border-orange-200 font-medium">EXTERNA</span>
-                    <span class="text-gray-700 text-sm font-medium flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                        {{ training.provider_obj.business_name if training.provider_obj else 'Sin Proveedor' }}
-                    </span>
+                    <span class="bg-orange-50 text-orange-800 px-2 py-0.5 rounded border border-orange-200 font-bold text-xs">EXTERNA</span>
+                    <span>Proveedor: <strong>{{ training.provider_obj.business_name if training.provider_obj else 'Sin Proveedor' }}</strong></span>
                 {% endif %}
             </div>
-            
             {% if training.type.value == 'external' %}
-            <div class="mt-2 text-xs text-gray-500 flex gap-4 bg-gray-50 p-2 rounded w-fit border border-gray-100">
-                <span>Costo x Persona: <strong class="text-gray-700">${{ training.cost_per_person }}</strong></span>
-                <span class="border-l pl-4 border-gray-300">Costo Empresa: <strong class="text-gray-700">${{ training.company_cost }}</strong></span>
+            <div class="mt-2 text-xs text-gray-600 flex gap-4 bg-gray-50 p-2 rounded w-fit border">
+                <span>Costo Total: <strong>{{ training.currency or '' }} {{ training.cost or training.company_cost or 0 }}</strong></span>
+                <span>Centro de Costo: <strong>{{ training.cost_center_obj.name if training.cost_center_obj else '-' }}</strong></span>
             </div>
             {% endif %}
         </div>
-        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold uppercase">{{ training.status | translate_status }}</span>
+        <div class="flex flex-col items-end gap-2">
+            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold uppercase">{{ training.status.value | translate_status }}</span>
+            {% if current_user.role.value in ['admin', 'th'] %}
+            <div class="flex gap-2 flex-wrap">
+                {% if training.status.value == 'draft' %}
+                    <button onclick="publishTraining()" class="bg-blue-900 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-blue-800">Publicar</button>
+                {% endif %}
+                {% if training.status.value in ['planned', 'in_progress', 'completed'] %}
+                    <button onclick="closeTraining()" class="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-700">Cerrar y Calcular Resultados</button>
+                {% endif %}
+                {% if training.status.value not in ['closed', 'cancelled'] %}
+                    <button onclick="cancelTraining()" class="bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded text-xs font-bold hover:bg-red-100">Cancelar</button>
+                {% endif %}
+                <button onclick="duplicateTraining()" class="bg-white border px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-50">Duplicar</button>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
 <!-- TABS -->
 <div class="mb-6 border-b border-gray-200">
-    <nav class="-mb-px flex space-x-8">
-        <button onclick="switchTab('participants')" id="tab-participants" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">Participantes</button>
-        <button onclick="switchTab('agenda')" id="tab-agenda" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">Agenda y Asistencia</button>
+    <nav class="-mb-px flex space-x-8 overflow-x-auto">
+        <button onclick="switchTab('participants')" id="tab-participants" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Participantes</button>
+        <button onclick="switchTab('agenda')" id="tab-agenda" class="border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Agenda y Asistencia</button>
+        <button onclick="switchTab('evidences')" id="tab-evidences" class="border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Materiales y Evidencias</button>
+        <button onclick="switchTab('audit')" id="tab-audit" class="border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Auditoría</button>
     </nav>
 </div>
 
 <!-- TAB: PARTICIPANTES -->
-<div id="content-participants" class="block animate-fade-in">
-    <div class="bg-white rounded shadow p-6">
+<div id="content-participants" class="block">
+    <div class="bg-white rounded-xl shadow-sm border p-6">
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-            <h2 class="text-xl font-bold text-gray-800">Listado de Inscritos</h2>
+            <h2 class="text-xl font-bold text-gray-800">Listado de Participantes</h2>
+            {% if current_user.role.value in ['admin', 'th'] %}
             <div class="flex gap-2 flex-wrap">
-                <button onclick="openInviteModal()" class="bg-purple-600 text-white px-3 py-1.5 rounded text-sm hover:bg-purple-700 flex items-center gap-2 transition-colors shadow-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    Enviar Invitaciones
-                </button>
-                <button onclick="remindAll()" class="bg-yellow-500 text-white px-3 py-1.5 rounded text-sm hover:bg-yellow-600 flex items-center gap-1 transition-colors shadow-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                    Recordatorio
-                </button>
-                <button onclick="openEnrollModal()" class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition-colors shadow-sm">
-                    + Inscribir Manual
-                </button>
+                <button onclick="openInviteModal()" class="bg-purple-600 text-white px-3 py-1.5 rounded text-sm hover:bg-purple-700">Enviar Invitaciones</button>
+                <button onclick="remindAll()" class="bg-yellow-500 text-white px-3 py-1.5 rounded text-sm hover:bg-yellow-600">Recordatorio</button>
+                <button onclick="document.getElementById('bulkModal').classList.remove('hidden')" class="bg-blue-700 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-800">Inscripción Masiva / Excel</button>
+                <button onclick="document.getElementById('enrollModal').classList.remove('hidden')" class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">+ Inscribir Manual</button>
             </div>
+            {% endif %}
         </div>
 
-        <!-- Filtros Inscritos -->
         <form action="" method="GET" class="mb-4 flex gap-2">
-            <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="Buscar nombre..." class="border p-2 rounded text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none">
-            <select name="area_id" class="border p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="Buscar nombre o documento..." class="border p-2 rounded text-sm w-full md:w-64">
+            <select name="area_id" class="border p-2 rounded text-sm bg-white">
                 <option value="">Todas las Áreas</option>
                 {% for area in areas %}
-                    <option value="{{ area.id }}" {% if filters.area_id == area.id|string %}selected{% endif %}>{{ area.name }}</option>
+                    <option value="{{ area.id }}" {% if filters.area_id == area.id %}selected{% endif %}>{{ area.name }}</option>
                 {% endfor %}
             </select>
-            <button type="submit" class="bg-gray-100 px-3 py-1 rounded text-sm hover:bg-gray-200 border border-gray-300">Filtrar</button>
+            <button type="submit" class="bg-gray-100 px-3 py-1 rounded text-sm hover:bg-gray-200 border">Filtrar</button>
         </form>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse text-sm">
                 <thead>
-                    <tr class="border-b bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
-                        <th class="px-4 py-3 font-semibold">Nombre</th>
-                        <th class="px-4 py-3 font-semibold">Área</th>
-                        <th class="px-4 py-3 font-semibold">Estado</th>
-                        <th class="px-4 py-3 font-semibold">Nota</th>
+                    <tr class="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                        <th class="px-4 py-3">Nombre</th>
+                        <th class="px-4 py-3">Área</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">% Asist.</th>
+                        <th class="px-4 py-3">Nota</th>
+                        <th class="px-4 py-3">Certificado</th>
+                        <th class="px-4 py-3 text-right">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 text-sm">
+                <tbody class="divide-y divide-gray-100">
                     {% for enroll in enrollments.data %}
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 font-medium text-gray-900">{{ enroll.employee.full_name }}</td>
-                        <td class="px-4 py-3 text-gray-500">{{ enroll.employee.position_obj.area.name }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ enroll.employee.position_obj.area.name if enroll.employee.position_obj and enroll.employee.position_obj.area else '-' }}</td>
                         <td class="px-4 py-3">
-                            {% if enroll.status.value == 'invited' %}
-                                <span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-bold">Invitado</span>
-                            {% elif enroll.status.value == 'enrolled' %}
-                                <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">Confirmado</span>
-                            {% elif enroll.status.value == 'declined' %}
-                                <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-bold">Rechazado</span>
-                            {% elif enroll.status.value == 'attended' %}
-                                <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-bold">Asistió</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold
+                                {% if enroll.status.value == 'attended' %}bg-green-100 text-green-800
+                                {% elif enroll.status.value == 'failed' %}bg-red-100 text-red-800
+                                {% elif enroll.status.value == 'waitlist' %}bg-amber-100 text-amber-800
+                                {% elif enroll.status.value == 'pending_approval' %}bg-purple-100 text-purple-800
+                                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                {{ enroll.status.value | translate_status }}
+                                {% if enroll.status.value == 'waitlist' and enroll.waitlist_position %}#{{ enroll.waitlist_position }}{% endif %}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 font-medium">{{ '%.1f'|format(enroll.attendance_pct or 0) }}%</td>
+                        <td class="px-4 py-3">
+                            {% if current_user.role.value in ['admin', 'th'] and (training.status.value != 'closed' or current_user.role.value == 'admin') %}
+                                <button onclick="editScore({{ enroll.id }}, {{ enroll.knowledge_score if enroll.knowledge_score is not none else 'null' }})" class="text-blue-600 hover:underline">{{ enroll.knowledge_score if enroll.knowledge_score is not none else 'Asignar' }}</button>
                             {% else %}
-                                <span class="bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs font-bold">{{ enroll.status | translate_status }}</span>
+                                {{ enroll.knowledge_score if enroll.knowledge_score is not none else '-' }}
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3">{{ enroll.knowledge_score or '-' }}</td>
+                        <td class="px-4 py-3 text-xs">
+                            {% if enroll.certificate_file %}
+                                <a href="{{ enroll.certificate_file }}" class="text-emerald-600 font-bold hover:underline">Ver Certificado</a>
+                            {% elif enroll.status.value == 'attended' and training.type.value in ['internal', 'replica'] %}
+                                <a href="/trainings/api/enrollments/{{ enroll.id }}/certificate-pdf" class="text-emerald-600 font-bold hover:underline">PDF Automático</a>
+                            {% elif training.type.value == 'external' and current_user.role.value in ['admin', 'th'] %}
+                                <button onclick="openCertModal({{ enroll.id }})" class="text-orange-600 hover:underline">Subir Certificado</button>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right space-x-2 text-xs">
+                            {% if enroll.status.value == 'pending_approval' %}
+                                <button onclick="approveEnroll({{ enroll.id }}, true)" class="text-green-600 font-bold hover:underline">Aprobar</button>
+                                <button onclick="approveEnroll({{ enroll.id }}, false)" class="text-red-600 font-bold hover:underline">Rechazar</button>
+                            {% endif %}
+                            {% if enroll.status.value in ['enrolled', 'invited', 'waitlist'] and training.status.value != 'closed' and current_user.role.value in ['admin', 'th'] %}
+                                <button onclick="withdrawEnroll({{ enroll.id }})" class="text-red-500 hover:underline">Baja</button>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">No hay inscritos en esta capacitación.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No hay inscritos en esta capacitación.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -136,47 +168,44 @@
     </div>
 </div>
 
-<!-- TAB: AGENDA -->
-<div id="content-agenda" class="hidden animate-fade-in">
-    <div class="bg-white rounded shadow p-6">
+<!-- TAB: AGENDA Y ASISTENCIA -->
+<div id="content-agenda" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border p-6">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold text-gray-800">Sesiones Programadas</h2>
-            <button onclick="document.getElementById('genModal').classList.remove('hidden')" class="bg-blue-900 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-800 shadow-sm transition-colors">Generar Sesiones</button>
+            {% if current_user.role.value in ['admin', 'th'] %}
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('singleSessionModal').classList.remove('hidden')" class="bg-white border border-blue-900 text-blue-900 px-3 py-1.5 rounded text-sm hover:bg-blue-50">+ Sesión</button>
+                <button onclick="document.getElementById('genModal').classList.remove('hidden')" class="bg-blue-900 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-800">Generar Sesiones</button>
+            </div>
+            {% endif %}
         </div>
-        
+
         <div class="space-y-3">
             {% for session in sessions %}
-            <div class="border rounded-lg p-4 flex justify-between items-start hover:bg-gray-50 transition-colors">
+            <div class="border rounded-lg p-4 flex flex-col md:flex-row justify-between items-start gap-3 hover:bg-gray-50">
                 <div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-bold text-gray-800">{{ session.date }}</span>
                         <span class="text-sm text-gray-500">{{ session.start_time }} - {{ session.end_time }}</span>
-                        {% if session.status == 'closed' %}
-                            <span class="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded font-bold">Cerrada</span>
-                        {% elif session.status == 'open' %}
-                            <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-bold animate-pulse">Abierta</span>
-                        {% else %}
-                            <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded font-bold">Pendiente</span>
-                        {% endif %}
+                        <span class="text-xs px-2 py-0.5 rounded font-bold {% if session.status == 'closed' %}bg-gray-200 text-gray-700{% else %}bg-yellow-100 text-yellow-800{% endif %}">{{ session.status }}</span>
                     </div>
                     <p class="text-base font-medium text-gray-900 mt-1">{{ session.topic }}</p>
-                    {% if session.description %}
-                        <p class="text-sm text-gray-500 mt-0.5">{{ session.description }}</p>
-                    {% endif %}
-                    {% if session.instructor %}
-                        <p class="text-xs text-blue-600 mt-1 font-medium">Instructor: {{ session.instructor }}</p>
-                    {% endif %}
+                    {% if session.description %}<p class="text-sm text-gray-500">{{ session.description }}</p>{% endif %}
+                    {% if session.instructor %}<p class="text-xs text-blue-600 mt-1">Instructor: {{ session.instructor }}</p>{% endif %}
                 </div>
-                <div class="flex gap-2">
-                    <button onclick='editSession({{ session|tojson }})' class="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title="Editar">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </button>
-                    <button onclick="openAttendance({{ session.id }}, '{{ session.topic }}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium border border-blue-200 px-3 py-1 rounded hover:bg-blue-50 transition-colors">
-                        Tomar Lista
-                    </button>
-                    <button onclick="openConfirmModal('¿Eliminar esta sesión?', () => deleteSession({{ session.id }}))" class="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50" title="Eliminar">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
+                <div class="flex gap-2 flex-wrap">
+                    {% if session.qr_code_token %}
+                    <button onclick="showQrModal('{{ session.qr_code_token }}', '{{ session.topic }}')" class="text-indigo-600 border border-indigo-200 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-50">QR Asistencia</button>
+                    {% endif %}
+                    {% if current_user.role.value in ['admin', 'th'] or is_facilitator %}
+                    <button onclick="openImportAttModal({{ session.id }})" class="text-emerald-700 border border-emerald-200 px-3 py-1 rounded text-xs font-medium hover:bg-emerald-50">Importar Excel/Teams</button>
+                    <button onclick="openAttendance({{ session.id }}, '{{ session.topic }}')" class="text-blue-600 border border-blue-200 px-3 py-1 rounded text-xs font-bold hover:bg-blue-50">Tomar Lista</button>
+                    {% endif %}
+                    {% if current_user.role.value in ['admin', 'th'] %}
+                    <button onclick='editSession({{ session|tojson }})' class="text-gray-500 hover:text-blue-600 px-2 py-1 text-xs">Editar</button>
+                    <button onclick="openConfirmModal('¿Eliminar esta sesión?', () => deleteSession({{ session.id }}))" class="text-red-500 hover:text-red-700 px-2 py-1 text-xs">Eliminar</button>
+                    {% endif %}
                 </div>
             </div>
             {% else %}
@@ -186,11 +215,85 @@
     </div>
 </div>
 
+<!-- TAB: MATERIALES Y EVIDENCIAS -->
+<div id="content-evidences" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border p-6 space-y-6">
+        <h2 class="text-xl font-bold text-gray-800">Materiales, Cotizaciones, Facturas y Evidencias</h2>
+        {% if current_user.role.value in ['admin', 'th'] or is_facilitator %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border">
+            <form id="evidenceFileForm" class="space-y-2 text-sm">
+                <p class="font-bold text-gray-700">Subir Archivo</p>
+                <select name="evidence_type" class="w-full border p-2 rounded bg-white">
+                    <option value="material">Material de capacitación</option>
+                    <option value="cotizacion">Cotización</option>
+                    <option value="factura">Factura</option>
+                    <option value="lista">Lista de asistencia</option>
+                    <option value="evidencia_replica">Evidencia de réplica</option>
+                </select>
+                <input type="file" name="file" class="w-full border p-1.5 rounded bg-white" required>
+                <button type="submit" class="bg-blue-900 text-white px-4 py-1.5 rounded text-xs font-bold">Subir Archivo</button>
+            </form>
+            <form id="evidenceLinkForm" class="space-y-2 text-sm">
+                <p class="font-bold text-gray-700">Adjuntar Enlace Externo</p>
+                <input name="file_name" placeholder="Título del material o enlace" class="w-full border p-2 rounded bg-white" required>
+                <input name="file_url" placeholder="https://..." class="w-full border p-2 rounded bg-white" required>
+                <input type="hidden" name="evidence_type" value="material">
+                <button type="submit" class="bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-bold">Agregar Enlace</button>
+            </form>
+        </div>
+        {% endif %}
+        <div class="divide-y border rounded-lg">
+            {% for ev in evidences %}
+            <div class="p-3 flex justify-between items-center text-sm">
+                <div>
+                    <span class="text-xs font-bold uppercase px-2 py-0.5 rounded bg-slate-100 mr-2">{{ ev.evidence_type }}</span>
+                    <a href="{{ ev.file_url }}" target="_blank" class="text-blue-700 font-medium hover:underline">{{ ev.file_name }}</a>
+                </div>
+                {% if current_user.role.value in ['admin', 'th'] %}
+                <button onclick="deleteEvidence({{ ev.id }})" class="text-red-500 text-xs hover:underline">Eliminar</button>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="p-6 text-center text-gray-400 text-sm">Sin materiales ni evidencias cargadas.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB: AUDITORÍA -->
+<div id="content-audit" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Bitácora de Auditoría de esta Capacitación</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse">
+                <thead class="bg-gray-50 text-xs uppercase text-gray-600 border-b">
+                    <tr><th class="p-3">Fecha</th><th class="p-3">Usuario</th><th class="p-3">Acción</th><th class="p-3">Campo</th><th class="p-3">Detalle</th><th class="p-3">Motivo</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for a in audits %}
+                    <tr>
+                        <td class="p-3 text-xs text-gray-500">{{ a.created_at.strftime('%d/%m/%Y %H:%M') if a.created_at else '-' }}</td>
+                        <td class="p-3">{{ a.user.full_name if a.user else 'Sistema' }}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 bg-slate-100 rounded text-xs font-bold">{{ a.action }}</span></td>
+                        <td class="p-3">{{ a.field or '-' }}</td>
+                        <td class="p-3 text-xs">{{ a.old_value or '-' }} &rarr; <strong>{{ a.new_value or '-' }}</strong></td>
+                        <td class="p-3 text-xs text-gray-500">{{ a.reason or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="p-6 text-center text-gray-400">Sin eventos registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL INVITACIÓN MASIVA -->
 <div id="inviteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded shadow-lg w-[800px] max-h-[90vh] overflow-y-auto">
         <h2 class="text-lg font-bold mb-2">Enviar Invitaciones</h2>
-        <p class="text-sm text-gray-500 mb-4">Los colaboradores recibirán un correo con un link único para confirmar.</p>
+        <p class="text-sm text-gray-500 mb-4">Los colaboradores recibirán un correo con invitación de calendario (.ics) y enlace para confirmar.</p>
+
         
         <form id="inviteForm" class="space-y-4">
             <!-- Filtros -->
@@ -311,30 +414,105 @@
     </div>
 </div>
 
+<!-- MODAL INSCRIPCIÓN MASIVA / EXCEL -->
+<div id="bulkModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg space-y-4 text-sm">
+        <div class="flex justify-between items-center">
+            <h2 class="text-lg font-bold">Inscripción Masiva</h2>
+            <a href="/trainings/api/templates/enroll-excel" class="text-xs text-blue-600 underline">Descargar plantilla Excel</a>
+        </div>
+        <form id="bulkAreaForm" class="space-y-3 border-b pb-4">
+            <label class="block font-medium">Por Área(s)</label>
+            <select multiple name="area_ids" class="w-full border p-2 rounded h-24">
+                {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+            </select>
+            <label class="block font-medium">Por Cargo(s)</label>
+            <select multiple name="position_ids" class="w-full border p-2 rounded h-24">
+                {% for p in positions %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="w-full bg-blue-800 text-white py-2 rounded font-medium">Inscribir Seleccionados</button>
+        </form>
+        <form id="bulkExcelForm" class="space-y-2">
+            <label class="block font-medium">Desde Excel (.xlsx con columna 'documento' o 'correo')</label>
+            <input type="file" name="file" accept=".xlsx,.xls" class="w-full border p-1.5 rounded" required>
+            <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded font-medium">Cargar Excel</button>
+        </form>
+        <button type="button" onclick="document.getElementById('bulkModal').classList.add('hidden')" class="w-full text-gray-500 pt-1">Cerrar</button>
+    </div>
+</div>
+
+<!-- MODAL SESIÓN INDIVIDUAL -->
+<div id="singleSessionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-96">
+        <h2 class="text-lg font-bold mb-3">Nueva Sesión</h2>
+        <form id="singleSessionForm" class="space-y-3 text-sm">
+            <input name="topic" placeholder="Tema de la sesión" class="w-full border p-2 rounded" required>
+            <input name="instructor" placeholder="Facilitador (opcional)" class="w-full border p-2 rounded">
+            <input name="date" type="date" class="w-full border p-2 rounded" required>
+            <div class="grid grid-cols-2 gap-2">
+                <input name="start_time" type="time" class="w-full border p-2 rounded" required>
+                <input name="end_time" type="time" class="w-full border p-2 rounded" required>
+            </div>
+            <button type="submit" class="w-full bg-blue-900 text-white py-2 rounded">Crear Sesión</button>
+            <button type="button" onclick="document.getElementById('singleSessionModal').classList.add('hidden')" class="w-full text-gray-500">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL QR ASISTENCIA -->
+<div id="qrModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-80 text-center space-y-3">
+        <h3 class="font-bold text-gray-900" id="qrTitle">Código QR</h3>
+        <div id="qrCodeBox" class="flex justify-center py-2"></div>
+        <a id="qrDirectLink" href="#" target="_blank" class="text-xs text-blue-600 underline break-all block"></a>
+        <button onclick="document.getElementById('qrModal').classList.add('hidden')" class="w-full bg-gray-100 py-2 rounded text-sm">Cerrar</button>
+    </div>
+</div>
+
+<!-- MODAL IMPORTAR ASISTENCIA -->
+<div id="importAttModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-96 space-y-3 text-sm">
+        <div class="flex justify-between items-center">
+            <h3 class="font-bold text-lg">Importar Asistencia</h3>
+            <a href="/trainings/api/templates/attendance-excel" class="text-xs text-blue-600 underline">Plantilla Excel</a>
+        </div>
+        <form id="importAttForm" class="space-y-3">
+            <input type="hidden" id="importAttSessionId">
+            <select name="method" class="w-full border p-2 rounded bg-white">
+                <option value="excel">Planilla Excel</option>
+                <option value="import">Reporte Teams / Zoom (CSV/Excel)</option>
+            </select>
+            <input type="file" name="file" accept=".xlsx,.xls,.csv" class="w-full border p-1.5 rounded" required>
+            <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded font-medium">Importar</button>
+            <button type="button" onclick="document.getElementById('importAttModal').classList.add('hidden')" class="w-full text-gray-500">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CERTIFICADO PROVEEDOR -->
+<div id="certModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-96 space-y-3 text-sm">
+        <h3 class="font-bold text-lg">Cargar Certificado del Proveedor</h3>
+        <form id="certForm" class="space-y-3">
+            <input type="hidden" id="certEnrollId">
+            <input type="file" name="file" class="w-full border p-1.5 rounded" required>
+            <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded font-medium">Subir Certificado</button>
+            <button type="button" onclick="document.getElementById('certModal').classList.add('hidden')" class="w-full text-gray-500">Cancelar</button>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL INSCRIBIR MANUAL -->
 <div id="enrollModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-xl w-96 relative">
-        <h2 class="text-lg font-bold mb-4 text-gray-800">Inscribir Colaborador</h2>
-        <form id="enrollForm" class="space-y-4">
-            <div class="relative">
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Seleccionar Colaborador</label>
-                <!-- Input de búsqueda -->
-                <div class="relative">
-                    <input type="text" id="employee_search_input" placeholder="Escribe nombre o documento..." class="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10" autocomplete="off" required>
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
-                        <i class="fas fa-search"></i>
-                    </div>
-                </div>
-                <!-- ID de colaborador oculto -->
-                <input type="hidden" name="employee_id" id="enroll_employee_id" required>
-                
-                <!-- Dropdown de resultados asíncronos -->
-                <div id="search_results_dropdown" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-gray-100">
-                </div>
-            </div>
-            
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-lg shadow transition-colors">Inscribir</button>
-            <button type="button" onclick="closeEnrollModal()" class="w-full text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors py-2 text-center">Cancelar</button>
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-lg font-bold mb-4">Inscribir Colaborador</h2>
+        <form id="enrollForm">
+            <label class="block text-sm font-medium mb-1">Seleccionar Colaborador</label>
+            <select name="employee_id" class="w-full border p-2 rounded mb-4 bg-white">
+                {% for emp in employees %}<option value="{{ emp.id }}">{{ emp.full_name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Inscribir</button>
+            <button type="button" onclick="document.getElementById('enrollModal').classList.add('hidden')" class="w-full text-gray-500 mt-2">Cancelar</button>
         </form>
     </div>
 </div>
@@ -355,13 +533,13 @@
     </div>
 </div>
 
-<!-- TinyMCE CDN -->
+<!-- TinyMCE + QRCode CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script type="module">
     import { ApiClient, showToast } from '/static/js/api_client.js';
 
-    // Inicializar TinyMCE
     tinymce.init({
         selector: '#html_body',
         height: 300,
@@ -371,7 +549,6 @@
         content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
     });
 
-    // --- CONFIRM MODAL LOGIC ---
     let confirmCallback = null;
     window.openConfirmModal = (message, callback) => {
         document.getElementById('confirmMessage').innerText = message;
@@ -387,15 +564,86 @@
         closeConfirmModal();
     });
 
-    // --- TABS ---
+    // --- 4 TABS ---
     window.switchTab = (tab) => {
-        document.getElementById('content-participants').classList.add('hidden');
-        document.getElementById('content-agenda').classList.add('hidden');
-        document.getElementById('tab-participants').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
-        document.getElementById('tab-agenda').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+        ['participants', 'agenda', 'evidences', 'audit'].forEach(t => {
+            document.getElementById(`content-${t}`).classList.add('hidden');
+            document.getElementById(`tab-${t}`).className = "border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
+        });
         document.getElementById(`content-${tab}`).classList.remove('hidden');
         document.getElementById(`tab-${tab}`).className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm";
     };
+
+    // --- LIFECYCLE ACTIONS ---
+    window.publishTraining = async () => {
+        try { await ApiClient.post('/trainings/api/{{ training.id }}/publish', {}); window.location.reload(); }
+        catch (e) { showToast(e.message, 'error'); }
+    };
+    window.closeTraining = async () => {
+        if (!await uiConfirm('¿Cerrar capacitación y calcular resultados finales?')) return;
+        try {
+            const r = await ApiClient.post('/trainings/api/{{ training.id }}/close', {});
+            showToast(`Cerrada. Aprobados: ${r.approved}, No aprobados: ${r.failed}, Compromisos réplica: ${r.commitments_created}`);
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+    window.cancelTraining = async () => {
+        const reason = await uiPrompt({ title: 'Cancelar capacitación', label: 'Motivo de cancelación', placeholder: 'Explique brevemente el motivo', required: true });
+        if (reason === null || reason.trim() === '') return;
+        try { await ApiClient.post('/trainings/api/{{ training.id }}/cancel', { status: 'cancelled', reason: reason.trim() }); window.location.reload(); }
+        catch (e) { showToast(e.message, 'error'); }
+    };
+    window.duplicateTraining = async () => {
+        try { const c = await ApiClient.post('/trainings/api/{{ training.id }}/duplicate', {}); window.location.href = `/trainings/${c.id}`; }
+        catch (e) { showToast(e.message, 'error'); }
+    };
+
+    // --- ENROLLMENT ACTIONS ---
+    window.approveEnroll = async (id, approved) => {
+        try { await ApiClient.post(`/trainings/api/enrollments/${id}/approve`, { approved }); window.location.reload(); }
+        catch (e) { showToast(e.message, 'error'); }
+    };
+    window.withdrawEnroll = async (id) => {
+        if (!await uiConfirm('¿Dar de baja al colaborador?')) return;
+        try { await ApiClient.post(`/trainings/api/enrollments/${id}/withdraw`, {}); window.location.reload(); }
+        catch (e) { showToast(e.message, 'error'); }
+    };
+    window.editScore = async (id, cur) => {
+        const val = await uiPrompt({ title: 'Editar nota', label: 'Ingrese la nota numérica', value: cur !== null ? cur : '', type: 'number', placeholder: 'Ej: 85' });
+        if (val === null) return;
+        const trimmed = (val || '').trim();
+        if (trimmed !== '' && isNaN(parseFloat(trimmed))) { showToast('Ingrese una nota numérica válida.', 'error'); return; }
+        try { await ApiClient.put(`/trainings/api/enrollments/${id}/score`, { knowledge_score: trimmed === '' ? null : parseFloat(trimmed) }); window.location.reload(); }
+        catch (e) { showToast(e.message, 'error'); }
+    };
+    window.openCertModal = (id) => {
+        document.getElementById('certEnrollId').value = id;
+        document.getElementById('certModal').classList.remove('hidden');
+    };
+    document.getElementById('certForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('certEnrollId').value;
+        try { await ApiClient.post(`/trainings/api/enrollments/${id}/certificate`, new FormData(e.target)); window.location.reload(); }
+        catch (err) { showToast(err.message, 'error'); }
+    });
+    document.getElementById('bulkAreaForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const area_ids = Array.from(e.target.querySelector('select[name="area_ids"]').selectedOptions).map(o => parseInt(o.value));
+        const position_ids = Array.from(e.target.querySelector('select[name="position_ids"]').selectedOptions).map(o => parseInt(o.value));
+        try {
+            const res = await ApiClient.post('/trainings/api/{{ training.id }}/enroll/bulk', { area_ids, position_ids });
+            showToast(`Inscritos: ${res.enrolled}, Espera: ${res.waitlist}, Omitidos: ${res.skipped}`);
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+    document.getElementById('bulkExcelForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const res = await ApiClient.post('/trainings/api/{{ training.id }}/enroll/excel', new FormData(e.target));
+            showToast(`Inscritos: ${res.enrolled}, Espera: ${res.waitlist}`);
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (err) { showToast(err.message, 'error'); }
+    });
 
     // --- ACTIONS ---
     window.remindAll = async () => {
@@ -404,92 +652,6 @@
             showToast(res.message);
         } catch(e) { showToast(e.message, 'error'); }
     };
-
-    // --- BUSQUEDA ASINCRONA COLABORADORES EN MANUAL ENROLL ---
-    window.openEnrollModal = () => {
-        document.getElementById('enrollModal').classList.remove('hidden');
-        document.getElementById('employee_search_input').focus();
-    };
-
-    window.closeEnrollModal = () => {
-        document.getElementById('enrollModal').classList.add('hidden');
-        document.getElementById('employee_search_input').value = '';
-        document.getElementById('enroll_employee_id').value = '';
-        document.getElementById('search_results_dropdown').innerHTML = '';
-        document.getElementById('search_results_dropdown').classList.add('hidden');
-    };
-
-    let debounceTimer;
-    const searchInput = document.getElementById('employee_search_input');
-    const resultsDropdown = document.getElementById('search_results_dropdown');
-    const enrollEmployeeId = document.getElementById('enroll_employee_id');
-
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(debounceTimer);
-            const query = e.target.value.trim();
-            
-            if (query.length < 2) {
-                resultsDropdown.innerHTML = '';
-                resultsDropdown.classList.add('hidden');
-                enrollEmployeeId.value = '';
-                return;
-            }
-
-            debounceTimer = setTimeout(async () => {
-                try {
-                    const emps = await ApiClient.get(`/employees/api/search?q=${encodeURIComponent(query)}`);
-                    
-                    if (emps && emps.length > 0) {
-                        let html = '';
-                        emps.forEach(emp => {
-                            const areaName = emp.position_obj && emp.position_obj.area ? emp.position_obj.area.name : 'Sin Área';
-                            const sedeName = emp.position_obj && emp.position_obj.area && emp.position_obj.area.sede ? emp.position_obj.area.sede.name : 'Sin Sede';
-                            
-                            const photoHtml = emp.photo_url ? 
-                                `<img src="${emp.photo_url}" class="w-full h-full object-cover">` : 
-                                `<i class="fas fa-user text-gray-400 text-xs"></i>`;
-
-                            html += `
-                            <div class="flex items-center gap-3 p-2.5 hover:bg-blue-50 cursor-pointer transition-colors" data-id="${emp.id}" data-name="${emp.full_name}">
-                                <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200 flex items-center justify-center">
-                                    ${photoHtml}
-                                </div>
-                                <div class="flex-grow min-w-0">
-                                    <p class="text-xs font-bold text-gray-800 truncate">${emp.full_name}</p>
-                                    <p class="text-[10px] text-gray-500 truncate">${areaName} • ${sedeName}</p>
-                                </div>
-                            </div>`;
-                        });
-                        resultsDropdown.innerHTML = html;
-                        resultsDropdown.classList.remove('hidden');
-
-                        resultsDropdown.querySelectorAll('[data-id]').forEach(item => {
-                            item.addEventListener('click', () => {
-                                const id = item.getAttribute('data-id');
-                                const name = item.getAttribute('data-name');
-                                enrollEmployeeId.value = id;
-                                searchInput.value = name;
-                                resultsDropdown.classList.add('hidden');
-                            });
-                        });
-                    } else {
-                        resultsDropdown.innerHTML = '<div class="p-3 text-xs text-gray-500 text-center">No se encontraron colaboradores</div>';
-                        resultsDropdown.classList.remove('hidden');
-                        enrollEmployeeId.value = '';
-                    }
-                } catch (err) {
-                    console.error('Error fetching employees:', err);
-                }
-            }, 300);
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !resultsDropdown.contains(e.target)) {
-                resultsDropdown.classList.add('hidden');
-            }
-        });
-    }
 
     document.getElementById('enrollForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -605,6 +767,57 @@
         } catch(err) { showToast(err.message, 'error'); }
     };
 
+    window.showQrModal = (token, topic) => {
+        document.getElementById('qrTitle').innerText = `QR Asistencia: ${topic}`;
+        const url = `${window.location.origin}/trainings/qr/${token}`;
+        const link = document.getElementById('qrDirectLink');
+        link.href = `/trainings/qr/${token}`;
+        link.innerText = url;
+        const box = document.getElementById('qrCodeBox');
+        box.innerHTML = '';
+        if (window.QRCode) {
+            new window.QRCode(box, { text: url, width: 180, height: 180 });
+        }
+        document.getElementById('qrModal').classList.remove('hidden');
+    };
+
+    window.openImportAttModal = (sessionId) => {
+        document.getElementById('importAttSessionId').value = sessionId;
+        document.getElementById('importAttModal').classList.remove('hidden');
+    };
+    document.getElementById('importAttForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const sid = document.getElementById('importAttSessionId').value;
+        try {
+            const res = await ApiClient.post(`/trainings/api/sessions/${sid}/attendance/import`, new FormData(e.target));
+            showToast(`Asistencia importada: ${res.matched} presentes de ${res.total_enrolled}`);
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    document.getElementById('singleSessionForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await ApiClient.post('/trainings/api/{{ training.id }}/sessions', Object.fromEntries(new FormData(e.target)));
+            window.location.reload();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    document.getElementById('evidenceFileForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try { await ApiClient.post('/trainings/api/{{ training.id }}/evidences', new FormData(e.target)); window.location.reload(); }
+        catch (err) { showToast(err.message, 'error'); }
+    });
+    document.getElementById('evidenceLinkForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try { await ApiClient.post('/trainings/api/{{ training.id }}/evidences/link', Object.fromEntries(new FormData(e.target))); window.location.reload(); }
+        catch (err) { showToast(err.message, 'error'); }
+    });
+    window.deleteEvidence = async (id) => {
+        try { await ApiClient.delete(`/trainings/api/evidences/${id}`); window.location.reload(); }
+        catch (err) { showToast(err.message, 'error'); }
+    };
+
     window.openAttendance = async (sessionId, topic) => {
         document.getElementById('attTitle').innerText = `Asistencia: ${topic}`;
         document.getElementById('attSessionId').value = sessionId;
@@ -615,13 +828,17 @@
             const data = await ApiClient.get(`/trainings/api/sessions/${sessionId}/attendance`);
             list.innerHTML = '';
             data.forEach(item => {
+                const st = item.attendance_status || (item.is_present ? 'present' : 'absent');
                 list.innerHTML += `
-                    <div class="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
-                        <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" name="present_${item.enrollment_id}" ${item.is_present ? 'checked' : ''} class="w-5 h-5 text-green-600 rounded focus:ring-green-500">
-                            <span class="ml-3 font-medium text-gray-700">${item.employee_name}</span>
-                        </label>
-                        <input type="text" name="note_${item.enrollment_id}" value="${item.notes || ''}" placeholder="Observación..." class="text-sm border rounded p-1 w-1/3">
+                    <div class="flex items-center justify-between gap-2 p-2 border rounded hover:bg-gray-50">
+                        <span class="font-medium text-gray-700 text-sm flex-1">${item.employee_name}</span>
+                        <select name="status_${item.enrollment_id}" class="border rounded p-1 text-xs bg-white">
+                            <option value="present" ${st === 'present' ? 'selected' : ''}>Presente</option>
+                            <option value="late" ${st === 'late' ? 'selected' : ''}>Tardanza</option>
+                            <option value="justified" ${st === 'justified' ? 'selected' : ''}>Justificado</option>
+                            <option value="absent" ${st === 'absent' ? 'selected' : ''}>Ausente</option>
+                        </select>
+                        <input type="text" name="note_${item.enrollment_id}" value="${item.notes || ''}" placeholder="Obs..." class="text-xs border rounded p-1 w-32">
                     </div>
                 `;
             });
@@ -633,14 +850,18 @@
         const sessionId = document.getElementById('attSessionId').value;
         const form = e.target;
         const attendances = [];
-        const checkboxes = form.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => {
-            const enrollId = cb.name.split('_')[1];
+        form.querySelectorAll('select[name^="status_"]').forEach(sel => {
+            const enrollId = sel.name.split('_')[1];
             const noteInput = form.querySelector(`input[name="note_${enrollId}"]`);
-            attendances.push({ enrollment_id: parseInt(enrollId), is_present: cb.checked, notes: noteInput.value });
+            attendances.push({
+                enrollment_id: parseInt(enrollId),
+                is_present: sel.value !== 'absent',
+                attendance_status: sel.value,
+                notes: noteInput.value
+            });
         });
         try {
-            await ApiClient.post(`/trainings/api/sessions/${sessionId}/attendance`, { attendances });
+            await ApiClient.post(`/trainings/api/sessions/${sessionId}/attendance`, { attendances, method: 'manual' });
             showToast('Asistencia guardada');
             document.getElementById('attendanceModal').classList.add('hidden');
             setTimeout(() => window.location.reload(), 500);

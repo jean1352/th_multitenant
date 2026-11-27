@@ -13,11 +13,17 @@ from app.modules.organization import schemas
 from app.modules.organization.models import (
     Area, Position, Sede, Company, ContractType,
     WorkingDayType, SalaryType, Currency, PaymentMethod, Bank, CostCenter,
-    ProbationDuration, RelationshipType
+    ProbationDuration, ProbationStage, ExitCategory, RelationshipType
 )
 from app.modules.employees.models import Employee
 from app.core.config import settings
 from app.core.tenants import get_current_tenant
+
+
+def _business_name() -> str:
+    """Nombre de empresa según el tenant actual (multitenant) o el global."""
+    tenant = get_current_tenant()
+    return tenant.name if tenant else settings.BUSINESS_NAME
 
 
 # --- CONTRACT TYPES CRUD ---
@@ -231,6 +237,77 @@ async def delete_probation_duration(db: AsyncSession, id: int) -> bool:
     obj = await db.get(ProbationDuration, id); 
     if not obj: return False
     await db.delete(obj); await db.commit(); return True
+
+
+# --- PROBATION STAGES CRUD ---
+
+async def get_probation_stages(db: AsyncSession, probation_duration_id: int) -> List[ProbationStage]:
+    stmt = (
+        select(ProbationStage)
+        .where(ProbationStage.probation_duration_id == probation_duration_id)
+        .order_by(ProbationStage.sort_order, ProbationStage.id)
+    )
+    return (await db.execute(stmt)).scalars().all()
+
+
+async def replace_probation_stages(
+    db: AsyncSession, probation_duration_id: int, stages: List[schemas.ProbationStageBase]
+) -> List[ProbationStage]:
+    """Reemplaza todas las etapas de una duración por las enviadas."""
+    existing = (
+        await db.execute(
+            select(ProbationStage).where(ProbationStage.probation_duration_id == probation_duration_id)
+        )
+    ).scalars().all()
+    for obj in existing:
+        await db.delete(obj)
+    await db.flush()
+
+    objs = []
+    for i, s in enumerate(stages):
+        obj = ProbationStage(
+            probation_duration_id=probation_duration_id,
+            name=s.name,
+            days=s.days,
+            description=s.description,
+            sort_order=s.sort_order if s.sort_order is not None else i,
+        )
+        db.add(obj)
+        objs.append(obj)
+
+    await db.commit()
+    for o in objs:
+        await db.refresh(o)
+    return objs
+
+
+# --- EXIT CATEGORIES CRUD ---
+
+async def get_exit_categories(db: AsyncSession, active_only: bool = False) -> List[ExitCategory]:
+    stmt = select(ExitCategory).order_by(ExitCategory.name)
+    if active_only: stmt = stmt.where(ExitCategory.is_active == True)
+    return (await db.execute(stmt)).scalars().all()
+
+
+async def create_exit_category(db: AsyncSession, data: schemas.ExitCategoryCreate) -> ExitCategory:
+    obj = ExitCategory(**data.model_dump())
+    db.add(obj); await db.commit(); await db.refresh(obj)
+    return obj
+
+
+async def update_exit_category(db: AsyncSession, id: int, data: schemas.ExitCategoryUpdate) -> Optional[ExitCategory]:
+    obj = await db.get(ExitCategory, id)
+    if not obj: return None
+    for k, v in data.model_dump(exclude_unset=True).items(): setattr(obj, k, v)
+    await db.commit(); await db.refresh(obj)
+    return obj
+
+
+async def delete_exit_category(db: AsyncSession, id: int) -> bool:
+    obj = await db.get(ExitCategory, id)
+    if not obj: return False
+    await db.delete(obj); await db.commit(); return True
+
 
 
 # --- RELATIONSHIP TYPES CRUD ---
@@ -530,11 +607,8 @@ async def get_hierarchy_data(db: AsyncSession) -> Dict[str, Any]:
     for root_pos in root_positions:
         hierarchy_children.append(build_hierarchy_recursive(root_pos, all_positions))
 
-    tenant = get_current_tenant()
-    tenant_name = tenant.name if tenant else settings.BUSINESS_NAME
-
     return {
-        "name": tenant_name,
+        "name": _business_name(),
         "type": "root",
         "children": hierarchy_children
     }
@@ -578,11 +652,8 @@ async def get_structure_data(db: AsyncSession) -> Dict[str, Any]:
             del sede_node["children"]
         children_sedes.append(sede_node)
 
-    tenant = get_current_tenant()
-    tenant_name = tenant.name if tenant else settings.BUSINESS_NAME
-
     return {
-        "name": tenant_name,
+        "name": _business_name(),
         "type": "root",
         "children": children_sedes
     }
@@ -654,11 +725,8 @@ async def get_people_data(db: AsyncSession) -> Dict[str, Any]:
     for root_pos in root_positions:
         people_tree.extend(build_people_tree(root_pos, all_positions))
         
-    tenant = get_current_tenant()
-    tenant_name = tenant.name if tenant else settings.BUSINESS_NAME
-
     return {
-        "name": tenant_name,
+        "name": _business_name(),
         "type": "root",
         "children": people_tree
     }

@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Dashboard - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Dashboard - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
     {# --- HEADER --- #}
@@ -26,6 +26,8 @@
 
     {# --- MODALES --- #}
     {% include "dashboard/components/export_modal.html" %}
+    {% include "dashboard/components/sla_detail_modal.html" %}
+    {% include "dashboard/components/sla_audit_modal.html" %}
 {% endblock %}
 
 {% block scripts %}

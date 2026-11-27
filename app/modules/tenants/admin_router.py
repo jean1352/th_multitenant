@@ -111,7 +111,9 @@ async def admin_create_tenant_user(
     
     # Seteamos el search_path al esquema del tenant para esta operación
     from sqlalchemy import text
-    await db.execute(text(f'SET search_path TO "{tenant.schema_name}", public'))
+    from app.core.database import validate_schema_name
+    schema = validate_schema_name(tenant.schema_name)
+    await db.execute(text(f'SET search_path TO "{schema}", public'))
     
     from app.modules.auth.service import create_user
     
@@ -146,18 +148,18 @@ async def admin_delete_tenant(
     current_user: User
 ):
     from sqlalchemy import text
+    from app.core.database import engine, validate_schema_name
     tenant = await db.get(models.Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
     
-    schema_name = tenant.schema_name
+    schema_name = validate_schema_name(tenant.schema_name)
     
     # 1. Eliminar registro del Tenant
     await db.delete(tenant)
     await db.commit()
     
     # 2. Eliminar el esquema de base de datos asociado
-    from app.core.database import engine
     async with engine.begin() as conn:
         await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE'))
         await conn.execute(text('SET search_path TO public'))
