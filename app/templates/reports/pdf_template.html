@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Reporte de Gestión - {{ tenant.name if tenant else settings.PROJECT_NAME }}</title>
+    <title>Reporte de Gestión - {{ settings.BUSINESS_NAME }}</title>
     <style>
         @page {
             size: A4;
@@ -272,7 +272,7 @@
     {% endfor %}
 
     <div style="margin-top: 50px; text-align: center; color: #999; font-size: 10px;">
-        Generado automáticamente por el Sistema de Gestión de Talento Humano UP
+        Generado automáticamente por el Sistema de Gestión de Talento Humano
     </div>
 </body>
 

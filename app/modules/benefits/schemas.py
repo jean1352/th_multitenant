@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 
@@ -125,6 +125,14 @@ class BenefitRequestItemRead(BenefitRequestItemBase):
     model_config = ConfigDict(from_attributes=True)
 
 # --- SOLICITUD DE BENEFICIOS ---
+class BenefitRequestAuthorizerBase(BaseModel):
+    authorizer_id: int
+    authorizer_position_id: Optional[int] = None
+    authorization_level_id: Optional[int] = None
+
+class BenefitRequestAuthorizerCreate(BenefitRequestAuthorizerBase):
+    pass
+
 class BenefitRequestBase(BaseModel):
     employee_id: int
     employee_position_id: Optional[int] = None
@@ -148,6 +156,7 @@ class BenefitRequestBase(BaseModel):
 
 class BenefitRequestCreate(BenefitRequestBase):
     items: List[BenefitRequestItemCreate]
+    authorizers: Optional[List[BenefitRequestAuthorizerCreate]] = None
 
 class BenefitRequestUpdateStatus(BaseModel):
     status: str
@@ -157,6 +166,30 @@ class BasicEmployeeInfo(BaseModel):
     id: int
     full_name: str
     document_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+class BasicUserInfo(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    model_config = ConfigDict(from_attributes=True)
+
+class BenefitRequestAuthorizerRead(BenefitRequestAuthorizerBase):
+    id: int
+    benefit_request_id: int
+    authorizer: Optional[BasicEmployeeInfo] = None
+    authorization_level: Optional[AuthorizationLevelRead] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class BenefitRequestAttachmentRead(BaseModel):
+    id: int
+    benefit_request_id: int
+    name: str
+    file_url: str
+    upload_date: Optional[datetime] = None
+    uploaded_by: Optional[BasicUserInfo] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 class BenefitRequestRead(BenefitRequestBase):
@@ -174,6 +207,11 @@ class BenefitRequestRead(BenefitRequestBase):
     authorization_level: Optional[AuthorizationLevelRead] = None
     
     items: List[BenefitRequestItemRead]
+    authorizers: Optional[List[BenefitRequestAuthorizerRead]] = None
+    attachments: List[BenefitRequestAttachmentRead] = []
+
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[BasicUserInfo] = None
 
     model_config = ConfigDict(from_attributes=True)
 

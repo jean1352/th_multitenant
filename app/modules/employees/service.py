@@ -18,18 +18,21 @@ from sqlalchemy.orm import selectinload
 
 from app.core.security import get_password_hash
 from app.modules.auth.models import User, UserRole
+from app.modules.auth.service import send_recovery_email
 from app.modules.employees import schemas
 from app.modules.employees.models import (
     Employee,
     EmployeeDocument,
     EmployeeHistory,
     EmployeePosition,
+    EmployeeProbationAttachment,
+    EmployeeProbationStage,
     EmergencyContact,
     MovementType,
     DocumentCategory
 )
 from app.modules.dietary.models import DietaryRestriction
-from app.modules.organization.models import Area, Position, Sede, ContractType, ProbationDuration
+from app.modules.organization.models import Area, Position, Sede, ContractType, ProbationDuration, ProbationStage
 from app.modules.trainings.models import (
     TrainingAttendance,
     TrainingEnrollment,
@@ -41,8 +44,10 @@ from app.core.config import settings
 
 UPLOAD_DIR = "app/static/uploads/employees"
 DOCS_DIR = "app/static/uploads/documents"
+PROBATION_DIR = "app/static/uploads/probation"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(DOCS_DIR, exist_ok=True)
+os.makedirs(PROBATION_DIR, exist_ok=True)
 
 async def save_photo(file: UploadFile) -> str:
     extension = file.filename.split(".")[-1]
@@ -59,6 +64,65 @@ def generate_random_password(length=10):
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
     return ''.join(secrets.choice(alphabet) for i in range(length))
 
+
+async def _sync_probation_stages(
+    db: AsyncSession,
+    emp_pos: EmployeePosition,
+    duration_id: Optional[int],
+    start_date: Optional[date],
+    checks: Optional[List[Dict[str, Any]]] = None,
+) -> None:
+    """(Re)crea las etapas del periodo de prueba de un cargo.
+
+    Si la duración o el inicio cambian, las etapas se borran y se vuelven a crear
+    desde la plantilla de la duración (perdiendo los checks previos, según lo
+    requerido). `checks` es la lista enviada desde el formulario en el mismo orden
+    en que se renderizaron las etapas.
+    """
+    existing = (
+        await db.execute(
+            select(EmployeeProbationStage).where(
+                EmployeeProbationStage.employee_position_id == emp_pos.id
+            )
+        )
+    ).scalars().all()
+    for obj in existing:
+        await db.delete(obj)
+    await db.flush()
+
+    if not duration_id or not start_date:
+        return
+
+    template_stages = (
+        await db.execute(
+            select(ProbationStage)
+            .where(ProbationStage.probation_duration_id == duration_id)
+            .order_by(ProbationStage.sort_order, ProbationStage.id)
+        )
+    ).scalars().all()
+
+    checks = checks or []
+    for i, ts in enumerate(template_stages):
+        is_completed = False
+        if i < len(checks):
+            chk = checks[i] or {}
+            is_completed = bool(chk.get("is_completed", False))
+        due = start_date + timedelta(days=ts.days)
+        db.add(
+            EmployeeProbationStage(
+                employee_position_id=emp_pos.id,
+                name=ts.name,
+                days=ts.days,
+                description=ts.description,
+                due_date=due,
+                sort_order=ts.sort_order if ts.sort_order is not None else i,
+                is_completed=is_completed,
+                completed_at=date.today() if is_completed else None,
+            )
+        )
+    await db.flush()
+
+
 # --- EMPLOYEE CRUD ---
 
 async def get_employees_paginated(
@@ -72,7 +136,8 @@ async def get_employees_paginated(
     gender: Optional[str] = None,
     dietary_id: Optional[int] = None,
     birth_month: Optional[int] = None,
-    is_leader: Optional[bool] = None
+    is_leader: Optional[bool] = None,
+    is_active: Optional[bool] = None
 ) -> Dict[str, Any]:
     offset = (page - 1) * limit
     base_stmt = select(Employee).distinct()
@@ -104,6 +169,7 @@ async def get_employees_paginated(
     if dietary_id: base_stmt = base_stmt.where(DietaryRestriction.id == dietary_id)
     if birth_month: base_stmt = base_stmt.where(func.extract('month', Employee.birthday) == birth_month)
     if is_leader is not None: base_stmt = base_stmt.where(Position.is_leader == is_leader)
+    if is_active is not None: base_stmt = base_stmt.where(Employee.is_active == is_active)
 
     count_stmt = select(func.count()).select_from(base_stmt.subquery())
     total = await db.scalar(count_stmt) or 0
@@ -141,6 +207,8 @@ async def get_employee_detail(db: AsyncSession, emp_id: int) -> Optional[Employe
             selectinload(Employee.positions_history).selectinload(EmployeePosition.bank),
             selectinload(Employee.positions_history).selectinload(EmployeePosition.cost_center),
             selectinload(Employee.positions_history).selectinload(EmployeePosition.probation_duration),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.probation_stages),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.probation_attachments).selectinload(EmployeeProbationAttachment.uploaded_by),
             selectinload(Employee.trainings).selectinload(TrainingEnrollment.training),
             selectinload(Employee.emergency_contacts).selectinload(EmergencyContact.relationship),
             selectinload(Employee.history).selectinload(EmployeeHistory.new_position).selectinload(Position.area).selectinload(Area.sede),
@@ -148,6 +216,7 @@ async def get_employee_detail(db: AsyncSession, emp_id: int) -> Optional[Employe
             selectinload(Employee.history).selectinload(EmployeeHistory.company),
             selectinload(Employee.history).selectinload(EmployeeHistory.contract_type),
             selectinload(Employee.history).selectinload(EmployeeHistory.currency),
+            selectinload(Employee.history).selectinload(EmployeeHistory.exit_category),
             selectinload(Employee.documents),
             selectinload(Employee.benefits).selectinload(EmployeeBenefit.benefit_type),
             selectinload(Employee.sanctions),
@@ -157,6 +226,79 @@ async def get_employee_detail(db: AsyncSession, emp_id: int) -> Optional[Employe
         .where(Employee.id == emp_id)
     )
     return (await db.execute(stmt)).scalar_one_or_none()
+
+async def create_or_invite_portal_user(
+    db: AsyncSession,
+    employee: Employee,
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> Dict[str, Any]:
+    """Crea (o vincula) la cuenta de portal de un colaborador y envía la invitación.
+
+    Si no existe un ``User`` con el correo institucional del colaborador, se crea
+    uno con rol ``EMPLOYEE`` y contraseña temporal (el colaborador la definirá
+    desde el enlace de invitación). Si ya existe, se vincula/actualiza y se
+    reenvía la invitación. Devuelve ``{"id", "email", "created"}``.
+    """
+    email = (employee.institutional_email or "").strip().lower()
+    if not email:
+        raise HTTPException(
+            400,
+            "El colaborador no tiene correo institucional. Asigne uno primero.",
+        )
+
+    # Área y sede desde el cargo principal, para el alcance del usuario.
+    area_id = None
+    sede_id = None
+    position = employee.position_obj
+    if position is not None and position.area is not None:
+        area_id = position.area.id
+        sede_id = position.area.sede_id
+
+    user = await db.scalar(select(User).where(User.email == email))
+    created = False
+
+    if user is None:
+        temp_password = generate_random_password()
+        user = User(
+            email=email,
+            full_name=employee.full_name,
+            hashed_password=get_password_hash(temp_password),
+            role=UserRole.EMPLOYEE,
+            is_active=True,
+            employee_id=employee.id,
+            area_id=area_id,
+            sede_id=sede_id,
+        )
+        db.add(user)
+        await db.flush()
+        created = True
+    else:
+        # El correo ya está registrado en el sistema.
+        if user.employee_id is not None and user.employee_id != employee.id:
+            other = await db.get(Employee, user.employee_id)
+            other_name = other.full_name if other else f"ID {user.employee_id}"
+            raise HTTPException(
+                409,
+                f"El correo {email} ya está vinculado a otro colaborador ({other_name}).",
+            )
+        # Vincular / reactivar la cuenta existente a este colaborador.
+        user.employee_id = employee.id
+        user.full_name = employee.full_name
+        user.is_active = True
+        if area_id is not None:
+            user.area_id = area_id
+        if sede_id is not None:
+            user.sede_id = sede_id
+        db.add(user)
+
+    await db.commit()
+    await db.refresh(user)
+
+    if background_tasks is not None:
+        background_tasks.add_task(send_recovery_email, user, is_invite=True)
+
+    return {"id": user.id, "email": user.email, "created": created}
+
 
 async def create_employee(
     db: AsyncSession,
@@ -246,6 +388,15 @@ async def create_employee(
             **hiring_data
         )
         db.add(emp_pos)
+        await db.flush()
+
+        # Crear las etapas del periodo de prueba (si aplica)
+        await _sync_probation_stages(
+            db,
+            emp_pos,
+            hiring_data.get("probation_duration_id"),
+            hiring_data.get("probation_start_date"),
+        )
 
         if new_emp.institutional_email:
             existing_user = await db.scalar(select(User).where(User.email == new_emp.institutional_email))
@@ -316,6 +467,18 @@ async def update_employee(
     
     # Extraer ID de posición específico si viene en el form (para cargos secundarios)
     target_pos_id = data.pop("employee_position_id", None)
+
+    # Checks de etapas de periodo de prueba (JSON) enviados desde el formulario
+    probation_stages_checks = None
+    if "probation_stages_json" in data:
+        raw_stages = data.pop("probation_stages_json")
+        if raw_stages:
+            import json as _json
+            try:
+                probation_stages_checks = _json.loads(raw_stages)
+            except Exception:
+                probation_stages_checks = None
+
     hiring_updates = {f: data.pop(f) for f in hiring_fields if f in data}
 
     if ("position_id" in data and data["position_id"] != emp.position_id) or \
@@ -363,6 +526,17 @@ async def update_employee(
             for k, v in hiring_updates.items():
                 setattr(current_pos, k, v)
                 
+            # Sincronizar etapas del periodo de prueba si se editó la duración o el inicio.
+            # Al cambiar la duración se borran los checks previos (se recrean desde la plantilla).
+            if "probation_duration_id" in hiring_updates or "probation_start_date" in hiring_updates:
+                await _sync_probation_stages(
+                    db,
+                    current_pos,
+                    current_pos.probation_duration_id,
+                    current_pos.probation_start_date,
+                    probation_stages_checks,
+                )
+
             db.add(current_pos)
 
     # CAMPOS DE CONTACTO Y UBICACIÓN
@@ -571,6 +745,7 @@ async def terminate_employee(db: AsyncSession, emp_id: int, data: schemas.ExitPa
         previous_position_name=emp.position_obj.name, 
         previous_area_name=emp.position_obj.area.name, 
         company_id=emp.company_id,
+        exit_category_id=data.exit_category_id,
         notes=data.notes
     )
     db.add(history)
@@ -584,6 +759,8 @@ async def terminate_employee(db: AsyncSession, emp_id: int, data: schemas.ExitPa
         db.add(user)
 
     await db.commit()
+    from app.modules.trainings.replicas_service import cancel_commitments_on_exit
+    await cancel_commitments_on_exit(db, emp.id)
     return await get_employee_detail(db, emp_id)
 
 async def rehire_employee(db: AsyncSession, emp_id: int, data: schemas.RehirePayload) -> Employee:
@@ -750,6 +927,69 @@ async def delete_document(db: AsyncSession, doc_id: int):
         await db.delete(doc)
         await db.commit()
 
+
+# --- ADJUNTOS DE PERIODO DE PRUEBA ---
+
+async def upload_probation_attachment(
+    db: AsyncSession,
+    emp_pos_id: int,
+    name: str,
+    file: UploadFile,
+    current_user: Optional[User] = None,
+) -> EmployeeProbationAttachment:
+    """Sube un archivo adjunto al seguimiento de Periodo de Prueba de un cargo."""
+    emp_pos = await db.get(EmployeePosition, emp_pos_id)
+    if not emp_pos:
+        raise HTTPException(404, "Cargo no encontrado")
+
+    extension = ""
+    if file.filename and "." in file.filename:
+        extension = file.filename.split(".")[-1]
+    filename = f"{emp_pos_id}_{uuid4()}.{extension}" if extension else f"{emp_pos_id}_{uuid4()}"
+    file_path = os.path.join(PROBATION_DIR, filename)
+
+    content = await file.read()
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+
+    attachment = EmployeeProbationAttachment(
+        employee_position_id=emp_pos_id,
+        name=name,
+        file_url=f"/static/uploads/probation/{filename}",
+        uploaded_by_user_id=current_user.id if current_user else None,
+    )
+    db.add(attachment)
+    await db.commit()
+    await db.refresh(attachment)
+
+    # Recargar con la relación uploaded_by para su correcta serialización
+    stmt = (
+        select(EmployeeProbationAttachment)
+        .options(selectinload(EmployeeProbationAttachment.uploaded_by))
+        .where(EmployeeProbationAttachment.id == attachment.id)
+    )
+    return (await db.execute(stmt)).scalar_one()
+
+
+async def delete_probation_attachment(db: AsyncSession, attachment_id: int) -> bool:
+    attachment = await db.get(EmployeeProbationAttachment, attachment_id)
+    if not attachment:
+        return False
+
+    # Eliminar el archivo físico si existe
+    if attachment.file_url:
+        rel_path = attachment.file_url.lstrip("/")
+        abs_path = os.path.join("app", rel_path)
+        if os.path.exists(abs_path):
+            try:
+                os.remove(abs_path)
+            except OSError:
+                pass
+
+    await db.delete(attachment)
+    await db.commit()
+    return True
+
 async def get_employee_attendance_detail(db: AsyncSession, enrollment_id: int) -> List[Dict[str, Any]]:
     enrollment = await db.get(TrainingEnrollment, enrollment_id)
     if not enrollment: return []
@@ -788,6 +1028,9 @@ async def get_employee_timeline(db: AsyncSession, emp_id: int) -> List[schemas.T
             curr_name = h.currency.name if h.currency else ""
             desc += f" [Nuevo Salario: {h.base_salary:,.0f} {curr_name}]"
         
+        if h.exit_category:
+            desc += f" [Categoría: {h.exit_category.name}]"
+
         events.append(schemas.TimelineEvent(date=h.date, category="history", type_label=title, title=title, description=desc, color=color, icon=icon))
     
     for s in emp.sanctions:

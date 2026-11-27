@@ -167,6 +167,46 @@
                                     </p>
                                 </div>
                             </div>
+
+                            {# ADJUNTOS DEL PERIODO DE PRUEBA #}
+                            <div class="mt-4 pt-4 border-t border-blue-100/70">
+                                <p class="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <i class="fas fa-paperclip"></i> Adjuntos
+                                </p>
+                                <div class="space-y-2 mb-3">
+                                    {% for att in pos.probation_attachments %}
+                                    <div class="flex items-center gap-3 p-2.5 bg-white rounded-lg border border-blue-100">
+                                        <div class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center shrink-0">
+                                            <i class="fas fa-file text-sm"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-gray-800 text-xs truncate">{{ att.name }}</div>
+                                            <div class="text-[10px] text-gray-500">
+                                                {% if att.upload_date %}{{ att.upload_date.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                                                {% if att.uploaded_by %} · Subido por {{ att.uploaded_by.full_name }}{% endif %}
+                                            </div>
+                                        </div>
+                                        <a href="{{ att.file_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-bold whitespace-nowrap">Ver</a>
+                                        <button type="button" onclick="deleteProbationAttachment({{ att.id }})" class="text-red-500 hover:text-red-700 text-xs font-bold whitespace-nowrap">Eliminar</button>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-4 bg-white/60 rounded-lg border-2 border-dashed border-blue-100">
+                                        <p class="text-blue-300 font-medium italic text-xs">Sin adjuntos en este periodo de prueba.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <form class="flex flex-col md:flex-row gap-2 items-end" onsubmit="return uploadProbationAttachment(event, {{ pos.id }})">
+                                    <div class="flex-1">
+                                        <input type="text" name="name" placeholder="Nombre del archivo (Ej: Acta de evaluación...)" class="w-full border border-blue-200 p-2 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none" required>
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="file" name="file" class="w-full border border-blue-200 p-2 rounded-lg text-xs" required>
+                                    </div>
+                                    <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-all whitespace-nowrap">
+                                        <i class="fas fa-upload mr-1"></i> Adjuntar
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -206,8 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (hasActiveDays) {
                 container.innerHTML = html;
-            } else {
-                container.innerHTML = '<p class="text-sm font-semibold text-gray-400 italic">No definido / Sin días laborales activos</p>';
             }
         } catch(e) {
             // Not a JSON string, retain the old plain text format

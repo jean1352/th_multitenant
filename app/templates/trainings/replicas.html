@@ -1,0 +1,159 @@
+{% extends "layouts/base.html" %}
+{% block title %}Control de Réplicas - Capacitaciones{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Bandeja de Compromisos de Réplica</h1>
+        <p class="text-sm text-gray-500">Semáforo de seguimiento, aprobación de propuestas y prórrogas.</p>
+    </div>
+    <a href="/trainings/" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Volver a Capacitaciones</a>
+</div>
+
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+    <form method="GET" class="flex flex-wrap gap-3 items-center">
+        <input type="text" name="q" value="{{ filters.q }}" placeholder="Buscar colaborador..." class="border p-2 rounded text-sm w-56">
+        <select name="status" class="border p-2 rounded text-sm bg-white">
+            <option value="all">Todos los estados</option>
+            <option value="pendiente" {% if filters.status == 'pendiente' %}selected{% endif %}>Pendiente</option>
+            <option value="propuesta" {% if filters.status == 'propuesta' %}selected{% endif %}>Propuesta</option>
+            <option value="programada" {% if filters.status == 'programada' %}selected{% endif %}>Programada</option>
+            <option value="cumplida" {% if filters.status == 'cumplida' %}selected{% endif %}>Cumplida</option>
+            <option value="vencida" {% if filters.status == 'vencida' %}selected{% endif %}>Vencida</option>
+            <option value="anulada_cese" {% if filters.status == 'anulada_cese' %}selected{% endif %}>Anulada por cese</option>
+        </select>
+        <select name="traffic_light" class="border p-2 rounded text-sm bg-white">
+            <option value="all">Todo semáforo</option>
+            <option value="green" {% if filters.traffic_light == 'green' %}selected{% endif %}>Verde (&gt;30 días / Cumplida)</option>
+            <option value="yellow" {% if filters.traffic_light == 'yellow' %}selected{% endif %}>Amarillo (&le;30 días)</option>
+            <option value="red" {% if filters.traffic_light == 'red' %}selected{% endif %}>Rojo (Vencida)</option>
+        </select>
+        <select name="area_id" class="border p-2 rounded text-sm bg-white">
+            <option value="">Todas las áreas</option>
+            {% for a in areas %}
+            <option value="{{ a.id }}" {% if filters.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm">Filtrar</button>
+    </form>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+            <thead class="bg-gray-50 text-gray-600 text-xs uppercase border-b">
+                <tr>
+                    <th class="px-4 py-3">Semáforo</th>
+                    <th class="px-4 py-3">Colaborador</th>
+                    <th class="px-4 py-3">Área</th>
+                    <th class="px-4 py-3">Externa Origen</th>
+                    <th class="px-4 py-3">Fecha Límite</th>
+                    <th class="px-4 py-3">Estado</th>
+                    <th class="px-4 py-3">Propuesta / Réplica</th>
+                    <th class="px-4 py-3 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for item in items %}
+                {% set c = item.commitment %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">
+                        {% if item.traffic_light == 'green' %}
+                            <span class="inline-block w-3.5 h-3.5 rounded-full bg-green-500" title="En tiempo"></span>
+                        {% elif item.traffic_light == 'yellow' %}
+                            <span class="inline-block w-3.5 h-3.5 rounded-full bg-yellow-400" title="30 días o menos"></span>
+                        {% elif item.traffic_light == 'red' %}
+                            <span class="inline-block w-3.5 h-3.5 rounded-full bg-red-600" title="Vencida"></span>
+                        {% else %}
+                            <span class="inline-block w-3.5 h-3.5 rounded-full bg-gray-400"></span>
+                        {% endif %}
+                        <span class="text-xs text-gray-500 ml-1">{{ item.days_remaining }}d</span>
+                    </td>
+                    <td class="px-4 py-3 font-medium">{{ c.employee.full_name if c.employee else '-' }}</td>
+                    <td class="px-4 py-3 text-gray-500">{{ item.area_name }}</td>
+                    <td class="px-4 py-3"><a href="/trainings/{{ c.source_training_id }}" class="text-blue-600 hover:underline">{{ c.source_training.name if c.source_training else '-' }}</a></td>
+                    <td class="px-4 py-3">
+                        {{ item.effective_due_date.strftime('%d/%m/%Y') }}
+                        {% if c.extended_due_date %}<span class="block text-[10px] text-purple-600">Prorrogada</span>{% endif %}
+                    </td>
+                    <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100">{{ c.status | translate_status }}</span></td>
+                    <td class="px-4 py-3 text-xs">
+                        {% if c.replica_training_id %}
+                            <a href="/trainings/{{ c.replica_training_id }}" class="text-teal-700 font-bold hover:underline">Ver Réplica #{{ c.replica_training_id }}</a>
+                        {% elif c.proposed_topic %}
+                            <span class="font-medium">{{ c.proposed_topic }}</span> ({{ c.proposed_date }})
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                        {% if c.status == 'propuesta' %}
+                            <button onclick="approveReplica({{ c.id }}, true)" class="text-green-600 hover:underline text-xs font-bold">Aprobar</button>
+                            <button onclick="approveReplica({{ c.id }}, false)" class="text-red-600 hover:underline text-xs font-bold">Rechazar</button>
+                        {% endif %}
+                        {% if current_user.role.value in ['admin', 'th'] and not c.extended_due_date and c.status not in ['cumplida', 'anulada_cese'] %}
+                            <button onclick="openExtendModal({{ c.id }}, '{{ item.effective_due_date.isoformat() }}')" class="text-purple-600 hover:underline text-xs font-medium">Prórroga</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No hay compromisos de réplica registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL PRÓRROGA -->
+<div id="extendModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-96">
+        <h3 class="text-lg font-bold mb-3">Otorgar Prórroga</h3>
+        <form id="extendForm" class="space-y-3">
+            <input type="hidden" id="extendId">
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Nueva Fecha Límite</label>
+                <input type="date" id="extendDate" class="w-full border p-2 rounded text-sm" required>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Justificación Obligatoria</label>
+                <textarea id="extendJust" class="w-full border p-2 rounded text-sm h-24" required></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('extendModal').classList.add('hidden')" class="px-3 py-1.5 text-gray-500 text-sm">Cancelar</button>
+                <button type="submit" class="bg-purple-700 text-white px-4 py-1.5 rounded text-sm">Guardar Prórroga</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    window.approveReplica = async (id, approved) => {
+        let reason = null;
+        if (!approved) {
+            reason = await uiPrompt({ title: 'Rechazar réplica', label: 'Motivo del rechazo', required: true });
+            if (!reason || reason.trim() === '') return;
+            reason = reason.trim();
+        }
+        try {
+            await ApiClient.post(`/trainings/api/replicas/${id}/approve`, { approved, rejection_reason: reason });
+            window.location.reload();
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+    window.openExtendModal = (id, currentDue) => {
+        document.getElementById('extendId').value = id;
+        document.getElementById('extendDate').min = currentDue;
+        document.getElementById('extendModal').classList.remove('hidden');
+    };
+    document.getElementById('extendForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('extendId').value;
+        try {
+            await ApiClient.post(`/trainings/api/replicas/${id}/extend`, {
+                extended_due_date: document.getElementById('extendDate').value,
+                justification: document.getElementById('extendJust').value,
+            });
+            window.location.reload();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+</script>
+{% endblock %}
+

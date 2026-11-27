@@ -30,7 +30,10 @@ from app.modules.recruitment.services.vacancies import (
     get_vacancies_paginated,
     get_vacancy_detail,
     get_vacancy_by_id,
+    get_sla_detail,
     create_vacancy,
+    add_stage_to_vacancy,
+    delete_vacancy_stage,
     update_vacancy,
     delete_vacancy,
     notify_vacancy_status
@@ -46,7 +49,10 @@ from app.modules.recruitment.services.reports import (
 from app.modules.recruitment.services.dashboard import (
     get_dashboard_metrics,
     get_monthly_stats,
-    get_stage_performance_stats
+    get_stage_performance_stats,
+    get_sla_details,
+    get_bottleneck_report,
+    generate_bottleneck_excel_report,
 )
 from app.modules.recruitment.services.hiring_reasons import (
     get_hiring_reasons,
@@ -74,6 +80,8 @@ __all__ = [
     "get_vacancies_paginated",
     "get_vacancy_detail",
     "create_vacancy",
+    "add_stage_to_vacancy",
+    "delete_vacancy_stage",
     "update_vacancy",
     "delete_vacancy",
     "notify_vacancy_status",
@@ -84,5 +92,9 @@ __all__ = [
     "get_dashboard_metrics",
     "get_monthly_stats",
     "get_stage_performance_stats",
-    "get_vacancy_by_id"
+    "get_sla_details",
+    "get_bottleneck_report",
+    "generate_bottleneck_excel_report",
+    "get_vacancy_by_id",
+    "get_sla_detail"
 ]

@@ -7,7 +7,7 @@ import enum
 from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum, ForeignKey, String, Text, Numeric
+from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -222,6 +222,16 @@ class EmployeePosition(Base):
     bank: Mapped[Optional["Bank"]] = relationship("app.modules.organization.models.Bank")
     cost_center: Mapped[Optional["CostCenter"]] = relationship("app.modules.organization.models.CostCenter")
     probation_duration: Mapped[Optional["ProbationDuration"]] = relationship("app.modules.organization.models.ProbationDuration")
+    probation_stages: Mapped[List["EmployeeProbationStage"]] = relationship(
+        back_populates="employee_position",
+        cascade="all, delete-orphan",
+        order_by="EmployeeProbationStage.sort_order",
+    )
+    probation_attachments: Mapped[List["EmployeeProbationAttachment"]] = relationship(
+        back_populates="employee_position",
+        cascade="all, delete-orphan",
+        order_by="desc(EmployeeProbationAttachment.upload_date)",
+    )
 
 
 class EmployeeHistory(Base):
@@ -242,6 +252,9 @@ class EmployeeHistory(Base):
     base_salary: Mapped[Optional[float]] = mapped_column(Numeric(15, 2))
     currency_id: Mapped[Optional[int]] = mapped_column(ForeignKey("currencies.id"), nullable=True)
 
+    # Categoría de salida (Despido, Renuncia, etc.)
+    exit_category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("exit_categories.id"), nullable=True)
+
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     employee: Mapped["Employee"] = relationship("Employee", back_populates="history")
@@ -249,3 +262,49 @@ class EmployeeHistory(Base):
     company: Mapped[Optional["Company"]] = relationship("app.modules.organization.models.Company")
     contract_type: Mapped[Optional["ContractType"]] = relationship("app.modules.organization.models.ContractType")
     currency: Mapped[Optional["Currency"]] = relationship("app.modules.organization.models.Currency")
+    exit_category: Mapped[Optional["ExitCategory"]] = relationship("app.modules.organization.models.ExitCategory")
+
+
+class EmployeeProbationStage(Base):
+    """Etapa de periodo de prueba instanciada para un contrato/cargo específico."""
+    __tablename__ = "employee_probation_stages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employee_position_id: Mapped[int] = mapped_column(
+        ForeignKey("employee_positions.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String)
+    days: Mapped[int] = mapped_column(Integer)  # offset en días desde el inicio del PP
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    due_date: Mapped[Optional[date]] = mapped_column(Date)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    completed_at: Mapped[Optional[date]] = mapped_column(Date)
+
+    employee_position: Mapped["EmployeePosition"] = relationship(
+        back_populates="probation_stages"
+    )
+
+
+class EmployeeProbationAttachment(Base):
+    """Archivos adjuntos del seguimiento de Periodo de Prueba de un cargo."""
+
+    __tablename__ = "employee_probation_attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employee_position_id: Mapped[int] = mapped_column(
+        ForeignKey("employee_positions.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String)
+    file_url: Mapped[str] = mapped_column(String)
+    upload_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    uploaded_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+
+    employee_position: Mapped["EmployeePosition"] = relationship(
+        back_populates="probation_attachments"
+    )
+    uploaded_by: Mapped[Optional["User"]] = relationship(
+        "app.modules.auth.models.User", foreign_keys=[uploaded_by_user_id]
+    )

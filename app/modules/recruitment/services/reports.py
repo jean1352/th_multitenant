@@ -14,6 +14,7 @@ from weasyprint import HTML
 
 from app.modules.organization.models import Area, Position
 from app.modules.recruitment import schemas
+from app.modules.recruitment.business_calendar import refresh_holidays_cache
 from app.core.config import settings
 from app.modules.recruitment.models import (
     ProcessStatus,
@@ -58,6 +59,8 @@ async def generate_excel_report(
     end_date: Optional[date] = None,
 ) -> io.BytesIO:
     """Genera un archivo Excel con el reporte de vacantes."""
+    await refresh_holidays_cache(db)
+
     stmt = (
         select(
             Vacancy,
@@ -92,7 +95,9 @@ async def generate_excel_report(
                 "Estado": vac.status.value,
                 "Tipo": vac.vacancy_type.value if vac.vacancy_type else "Pendiente",
                 "Aumento Dotación": "Sí" if vac.is_headcount_increase else "No",
-                "SLA": "OK" if dto.global_sla_status == "ok" else "Vencido",
+                "SLA Global": "OK" if dto.global_sla_status == "ok" else "Vencido",
+                "SLA R&S": "OK" if dto.rs_sla_status == "ok" else "Vencido",
+                "SLA Área": "OK" if dto.area_sla_status == "ok" else "Vencido",
                 "Progreso": f"{dto.progress_percent}%",
                 "Fecha Creación": vac.created_at.strftime("%Y-%m-%d"),
             }
@@ -144,6 +149,8 @@ async def generate_pdf_report(
     end_date: Optional[date] = None,
 ) -> bytes:
     """Genera un reporte PDF ejecutivo."""
+    await refresh_holidays_cache(db)
+
     stmt = (
         select(Vacancy)
         .join(Area)

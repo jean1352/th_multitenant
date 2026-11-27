@@ -9,13 +9,17 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import get_tenant_db
 from app.core.tenants import get_tenant_base_url, get_current_tenant
 from app.modules.recruitment.models import Vacancy, ProcessStatus
 from app.modules.recruitment.services.vacancies import notify_vacancy_status
+from app.modules.recruitment.business_calendar import count_business_days, refresh_holidays_cache
+from app.modules.recruitment.services.notifications import send_sla_stage_alert
 from app.modules.calendar.models import CalendarEvent, EventEnrollment, EnrollmentStatus
+from app.modules.notifications.models import NotificationLog
 from app.modules.notifications.service import send_email_notification
 from app.modules.employees.models import Employee, EmployeeDocument, EmployeePosition, DocumentCategory
+from app.modules.trainings.models import Training
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +27,7 @@ logger = logging.getLogger(__name__)
 async def run_vacancy_weekly_report(rule_id: int, **kwargs):
     logger.info("🚀 Iniciando reporte masivo de vacantes...")
     count = 0
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db() as db:
         stmt = select(Vacancy).where(Vacancy.status == ProcessStatus.OPEN)
         vacancies = (await db.execute(stmt)).scalars().all()
         for vac in vacancies:
@@ -39,7 +43,7 @@ async def run_vacancy_stagnation_check(rule_id: int, param_value: int = 10, **kw
     days_limit = param_value or 10
     logger.info(f"🚀 Buscando vacantes estancadas (> {days_limit} días)...")
     count = 0
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db() as db:
         stmt = select(Vacancy).options(selectinload(Vacancy.area)).where(Vacancy.status == ProcessStatus.OPEN)
         vacancies = (await db.execute(stmt)).scalars().all()
         for vac in vacancies:
@@ -65,7 +69,7 @@ async def run_event_reminder(rule_id: int, param_value: int = 2, **kwargs):
     logger.info(f"🚀 Buscando eventos entre {today} y {limit_date}...")
     count = 0
     
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db() as db:
         # Buscar eventos futuros dentro del rango
         stmt_events = select(CalendarEvent).where(
             CalendarEvent.date >= today,
@@ -164,7 +168,7 @@ async def run_contract_expiration(rule_id: int, param_value: int = 30, **kwargs)
     target_date = date.today() + timedelta(days=days_notice)
     logger.info(f"🚀 Buscando contratos que vencen el {target_date}...")
     count = 0
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db() as db:
         stmt = (
             select(EmployeeDocument)
             .join(Employee)
@@ -205,7 +209,7 @@ async def run_probation_end(rule_id: int, param_value: int = 90, **kwargs):
     target_start_date = date.today() - timedelta(days=days_ago)
     logger.info(f"🚀 Buscando ingresos del {target_start_date} (Fin prueba en {notice_days} días)...")
     count = 0
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db() as db:
         stmt = (
             select(EmployeePosition)
             .join(Employee)
@@ -254,7 +258,7 @@ async def run_advanced_automations(rule_id: int = None, **kwargs):
     actions_fired = 0
     states_updated = 0
     
-    async with AsyncSessionLocal() as db:
+    async with get_tenant_db() as db:
         # Cargar reglas
         if rule_id:
             stmt = select(AutomationRule).where(AutomationRule.id == rule_id, AutomationRule.is_active == True)
@@ -336,13 +340,140 @@ async def run_advanced_automations(rule_id: int = None, **kwargs):
         
     return f"Reglas: {rules_run}, Disparos: {actions_fired}, Estados actualizados: {states_updated}"
 
+# --- 7. VERIFICACIÓN DIARIA DE SLA (por etapa) ---
+async def _already_notified(db, marker: str) -> bool:
+    """Verifica si ya se envió una notificación cuyo asunto contiene `marker`."""
+    stmt = select(NotificationLog.id).where(
+        NotificationLog.subject.like(f"%{marker}%")
+    )
+    return await db.scalar(stmt) is not None
+
+
+async def run_sla_daily_check(rule_id: int, param_value: int = 1, **kwargs):
+    """
+    Revisa las etapas abiertas de las vacantes y notifica al SOLICITANTE
+    (requester) cuando una etapa está próxima a vencer o ya venció su SLA.
+
+    `param_value` = días hábiles de anticipación para la alerta "próxima a vencer".
+    """
+    notice_business_days = param_value if param_value and param_value > 0 else 1
+    today = date.today()
+    logger.info(
+        f"🚀 Revisando SLA de etapas (anticipación: {notice_business_days} días hábiles)..."
+    )
+    count = 0
+    async with get_tenant_db() as db:
+        await refresh_holidays_cache(db)
+        stmt = (
+            select(Vacancy)
+            .options(
+                selectinload(Vacancy.stages),
+                selectinload(Vacancy.requester),
+                selectinload(Vacancy.area),
+            )
+            .where(Vacancy.status == ProcessStatus.OPEN)
+        )
+        vacancies = (await db.execute(stmt)).scalars().all()
+
+        for vac in vacancies:
+            requester_email = (
+                vac.requester.email if vac.requester and vac.requester.email else None
+            )
+            if not requester_email:
+                continue
+
+            for stage in sorted(vac.stages, key=lambda s: s.order_index):
+                if stage.end_date is not None or not stage.deadline_date:
+                    continue
+
+                if stage.deadline_date < today:
+                    marker = f"SLA-vencido:{stage.id}"
+                    if await _already_notified(db, marker):
+                        continue
+                    await send_sla_stage_alert(
+                        db, vac, stage, requester_email,
+                        kind="vencido", dedup_key=marker,
+                    )
+                    count += 1
+                else:
+                    remaining = count_business_days(today, stage.deadline_date)
+                    if remaining == notice_business_days:
+                        marker = f"SLA-proximo:{stage.id}"
+                        if await _already_notified(db, marker):
+                            continue
+                        await send_sla_stage_alert(
+                            db, vac, stage, requester_email,
+                            kind="proximo", remaining_business_days=remaining,
+                            dedup_key=marker,
+                        )
+                        count += 1
+
+    return f"Alertas SLA enviadas: {count}"
+
+
+# --- 8. RECORDATORIO DE CAPACITACIONES (inicio/cierre) ---
+def _training_reminder_html(training: Training, employee: Employee, kind: str) -> str:
+    """Genera el cuerpo HTML estandarizado para recordatorios de capacitación."""
+    training_name = (training.name or "").replace("\n", " ").replace("\r", "").strip()
+    if kind == "start":
+        headline = "Capacitación próxima a iniciar"
+        detail = (
+            f"Te recordamos tu participación en la capacitación "
+            f"<strong>{training_name}</strong> que inicia el "
+            f"<strong>{training.start_date.strftime('%d/%m/%Y')}</strong>."
+        )
+    else:
+        headline = "Capacitación próxima a finalizar"
+        detail = (
+            f"La capacitación <strong>{training_name}</strong> en la que participas "
+            f"finaliza el <strong>{training.end_date.strftime('%d/%m/%Y')}</strong>."
+        )
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="margin:0; padding:0; background-color:#f1f5f9; font-family:Arial, sans-serif;">
+        <div style="max-width:600px; margin:0 auto; background-color:#ffffff;">
+            <div style="background-color:#003366; color:#ffffff; padding:20px; text-align:center;">
+                <h2 style="margin:0; font-size:18px;">{headline}</h2>
+            </div>
+            <div style="padding:24px;">
+                <p>Hola {employee.full_name},</p>
+                <p>{detail}</p>
+                <p>Por favor ingresa al sistema para más información.</p>
+            </div>
+            <div style="background-color:#f8fafc; padding:15px; text-align:center; font-size:11px; color:#94a3b8; border-top:1px solid #e5e7eb;">
+                Este es un correo automático generado por el sistema de Talento Humano.<br>
+                &copy; {datetime.now().year} {(get_current_tenant().name if get_current_tenant() else settings.BUSINESS_NAME)}.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+async def run_training_reminder(rule_id: int, param_value: int = 3, **kwargs):
+    """
+    Tarea diaria programada para el módulo de Capacitaciones:
+    transiciones de estado por fecha, alertas N-02..N-11, reintentos y control de réplicas.
+    """
+    from app.modules.trainings.notifications_service import run_daily_training_automation
+
+    async with get_tenant_db() as db:
+        stats = await run_daily_training_automation(db)
+    return f"Automatización capacitaciones: {stats}"
+
+
 # --- REGISTRO DE FUNCIONES ---
+# Las claves deben coincidir con los valores (.value) de AutomationRuleType (MAYÚSCULAS).
 TASK_REGISTRY = {
-    "vacancy_weekly_report": run_vacancy_weekly_report,
-    "vacancy_stagnation": run_vacancy_stagnation_check,
-    "event_reminder": run_event_reminder,
-    "contract_expiration": run_contract_expiration,
-    "probation_end": run_probation_end,
+    "VACANCY_WEEKLY_REPORT": run_vacancy_weekly_report,
+    "VACANCY_STAGNATION": run_vacancy_stagnation_check,
+    "EVENT_REMINDER": run_event_reminder,
+    "CONTRACT_EXPIRATION": run_contract_expiration,
+    "PROBATION_END": run_probation_end,
+    "SLA_DAILY_CHECK": run_sla_daily_check,
+    "TRAINING_REMINDER": run_training_reminder,
     "advanced_automations": run_advanced_automations,
-    "sla_daily_check": lambda **k: "SLA Check (Simulado)"
 }

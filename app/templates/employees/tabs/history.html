@@ -12,7 +12,9 @@
                     <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
                         <th class="px-4 py-3 font-semibold">Curso</th>
                         <th class="px-4 py-3 font-semibold">Fecha</th>
-                        <th class="px-4 py-3 font-semibold">Estado</th>
+                        <th class="px-4 py-3 font-semibold">Horas</th>
+                        <th class="px-4 py-3 font-semibold">% Asistencia</th>
+                        <th class="px-4 py-3 font-semibold">Resultado / Estado</th>
                         <th class="px-4 py-3 font-semibold text-right">Acción</th>
                     </tr>
                 </thead>
@@ -23,24 +25,31 @@
                             <a href="/trainings/{{ enroll.training.id }}" class="text-blue-600 hover:underline">{{ enroll.training.name }}</a>
                         </td>
                         <td class="px-4 py-3 text-gray-500">{{ enroll.training.start_date }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ enroll.training.hours or 0 }} h</td>
+                        <td class="px-4 py-3 text-gray-700 font-medium">{{ '%.1f'|format(enroll.attendance_pct or 0) }}%</td>
                         <td class="px-4 py-3">
                             {% if enroll.status.value == 'enrolled' %}
                                 <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Inscrito</span>
                             {% elif enroll.status.value == 'attended' %}
-                                <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Asistió</span>
-                            {% elif enroll.status.value == 'no_show' %}
-                                <span class="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded">No Asistió</span>
+                                <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Aprobado</span>
+                            {% elif enroll.status.value in ['failed', 'no_show'] %}
+                                <span class="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded">No aprobado</span>
                             {% else %}
-                                <span class="bg-gray-100 text-gray-800 text-xs px-2 py-0.5 rounded">{{ enroll.status }}</span>
+                                <span class="bg-gray-100 text-gray-800 text-xs px-2 py-0.5 rounded">{{ enroll.status.value }}</span>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-right space-x-2">
+                            {% if enroll.certificate_file %}
+                                <a href="{{ enroll.certificate_file }}" class="text-emerald-600 hover:underline text-xs font-medium">Certificado</a>
+                            {% elif enroll.status.value == 'attended' and enroll.training.type and enroll.training.type.value in ['internal', 'replica'] %}
+                                <a href="/trainings/api/enrollments/{{ enroll.id }}/certificate-pdf" class="text-emerald-600 hover:underline text-xs font-medium">Certificado PDF</a>
+                            {% endif %}
                             <button onclick="viewAttendance({{ enroll.id }}, '{{ enroll.training.name }}')" class="text-gray-500 hover:text-blue-600 text-xs font-medium">Ver Asistencia</button>
                             <button onclick="confirmRemoveTraining({{ enroll.id }})" class="text-red-500 hover:text-red-700 text-xs font-medium">Desvincular</button>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="px-4 py-4 text-center text-gray-400 text-sm">No hay capacitaciones registradas.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 text-sm">No hay capacitaciones registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -87,6 +96,9 @@
                             
                             {% if h.contract_type %}
                                 <div class="text-xs text-purple-600 mt-1">Contrato: {{ h.contract_type.name }}</div>
+                            {% endif %}
+                            {% if h.exit_category %}
+                                <div class="text-xs text-red-500 mt-1">Categoría: {{ h.exit_category.name }}</div>
                             {% endif %}
                         </td>
                         <td class="p-3 text-gray-500 italic">{{ h.notes or '-' }}</td>

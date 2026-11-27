@@ -9,7 +9,7 @@
         <div>
             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 <!-- Helper para construir query string -->
-                {% set base_query = "&q=" ~ (filters.q or '') ~ "&area_id=" ~ (filters.area_id or '') ~ "&sede_id=" ~ (filters.sede_id or '') ~ "&limit=" ~ filters.limit ~ "&gender=" ~ (filters.gender or '') ~ "&dietary_id=" ~ (filters.dietary_id or '') ~ "&birth_month=" ~ (filters.birth_month or '') ~ "&is_leader=" ~ (filters.is_leader or '') %}
+                {% set base_query = "&q=" ~ (filters.q or '') ~ "&area_id=" ~ (filters.area_id or '') ~ "&sede_id=" ~ (filters.sede_id or '') ~ "&limit=" ~ filters.limit ~ "&gender=" ~ (filters.gender or '') ~ "&dietary_id=" ~ (filters.dietary_id or '') ~ "&birth_month=" ~ (filters.birth_month or '') ~ "&is_leader=" ~ (filters.is_leader or '') ~ "&is_active=" ~ (filters.is_active or 'true') %}
 
                 {% if pagination.has_prev %}
                 <a href="?page={{ pagination.page - 1 }}{{ base_query }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">

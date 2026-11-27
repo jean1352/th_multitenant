@@ -1,0 +1,106 @@
+name: Pruebas E2E
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: Playwright (Chromium)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      PLAYWRIGHT_BASE_URL: http://localhost:8007
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar tipos
+        run: npm run test:e2e:typecheck
+
+      - name: Instalar Chromium y sus dependencias
+        run: npx playwright install --with-deps chromium
+
+      - name: Crear configuración temporal
+        id: configuration
+        shell: bash
+        run: |
+          umask 077
+          python3 - <<'PY'
+          from pathlib import Path
+          import secrets
+
+          database_password = secrets.token_hex(24)
+          configs = {
+              '.env': (
+                  'POSTGRES_SERVER=db\n'
+                  'POSTGRES_USER=admin\n'
+                  f'POSTGRES_PASSWORD={database_password}\n'
+                  'POSTGRES_DB=talento_up_db\n'
+                  'POSTGRES_PORT=5432\n'
+                  f'SECRET_KEY={secrets.token_hex(32)}\n'
+                  'SMTP_ENABLED=False\n'
+              ),
+              '.env.db': (
+                  'POSTGRES_USER=admin\n'
+                  f'POSTGRES_PASSWORD={database_password}\n'
+                  'POSTGRES_DB=talento_up_db\n'
+              ),
+              '.env.test': (
+                  f'SECRET_KEY={secrets.token_hex(32)}\n'
+                  'E2E_ADMIN_EMAIL=admin-e2e@example.com\n'
+                  f'E2E_ADMIN_PASSWORD={secrets.token_hex(24)}\n'
+              ),
+          }
+          for name, content in configs.items():
+              with Path(name).open('x') as file:
+                  file.write(content)
+          PY
+
+      - name: Levantar PostgreSQL y el backend de pruebas
+        run: npm run env:e2e:up
+
+      - name: Ejecutar pruebas
+        run: npm run test:e2e
+
+      - name: Guardar logs del backend si falla la ejecución
+        if: failure() && steps.configuration.outcome == 'success'
+        run: docker compose --profile e2e logs --no-color > e2e-backend.log 2>&1
+
+      - name: Guardar reportes y evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+            e2e-backend.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Detener y limpiar el entorno temporal
+        if: always() && steps.configuration.outcome == 'success'
+        run: docker compose --profile e2e down --volumes --remove-orphans

@@ -1,4 +1,6 @@
 import sys
+from contextlib import asynccontextmanager
+from typing import Optional
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
@@ -54,6 +56,83 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
+
+@asynccontextmanager
+async def get_tenant_db(schema_name: Optional[str] = None):
+    """Sesión asíncrona aislada al esquema del tenant (para BackgroundTasks y Scheduler)."""
+    from app.core.tenants import get_current_tenant
+    if schema_name is None:
+        tenant = get_current_tenant()
+        schema_name = tenant.schema_name if tenant else None
+    async with AsyncSessionLocal() as session:
+        if schema_name:
+            await session.execute(text(f'SET search_path TO "{schema_name}", public'))
+        else:
+            await session.execute(text('SET search_path TO public'))
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+def tenant_db_factory():
+    """Captura el esquema del tenant actual y devuelve una factory de sesiones para BackgroundTasks."""
+    from app.core.tenants import get_current_tenant
+    tenant = get_current_tenant()
+    schema_name = tenant.schema_name if tenant else None
+    return lambda: get_tenant_db(schema_name)
+
+
+def sync_enum_values_for_schema(connection, schema_name: str):
+    """Agrega valores faltantes a los ENUMs nativos de PostgreSQL del esquema dado.
+
+    `Base.metadata.create_all()` no altera enums existentes, así que cuando se
+    agrega un miembro nuevo a un enum de Python hay que reflejarlo en la BD con
+    `ALTER TYPE ... ADD VALUE IF NOT EXISTS` dentro de un SAVEPOINT (`begin_nested`)
+    para que ningún error puntual aborte la transacción de migración.
+    """
+    connection.execute(text(f'SET search_path TO "{schema_name}"'))
+    seen_types = set()
+    for table in Base.metadata.tables.values():
+        model_schema = table.schema or "public"
+        if schema_name != "public" and model_schema == "public" and table.name == "tenants":
+            continue
+        for column in table.columns:
+            col_type = column.type
+            if not hasattr(col_type, "enums") or not col_type.enums:
+                continue
+            type_name = getattr(col_type, "name", None)
+            if not type_name or type_name in seen_types:
+                continue
+            seen_types.add(type_name)
+
+            # Verificar que el tipo ENUM exista realmente en este esquema
+            exists = connection.execute(
+                text(
+                    "SELECT 1 FROM pg_type t "
+                    "JOIN pg_namespace n ON n.oid = t.typnamespace "
+                    "WHERE t.typname = :tname AND n.nspname = :sname"
+                ),
+                {"tname": type_name, "sname": schema_name},
+            ).scalar()
+            if not exists:
+                continue
+
+            for val in col_type.enums:
+                safe_val = str(val).replace("'", "''")
+                try:
+                    with connection.begin_nested():
+                        connection.execute(
+                            text(f'ALTER TYPE "{schema_name}"."{type_name}" ADD VALUE IF NOT EXISTS \'{safe_val}\'')
+                        )
+                except Exception as e:
+                    print(f"  ⚠️ [Enum] {schema_name}.{type_name}: '{val}' -> {e}")
+
+    if schema_name != "public":
+        connection.execute(text(f'SET search_path TO "{schema_name}", public'))
+    else:
+        connection.execute(text('SET search_path TO public'))
 
 
 async def auto_upgrade_db_schema():
@@ -127,6 +206,8 @@ async def auto_upgrade_db_schema():
         print("🌍 Sincronizando esquema público (global)...")
         # Aseguramos que todas las tablas globales existan
         await conn.run_sync(Base.metadata.create_all)
+        # Sincronizamos los valores de los ENUMs nativos
+        await conn.run_sync(lambda connection: sync_enum_values_for_schema(connection, "public"))
         # Sincronizamos las columnas de 'public'
         await conn.run_sync(lambda connection: sync_schema_columns(connection, "public"))
         # Aseguramos la nulidad del rule_type
@@ -153,6 +234,7 @@ async def auto_upgrade_db_schema():
             
             # Ahora agregamos 'public' al search_path para poder sincronizar columnas/claves foráneas con public
             await conn.execute(text(f'SET search_path TO "{schema}", public'))
+            await conn.run_sync(lambda connection: sync_enum_values_for_schema(connection, schema))
             await conn.run_sync(lambda connection: sync_schema_columns(connection, schema))
             await conn.run_sync(lambda connection: migrate_automation_rules_nullability(connection, schema))
             

@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% block title %}Calendario - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Calendario - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -181,7 +181,7 @@
     window.closeDetailModal = () => document.getElementById('eventDetailModal').classList.add('hidden');
     
     window.deleteCurrentEvent = async () => {
-        if(!confirm('¿Eliminar este evento?')) return;
+        if(!await uiConfirm('¿Eliminar este evento?')) return;
         try {
             await ApiClient.delete(`/calendar/api/events/${currentEventId}`);
             showToast('Evento eliminado');
@@ -226,7 +226,7 @@
     });
 
     window.deleteType = async (id) => {
-        if(!confirm('¿Eliminar tipo?')) return;
+        if(!await uiConfirm('¿Eliminar tipo?')) return;
         try {
             await ApiClient.delete(`/calendar/api/types/${id}`);
             showToast('Tipo eliminado');

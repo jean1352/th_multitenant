@@ -1,0 +1,47 @@
+<!-- MODAL DETALLE DE SLA -->
+<div id="slaDetailModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-start justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeSlaDetail()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl w-full">
+            <div class="bg-white px-6 pt-5 pb-4 border-b border-gray-100">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h3 id="slaDetailTitle" class="text-lg leading-6 font-bold text-gray-900">Detalle de SLA</h3>
+                        <p class="text-sm text-gray-500 mt-1">Casos y etapas con su estado de cumplimiento.</p>
+                    </div>
+                    <button onclick="closeSlaDetail()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Resumen -->
+                <div id="slaDetailSummary" class="flex flex-wrap gap-3 mt-4"></div>
+            </div>
+
+            <div class="px-6 py-4 max-h-[60vh] overflow-y-auto">
+                <div class="overflow-x-auto rounded-lg border border-gray-100">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold sticky top-0">
+                            <tr>
+                                <th class="px-4 py-3">Vacante</th>
+                                <th class="px-4 py-3">Área</th>
+                                <th class="px-4 py-3">Etapa</th>
+                                <th class="px-4 py-3 text-center">Inicio</th>
+                                <th class="px-4 py-3 text-center">Límite</th>
+                                <th class="px-4 py-3 text-center">Fin</th>
+                                <th class="px-4 py-3 text-center">SLA (días)</th>
+                                <th class="px-4 py-3 text-center">Transcurridos</th>
+                                <th class="px-4 py-3">Responsable</th>
+                                <th class="px-4 py-3 text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="slaDetailBody" class="divide-y divide-gray-50 text-gray-600">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

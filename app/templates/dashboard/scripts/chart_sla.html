@@ -3,31 +3,56 @@
 
     /**
      * GRÁFICOS: Cumplimiento SLA
-     * Gestiona SLA Etapas y SLA Vacante (ambos dinámicos ahora)
+     * Gestiona SLA Etapas y las tres formas de SLA (Global, R&S, Área).
      */
     let slaStagesChart = null;
     let slaVacancyChart = null;
+    let slaRsChart = null;
+    let slaAreaChart = null;
+    let slaComparisonChart = null;
 
     // Función global para actualizar gráficos al cambiar el filtro de área
-    window.updateStageCharts = async (areaId) => {
+    window.updateStageCharts = async () => {
         try {
-            const url = areaId 
-                ? `/recruitment/api/dashboard/stage-stats?area_id=${areaId}` 
-                : `/recruitment/api/dashboard/stage-stats`;
-            
+            const area = document.getElementById('slaAreaFilter')?.value || '';
+            const start = document.getElementById('slaStartDate')?.value || '';
+            const end = document.getElementById('slaEndDate')?.value || '';
+
+            const params = new URLSearchParams();
+            if (area) params.append('area_id', area);
+            if (start) params.append('start_date', start);
+            if (end) params.append('end_date', end);
+            const qs = params.toString();
+            const url = `/recruitment/api/dashboard/stage-stats` + (qs ? `?${qs}` : '');
+
             const data = await ApiClient.get(url);
-            
+
             renderSlaStagesChart(data.sla_stages);
-            renderSlaVacancyChart(data.sla_vacancy);
-            
-            // Actualizar también el gráfico de Cuellos de Botella (definido en otro archivo)
+            renderSlaPie('chartSlaVacancy', data.sla_vacancy, () => slaVacancyChart, (c) => { slaVacancyChart = c; });
+            renderSlaPie('chartSlaRs', data.sla_rs, () => slaRsChart, (c) => { slaRsChart = c; });
+            renderSlaPie('chartSlaArea', data.sla_area, () => slaAreaChart, (c) => { slaAreaChart = c; });
+            renderSlaComparisonChart(data.sla_comparison);
+
             if (window.renderBottleneckChart) {
                 window.renderBottleneckChart(data.bottleneck);
+            }
+            if (window.renderBottleneckReport) {
+                window.renderBottleneckReport(data.bottleneck_report);
             }
 
         } catch (e) {
             console.error("Error actualizando gráficos de rendimiento:", e);
         }
+    };
+
+    window.clearStageFilters = () => {
+        const area = document.getElementById('slaAreaFilter');
+        const start = document.getElementById('slaStartDate');
+        const end = document.getElementById('slaEndDate');
+        if (area) area.value = '';
+        if (start) start.value = '';
+        if (end) end.value = '';
+        window.updateStageCharts();
     };
 
     function renderSlaStagesChart(data) {
@@ -74,25 +99,28 @@
         });
     }
 
-    function renderSlaVacancyChart(data) {
-        const ctx = document.getElementById('chartSlaVacancy').getContext('2d');
-        
-        if (slaVacancyChart) slaVacancyChart.destroy();
+    function renderSlaPie(canvasId, data, getRef, setRef) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
 
-        slaVacancyChart = new Chart(ctx, {
+        const existing = getRef();
+        if (existing) existing.destroy();
+
+        const chart = new Chart(ctx, {
             type: 'pie',
-            data: { 
-                labels: Object.keys(data), 
-                datasets: [{ 
-                    data: Object.values(data), 
-                    backgroundColor: ['#3B82F6', '#F59E0B'], // Azul / Naranja
-                    borderWidth: 0 
-                }] 
+            data: {
+                labels: Object.keys(data || {}),
+                datasets: [{
+                    data: Object.values(data || {}),
+                    backgroundColor: ['#10B981', '#EF4444'], // Verde / Rojo
+                    borderWidth: 0
+                }]
             },
             options: {
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
                     legend: { position: 'bottom' },
                     datalabels: {
                         color: '#fff',
@@ -105,9 +133,238 @@
                             return (value * 100 / sum).toFixed(1) + "%";
                         }
                     }
-                } 
+                }
             }
         });
+        setRef(chart);
+    }
+
+    function renderSlaComparisonChart(data) {
+        const canvas = document.getElementById('chartSlaComparison');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (slaComparisonChart) slaComparisonChart.destroy();
+
+        const d = data || { labels: ['R&S', 'Área'], values: [0, 0], ok: [0, 0], overdue: [0, 0], total: [0, 0] };
+
+        slaComparisonChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: d.labels,
+                datasets: [{
+                    label: '% Cumplimiento',
+                    data: d.values,
+                    backgroundColor: ['#3B82F6', '#10B981'],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const i = ctx.dataIndex;
+                                const ok = d.ok[i] ?? 0;
+                                const over = d.overdue[i] ?? 0;
+                                return [
+                                    d.values[i] + '% de cumplimiento',
+                                    'A tiempo: ' + ok,
+                                    'Fuera de plazo: ' + over
+                                ];
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'end',
+                        color: '#1e293b',
+                        font: { weight: 'bold', size: 12 },
+                        formatter: (value) => value + '%'
+                    }
+                }
+            }
+        });
+    }
+
+    // --- DETALLE DE SLA (MODAL) ---
+    window.closeSlaDetail = () => {
+        document.getElementById('slaDetailModal').classList.add('hidden');
+    };
+
+    window.openSlaDetail = async (form) => {
+        const areaId = (document.getElementById('slaAreaFilter')?.value || '');
+        const titles = { global: 'SLA Global', rs: 'SLA R&S', area: 'SLA Área' };
+        document.getElementById('slaDetailTitle').innerText = titles[form] || 'Detalle de SLA';
+        document.getElementById('slaDetailSummary').innerHTML = '';
+        document.getElementById('slaDetailBody').innerHTML =
+            '<tr><td colspan="10" class="px-4 py-8 text-center text-gray-500 italic">Cargando detalle...</td></tr>';
+        document.getElementById('slaDetailModal').classList.remove('hidden');
+
+        try {
+            const startDate = (document.getElementById('slaStartDate')?.value || '');
+            const endDate = (document.getElementById('slaEndDate')?.value || '');
+            const params = new URLSearchParams();
+            params.append('form', form);
+            if (areaId) params.append('area_id', areaId);
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            const url = `/recruitment/api/dashboard/sla-details?${params.toString()}`;
+            const data = await ApiClient.get(url);
+            renderSlaDetail(data);
+        } catch (e) {
+            document.getElementById('slaDetailBody').innerHTML =
+                `<tr><td colspan="10" class="px-4 py-8 text-center text-red-500">${e.message || 'Error al cargar el detalle.'}</td></tr>`;
+        }
+    };
+
+    function renderSlaDetail(data) {
+        // Resumen
+        const summary = document.getElementById('slaDetailSummary');
+        summary.innerHTML = `
+            <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-full">Total: ${data.total}</span>
+            <span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full">A Tiempo: ${data.ok}</span>
+            <span class="inline-flex items-center gap-1 bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full">Fuera de Plazo: ${data.overdue}</span>
+        `;
+
+        const body = document.getElementById('slaDetailBody');
+        if (!data.items || data.items.length === 0) {
+            body.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-gray-500 italic">No hay casos para mostrar.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = data.items.map(i => {
+            const isOverdue = i.status === 'Fuera de Plazo';
+            const badge = isOverdue
+                ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">Fuera de Plazo</span>'
+                : '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">A Tiempo</span>';
+
+            const daysClass = isOverdue ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
+
+            return `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 font-semibold text-blue-800">
+                    <a href="/recruitment/vacancies/${i.vacancy_id}" class="hover:underline" target="_blank">${i.vacancy_title}</a>
+                </td>
+                <td class="px-4 py-3 text-gray-500">${i.area_name || '-'}</td>
+                <td class="px-4 py-3 font-medium text-gray-800">${i.stage_name || '-'}</td>
+                <td class="px-4 py-3 text-center text-gray-500">${i.start_date || '-'}</td>
+                <td class="px-4 py-3 text-center text-gray-500">${i.deadline_date || '-'}</td>
+                <td class="px-4 py-3 text-center text-gray-500">${i.end_date || '-'}</td>
+                <td class="px-4 py-3 text-center text-gray-600">${i.sla_days ?? 0}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="openSlaAudit(${i.vacancy_id})" class="${daysClass} underline-offset-2 hover:underline focus:outline-none" title="Ver auditoría de SLA (días contados vs excluidos)">${i.days_taken ?? 0}</button>
+                </td>
+                <td class="px-4 py-3 text-gray-500">${i.responsible || '-'}</td>
+                <td class="px-4 py-3 text-center">${badge}</td>
+            </tr>
+        `}).join('');
+    }
+
+    // --- AUDITORÍA DE SLA (días contados vs excluidos) ---
+    let slaAuditData = null;
+
+    window.openSlaAudit = async (vacancyId) => {
+        const modal = document.getElementById('slaAuditModal');
+        const content = document.getElementById('slaAuditContent');
+        modal.classList.remove('hidden');
+        content.innerHTML = '<div class="py-10 text-center text-gray-500">Cargando auditoría de SLA...</div>';
+        slaAuditData = null;
+        try {
+            slaAuditData = await ApiClient.get(`/recruitment/api/vacancies/${vacancyId}/sla-detail`);
+            renderSlaAudit('global');
+        } catch (e) {
+            content.innerHTML = `<div class="py-10 text-center text-red-500">Error al cargar: ${e.message}</div>`;
+        }
+    };
+
+    window.closeSlaAudit = () => {
+        document.getElementById('slaAuditModal').classList.add('hidden');
+    };
+
+    window.switchSlaAudit = (scope) => renderSlaAudit(scope);
+
+    function renderSlaAudit(scope) {
+        if (!slaAuditData) return;
+        const content = document.getElementById('slaAuditContent');
+
+        document.querySelectorAll('#slaAuditTabs .sla-audit-tab').forEach(t => {
+            const active = t.dataset.scope === scope;
+            t.classList.toggle('bg-blue-900', active);
+            t.classList.toggle('text-white', active);
+            t.classList.toggle('bg-gray-100', !active);
+            t.classList.toggle('text-gray-700', !active);
+        });
+
+        if (scope === 'global') {
+            content.innerHTML = renderSlaAuditRange(slaAuditData.global);
+        } else if (scope === 'rs') {
+            content.innerHTML = renderSlaAuditStages('reclutador', 'R&S (Reclutamiento y Selección)');
+        } else {
+            content.innerHTML = renderSlaAuditStages('area', 'Área Solicitante');
+        }
+    }
+
+    function renderSlaAuditStages(owner, title) {
+        const stages = (slaAuditData.stages || []).filter(s => s.owner === owner);
+        if (!stages.length) {
+            return `<p class="py-6 text-gray-500 text-center">No hay etapas de ${title} en esta vacante.</p>`;
+        }
+        return stages.map(renderSlaAuditRange).join('');
+    }
+
+    function renderSlaAuditRange(r) {
+        const planned = r.sla_days != null ? `<span class="font-semibold">${r.sla_days} planificados</span>` : '';
+        const over = (r.sla_days != null && r.counted_days > r.sla_days)
+            ? `<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">${r.counted_days - r.sla_days} fuera de SLA</span>`
+            : '';
+        return `
+            <div class="mb-4">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="font-semibold text-gray-900">${r.label}</span>
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">${r.start_date} → ${r.end_date}</span>
+                    <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-semibold">${r.counted_days} día(s) hábil(es) contados / ${planned}</span>
+                    ${r.deadline_date ? `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Límite: ${r.deadline_date}</span>` : ''}
+                    ${over}
+                </div>
+                ${renderSlaAuditDays(r.days, r.sla_days)}
+            </div>`;
+    }
+
+    function renderSlaAuditDays(days, sla_days) {
+        if (!days || !days.length) return '<p class="text-gray-400 text-xs">Sin días en el rango.</p>';
+        let counted = 0;
+        return `<div class="grid grid-cols-1 sm:grid-cols-2 gap-1">${days.map(d => {
+            let badge;
+            let rowClass = '';
+            if (d.status === 'inicio') {
+                badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-blue-100 text-blue-800">Inicio</span>';
+            } else if (d.status === 'contado') {
+                counted += 1;
+                const overSla = sla_days != null && counted > sla_days;
+                if (overSla) {
+                    badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-red-500 text-white">Fuera SLA</span>';
+                    rowClass = 'bg-red-50';
+                } else {
+                    badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-green-100 text-green-800">Contado</span>';
+                }
+            } else {
+                badge = '<span class="w-20 shrink-0 text-center px-1 py-0.5 rounded text-[11px] bg-red-100 text-red-700">Excluido</span>';
+            }
+            const reason = d.reason ? `<span class="text-gray-500">— ${d.reason}</span>` : '';
+            const excludeClass = d.status === 'excluido' ? 'bg-red-50/50' : '';
+            return `<div class="flex items-center gap-2 border rounded px-2 py-1 ${rowClass || excludeClass}">
+                ${badge}
+                <span class="font-medium text-gray-800">${d.date}</span>
+                <span class="text-gray-400 text-xs">${d.weekday}</span>
+                ${reason}
+            </div>`;
+        }).join('')}</div>`;
     }
 
     // Carga inicial (sin filtro)

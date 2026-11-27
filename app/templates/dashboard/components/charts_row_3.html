@@ -1,13 +1,48 @@
 <!-- CHARTS ROW 3: Cuellos de Botella y Rotación -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">Cuellos de Botella (Días Promedio)</h3>
-            <button onclick="downloadChart('chartBottleneck', 'Cuellos_Botella')" class="text-gray-400 hover:text-blue-600 p-1">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Cuellos de Botella (Embudo)</h3>
+                <p class="text-xs text-gray-500">En orden del proceso · el ancho indica los días y el color si supera el SLA</p>
+            </div>
+            <button onclick="downloadChart('chartBottleneck', 'Cuellos_Botella')" class="text-gray-400 hover:text-blue-600 p-1" title="Descargar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             </button>
         </div>
-        <div class="relative h-64"><canvas id="chartBottleneck"></canvas></div>
+        <div class="relative"><canvas id="chartBottleneck" class="w-full"></canvas></div>
+        <div id="bottleneckLegend" class="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-500"></div>
+
+        <div class="flex items-center gap-2 mt-4 border-t border-gray-100 pt-4">
+            <button onclick="toggleBottleneckReport()" class="bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                <i class="fas fa-table"></i> Ver Informe
+            </button>
+            <button onclick="exportBottleneckReport()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+        </div>
+
+        <div id="bottleneckReportContainer" class="hidden mt-4">
+            <div class="overflow-x-auto max-h-80 overflow-y-auto rounded-lg border border-gray-100">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Etapa</th>
+                            <th class="px-4 py-3 text-center">Responsable</th>
+                            <th class="px-4 py-3 text-center">Casos</th>
+                            <th class="px-4 py-3 text-center">Días Prom. Real</th>
+                            <th class="px-4 py-3 text-center">SLA Objetivo</th>
+                            <th class="px-4 py-3 text-center">A Tiempo</th>
+                            <th class="px-4 py-3 text-center">Fuera de Plazo</th>
+                            <th class="px-4 py-3 text-center">% Cumplimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bottleneckReportBody" class="divide-y divide-gray-50 text-gray-600">
+                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div class="flex justify-between items-center mb-4">

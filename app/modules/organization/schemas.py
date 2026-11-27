@@ -155,6 +155,45 @@ class ProbationDurationUpdate(BaseModel):
     days: Optional[int] = None
     is_active: Optional[bool] = None
 
+# PROBATION STAGE
+class ProbationStageBase(BaseModel):
+    name: str
+    days: int
+    description: Optional[str] = None
+    sort_order: int = 0
+
+class ProbationStageCreate(ProbationStageBase):
+    probation_duration_id: int
+
+class ProbationStageRead(ProbationStageBase):
+    id: int
+    probation_duration_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class ProbationStageUpdate(BaseModel):
+    name: Optional[str] = None
+    days: Optional[int] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+
+# EXIT CATEGORY
+class ExitCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_active: bool = True
+
+class ExitCategoryCreate(ExitCategoryBase):
+    pass
+
+class ExitCategoryRead(ExitCategoryBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class ExitCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
 # RELATIONSHIP TYPE
 class RelationshipTypeBase(BaseModel):
     name: str

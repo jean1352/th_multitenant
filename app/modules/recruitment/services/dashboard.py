@@ -1,26 +1,31 @@
+import io
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from sqlalchemy import case, desc, func, select, Date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload  # <--- IMPORTACIÓN AGREGADA
 
-from app.modules.employees.models import EmployeeHistory, MovementType
-from app.modules.organization.models import Area
-from app.modules.recruitment.models import (
-    ProcessStatus,
-    Vacancy,
-    VacancyStage
-)
 from app.modules.employees.models import (
     Employee,
     EmployeeHistory,
-    MovementType
+    EmployeePosition,
+    MovementType,
+)
+from app.modules.organization.models import Area
+from app.modules.recruitment.models import (
+    ProcessStatus,
+    StageOwner,
+    Vacancy,
+    VacancyStage,
 )
 from app.modules.trainings.models import EnrollmentStatus, TrainingEnrollment
+from app.modules.recruitment.business_calendar import count_business_days, refresh_holidays_cache
 
 async def get_dashboard_metrics(db: AsyncSession) -> Dict[str, Any]:
     """Calcula métricas clave para el dashboard (KPIs generales)."""
+    await refresh_holidays_cache(db)
 
     # 1. KPIs Básicos
     total_vacancies = await db.scalar(select(func.count(Vacancy.id))) or 0
@@ -103,7 +108,7 @@ async def get_dashboard_metrics(db: AsyncSession) -> Dict[str, Any]:
         elif not created_at.tzinfo and end_date.tzinfo:
             end_date = end_date.replace(tzinfo=None)
             
-        days_elapsed = (end_date - created_at).days
+        days_elapsed = count_business_days(created_at.date(), end_date.date())
         
         if days_elapsed > total_sla:
             vac_sla_overdue += 1
@@ -257,14 +262,20 @@ async def get_monthly_stats(db: AsyncSession, year: int) -> Dict[str, Any]:
         join_target=[last_stage_sub] # Join with last_stage_sub to get ls_date
     )
     
-    # NEW: Starts from EmployeeHistory (Entries) instead of Vacancy.start_date
+    # NEW: Starts from EmployeePosition (primary) = fecha real de ingreso.
+    # Usamos la posición primaria en lugar del historial porque el historial
+    # de creación manual de empleados guarda la fecha de hoy por defecto,
+    # mientras que EmployeePosition.start_date refleja el ingreso real.
     stmt_starts = (
-        select(func.extract('month', EmployeeHistory.date), func.count(EmployeeHistory.id))
-        .where(
-            func.extract('year', EmployeeHistory.date) == year,
-            EmployeeHistory.movement_type == MovementType.ENTRY
+        select(
+            func.extract('month', EmployeePosition.start_date),
+            func.count(EmployeePosition.id),
         )
-        .group_by(func.extract('month', EmployeeHistory.date))
+        .where(
+            func.extract('year', EmployeePosition.start_date) == year,
+            EmployeePosition.is_primary == True,
+        )
+        .group_by(func.extract('month', EmployeePosition.start_date))
     )
     res_starts = await db.execute(stmt_starts)
     starts = {int(row[0]): row[1] for row in res_starts}
@@ -353,22 +364,23 @@ async def _get_detail_list(
     ]
 
 async def _get_employee_entry_details(db: AsyncSession, year: int) -> List[Dict[str, Any]]:
-    """Obtiene detalles de INGRESO de empleados (Starts) desde el historial."""
+    """Obtiene detalles de INGRESO de empleados (Starts) usando la fecha real
+    de ingreso (EmployeePosition.start_date de la posición primaria)."""
     stmt = (
         select(
             Employee.id,
             Employee.full_name,
-            EmployeeHistory.date,
-            Employee.document_id
+            EmployeePosition.start_date,
+            Employee.document_id,
         )
-        .join(Employee, EmployeeHistory.employee_id == Employee.id)
+        .join(Employee, EmployeePosition.employee_id == Employee.id)
         .where(
-            func.extract('year', EmployeeHistory.date) == year,
-            EmployeeHistory.movement_type == MovementType.ENTRY
+            func.extract('year', EmployeePosition.start_date) == year,
+            EmployeePosition.is_primary == True,
         )
-        .order_by(EmployeeHistory.date.desc())
+        .order_by(EmployeePosition.start_date.desc())
     )
-    
+
     res = await db.execute(stmt)
     return [
         {
@@ -376,20 +388,31 @@ async def _get_employee_entry_details(db: AsyncSession, year: int) -> List[Dict[
             "title": r.full_name,          # Mapped to 'title' for frontend compatibility
             "created_at": r.document_id,   # Mapped to 'created_at' (showing doc ID)
             "status": "active",            # Constant or derived
-            "date": r.date.strftime("%d/%m/%Y"),
+            "date": r.start_date.strftime("%d/%m/%Y"),
         }
         for r in res
     ]
 
-async def get_stage_performance_stats(db: AsyncSession, area_id: Optional[int] = None) -> Dict[str, Any]:
+async def get_stage_performance_stats(
+    db: AsyncSession,
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> Dict[str, Any]:
     """
-    Calcula estadísticas detalladas por etapa (SLA y Tiempos).
-    Soporta filtrado por Área.
+    Calcula estadísticas detalladas por etapa (SLA, Tiempos y Cuellos de Botella).
+    Soporta filtrado por Área y por Periodo (fechas).
     """
-    # Filtros comunes
+    await refresh_holidays_cache(db)
+
+    # Filtros comunes a nivel de etapa
     conditions = [VacancyStage.end_date.is_not(None)]
     if area_id:
         conditions.append(Vacancy.area_id == area_id)
+    if start_date:
+        conditions.append(VacancyStage.start_date >= start_date)
+    if end_date:
+        conditions.append(VacancyStage.start_date <= end_date)
 
     # 1. SLA por Etapa (Conteo OK vs Overdue)
     stmt_sla = (
@@ -411,27 +434,8 @@ async def get_stage_performance_stats(db: AsyncSession, area_id: Optional[int] =
         sla_data["overdue"].append(row.overdue or 0)
         sla_data["ok"].append(row.ok or 0)
 
-    # 2. Cuellos de Botella (Tiempo Real vs SLA Objetivo)
-    stmt_bottleneck = (
-        select(
-            VacancyStage.name,
-            func.avg(VacancyStage.end_date - VacancyStage.start_date).label("avg_real"),
-            func.avg(VacancyStage.sla_days_snapshot).label("avg_target")
-        )
-        .join(Vacancy, VacancyStage.vacancy_id == Vacancy.id)
-        .where(*conditions)
-        .group_by(VacancyStage.name)
-        .order_by(desc(func.avg(VacancyStage.end_date - VacancyStage.start_date)))
-        .limit(10) # Top 10 etapas más lentas
-    )
-    
-    result_bottleneck = await db.execute(stmt_bottleneck)
-    bottleneck_data = {"labels": [], "real": [], "target": []}
-    
-    for row in result_bottleneck:
-        bottleneck_data["labels"].append(row.name)
-        bottleneck_data["real"].append(round(row.avg_real, 1) if row.avg_real else 0)
-        bottleneck_data["target"].append(round(row.avg_target, 1) if row.avg_target else 0)
+    # 2. Cuellos de Botella (Embudo) + Informe por etapa
+    bottleneck_data, bottleneck_report = await _compute_bottleneck_data(db, conditions)
 
     # 3. SLA Global por Vacante (Calculado dinámicamente con filtro)
     stmt_vac = (
@@ -441,16 +445,29 @@ async def get_stage_performance_stats(db: AsyncSession, area_id: Optional[int] =
     )
     if area_id:
         stmt_vac = stmt_vac.where(Vacancy.area_id == area_id)
-        
+    if start_date or end_date:
+        stage_in_period = select(VacancyStage.vacancy_id)
+        if start_date:
+            stage_in_period = stage_in_period.where(VacancyStage.start_date >= start_date)
+        if end_date:
+            stage_in_period = stage_in_period.where(VacancyStage.start_date <= end_date)
+        stmt_vac = stmt_vac.where(Vacancy.id.in_(stage_in_period))
+
     vacancies = (await db.execute(stmt_vac)).scalars().all()
     
     vac_ok = 0
     vac_overdue = 0
+    rs_ok = 0
+    rs_overdue = 0
+    area_ok = 0
+    area_overdue = 0
     now = datetime.now()
 
     for vac in vacancies:
+        stages = sorted(vac.stages, key=lambda s: s.order_index)
+
         # Calcular SLA total
-        total_sla = sum(s.sla_days_snapshot for s in vac.stages)
+        total_sla = sum(s.sla_days_snapshot for s in stages)
         
         # Calcular días transcurridos
         start = vac.created_at
@@ -465,20 +482,319 @@ async def get_stage_performance_stats(db: AsyncSession, area_id: Optional[int] =
         if isinstance(end, date) and not isinstance(end, datetime):
              end = datetime.combine(end, datetime.min.time())
 
-        days_elapsed = (end - start).days
+        days_elapsed = count_business_days(start.date(), end.date())
         
         if days_elapsed > total_sla:
             vac_overdue += 1
         else:
             vac_ok += 1
 
-    sla_vacancy_data = {
-        "A Tiempo": vac_ok,
-        "Fuera de Plazo": vac_overdue
+        # SLA por forma (R&S / Área) usando el mismo criterio que los schemas
+        # rs_sla_status / area_sla_status (vencida si alguna etapa lo está).
+        # Solo se consideran etapas dentro del periodo seleccionado.
+        period_stages = [s for s in stages if _stage_in_period(s, start_date, end_date)]
+        rs_stages = [s for s in period_stages if s.owner == StageOwner.RECRUITER]
+        area_stages = [s for s in period_stages if s.owner == StageOwner.AREA]
+
+        if rs_stages:
+            if any(_stage_is_overdue(s) for s in rs_stages):
+                rs_overdue += 1
+            else:
+                rs_ok += 1
+
+        if area_stages:
+            if any(_stage_is_overdue(s) for s in area_stages):
+                area_overdue += 1
+            else:
+                area_ok += 1
+
+    rs_total = rs_ok + rs_overdue
+    area_total = area_ok + area_overdue
+    sla_comparison = {
+        "labels": ["R&S", "Área"],
+        "values": [
+            round((rs_ok / rs_total) * 100, 1) if rs_total > 0 else 0,
+            round((area_ok / area_total) * 100, 1) if area_total > 0 else 0,
+        ],
+        "ok": [rs_ok, area_ok],
+        "overdue": [rs_overdue, area_overdue],
+        "total": [rs_total, area_total],
     }
 
     return {
         "sla_stages": sla_data,
         "bottleneck": bottleneck_data,
-        "sla_vacancy": sla_vacancy_data
+        "bottleneck_report": bottleneck_report,
+        "sla_vacancy": {"A Tiempo": vac_ok, "Fuera de Plazo": vac_overdue},
+        "sla_rs": {"A Tiempo": rs_ok, "Fuera de Plazo": rs_overdue},
+        "sla_area": {"A Tiempo": area_ok, "Fuera de Plazo": area_overdue},
+        "sla_comparison": sla_comparison,
+    }
+
+
+def _stage_is_overdue(stage: VacancyStage) -> bool:
+    """Determina si una etapa está vencida (consistente con StageRead.sla_status)."""
+    if stage.deadline_date:
+        compare_date = stage.end_date or date.today()
+        if compare_date > stage.deadline_date:
+            return True
+    return False
+
+
+def _stage_in_period(stage: VacancyStage, start_date: Optional[date], end_date: Optional[date]) -> bool:
+    """Indica si la etapa inicia dentro del periodo seleccionado."""
+    if start_date and stage.start_date < start_date:
+        return False
+    if end_date and stage.start_date > end_date:
+        return False
+    return True
+
+
+def _vacancy_days_elapsed(vac: Vacancy, now: datetime) -> int:
+    """Días hábiles transcurridos de una vacante (desde la primera etapa o creación)."""
+    stages = sorted(vac.stages, key=lambda s: s.order_index) if vac.stages else []
+    start_date = (
+        stages[0].start_date
+        if stages
+        else (vac.created_at.date() if vac.created_at else date.today())
+    )
+    end = vac.closed_at or now
+    end_date = end.date() if isinstance(end, datetime) else end
+    return count_business_days(start_date, end_date)
+
+
+def _stage_days_taken(stage: VacancyStage) -> int:
+    """Días hábiles consumidos en una etapa (hasta su fin o hasta hoy)."""
+    end = stage.end_date or date.today()
+    return count_business_days(stage.start_date, end)
+
+
+def _owner_label(owner) -> str:
+    """Devuelve la etiqueta legible del responsable de una etapa."""
+    if isinstance(owner, StageOwner):
+        return "R&S" if owner == StageOwner.RECRUITER else "Área"
+    # Por si llega como cadena (nombre o valor del enum).
+    return "R&S" if owner in ("RECRUITER", "reclutador") else "Área"
+
+
+async def _compute_bottleneck_data(db: AsyncSession, conditions: List[Any]):
+    """Calcula los datos del embudo de cuellos de botella y su informe por etapa."""
+    stmt = (
+        select(
+            VacancyStage.name,
+            VacancyStage.owner,
+            func.min(VacancyStage.order_index).label("min_order"),
+            func.count(VacancyStage.id).label("count"),
+            func.avg(VacancyStage.end_date - VacancyStage.start_date).label("avg_real"),
+            func.avg(VacancyStage.sla_days_snapshot).label("avg_target"),
+            func.sum(case((VacancyStage.end_date > VacancyStage.deadline_date, 1), else_=0)).label("overdue"),
+        )
+        .join(Vacancy, VacancyStage.vacancy_id == Vacancy.id)
+        .where(*conditions)
+        .group_by(VacancyStage.name, VacancyStage.owner)
+        .order_by(func.min(VacancyStage.order_index), VacancyStage.name)
+    )
+    result = await db.execute(stmt)
+
+    funnel_data = {"labels": [], "real": [], "target": [], "overdue": [], "count": [], "owner": []}
+    report: List[Dict[str, Any]] = []
+
+    for row in result:
+        avg_real = round(row.avg_real, 1) if row.avg_real else 0
+        avg_target = round(row.avg_target, 1) if row.avg_target else 0
+        count = row.count or 0
+        overdue = row.overdue or 0
+        ok = count - overdue
+        compliance_pct = round((ok / count) * 100, 1) if count > 0 else 0
+        owner_label = _owner_label(row.owner)
+
+        funnel_data["labels"].append(row.name)
+        funnel_data["real"].append(avg_real)
+        funnel_data["target"].append(avg_target)
+        funnel_data["overdue"].append(overdue)
+        funnel_data["count"].append(count)
+        funnel_data["owner"].append(owner_label)
+
+        report.append(
+            {
+                "stage": row.name,
+                "owner": owner_label,
+                "count": count,
+                "avg_real_days": avg_real,
+                "avg_target_days": avg_target,
+                "ok": ok,
+                "overdue": overdue,
+                "compliance_pct": compliance_pct,
+            }
+        )
+
+    return funnel_data, report
+
+
+async def get_bottleneck_report(
+    db: AsyncSession,
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> List[Dict[str, Any]]:
+    """Reporte de cuellos de botella por etapa (filas listas para tabla/exportación)."""
+    await refresh_holidays_cache(db)
+
+    conditions = [VacancyStage.end_date.is_not(None)]
+    if area_id:
+        conditions.append(Vacancy.area_id == area_id)
+    if start_date:
+        conditions.append(VacancyStage.start_date >= start_date)
+    if end_date:
+        conditions.append(VacancyStage.start_date <= end_date)
+
+    _, report = await _compute_bottleneck_data(db, conditions)
+    return report
+
+
+async def generate_bottleneck_excel_report(
+    db: AsyncSession,
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> io.BytesIO:
+    """Genera un informe Excel de cuellos de botella."""
+    report = await get_bottleneck_report(db, area_id, start_date, end_date)
+
+    rows = [
+        {
+            "Etapa": r["stage"],
+            "Responsable": r["owner"],
+            "Casos": r["count"],
+            "Días Promedio Real": r["avg_real_days"],
+            "SLA Objetivo (días)": r["avg_target_days"],
+            "A Tiempo": r["ok"],
+            "Fuera de Plazo": r["overdue"],
+            "% Cumplimiento": r["compliance_pct"],
+        }
+        for r in report
+    ]
+
+    df = pd.DataFrame(rows)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Cuellos de Botella")
+    buffer.seek(0)
+    return buffer
+
+
+async def get_sla_details(
+    db: AsyncSession,
+    form: str,
+    area_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> Dict[str, Any]:
+    """
+    Devuelve el detalle (casos A Tiempo / Fuera de Plazo) de una de las tres
+    formas de SLA: 'global', 'rs' (R&S) o 'area' (Área solicitante).
+
+    Cada item es un caso con su vacante, área, etapa, fechas, SLA, días
+    transcurridos, responsable y estado, listo para renderizar en un modal.
+    """
+    if form not in ("global", "rs", "area"):
+        raise ValueError("Forma de SLA inválida. Use 'global', 'rs' o 'area'.")
+
+    await refresh_holidays_cache(db)
+
+    stmt = (
+        select(Vacancy)
+        .options(
+            selectinload(Vacancy.stages).selectinload(VacancyStage.responsible),
+            selectinload(Vacancy.area),
+        )
+        .where(Vacancy.status != ProcessStatus.CANCELLED)
+    )
+    if area_id:
+        stmt = stmt.where(Vacancy.area_id == area_id)
+
+    vacancies = (await db.execute(stmt)).scalars().all()
+    now = datetime.now()
+    items: List[Dict[str, Any]] = []
+
+    for vac in vacancies:
+        stages = sorted(vac.stages, key=lambda s: s.order_index)
+        if form != "global":
+            stages = [s for s in stages if _stage_in_period(s, start_date, end_date)]
+            if not stages:
+                continue
+        area_name = vac.area.name if vac.area else "-"
+
+        if form == "global":
+            total_sla = sum(s.sla_days_snapshot for s in stages)
+            days_elapsed = _vacancy_days_elapsed(vac, now)
+            status = "Fuera de Plazo" if days_elapsed > total_sla else "A Tiempo"
+
+            start = stages[0].start_date if stages else None
+            deadline = stages[-1].deadline_date if stages else None
+
+            items.append({
+                "vacancy_id": vac.id,
+                "vacancy_title": vac.title,
+                "area_name": area_name,
+                "stage_name": "Proceso completo",
+                "owner": "Global",
+                "sla_days": total_sla,
+                "days_taken": days_elapsed,
+                "start_date": start.strftime("%d/%m/%Y") if start else "-",
+                "deadline_date": deadline.strftime("%d/%m/%Y") if deadline else "-",
+                "end_date": vac.closed_at.strftime("%d/%m/%Y") if vac.closed_at else "En curso",
+                "status": status,
+                "responsible": None,
+            })
+            continue
+
+        owner = StageOwner.RECRUITER if form == "rs" else StageOwner.AREA
+        owner_label = "R&S" if form == "rs" else "Área"
+
+        # Agregado a nivel de vacante: una fila por vacante (no por etapa).
+        owner_stages = [s for s in stages if s.owner == owner]
+        if not owner_stages:
+            continue
+
+        sla_days = sum(s.sla_days_snapshot for s in owner_stages)
+        days_taken = sum(_stage_days_taken(s) for s in owner_stages)
+        status = "Fuera de Plazo" if any(_stage_is_overdue(s) for s in owner_stages) else "A Tiempo"
+
+        start = owner_stages[0].start_date
+        deadline = owner_stages[-1].deadline_date if owner_stages[-1].deadline_date else None
+
+        if any(s.end_date is None for s in owner_stages):
+            end_str = "En curso"
+        else:
+            last_end = max(s.end_date for s in owner_stages if s.end_date)
+            end_str = last_end.strftime("%d/%m/%Y")
+
+        responsibles = [s.responsible.full_name for s in owner_stages if s.responsible]
+        responsible_str = ", ".join(dict.fromkeys(responsibles)) or None
+
+        items.append({
+            "vacancy_id": vac.id,
+            "vacancy_title": vac.title,
+            "area_name": area_name,
+            "stage_name": "Etapas R&S" if form == "rs" else "Etapas Área",
+            "owner": owner_label,
+            "sla_days": sla_days,
+            "days_taken": days_taken,
+            "start_date": start.strftime("%d/%m/%Y") if start else "-",
+            "deadline_date": deadline.strftime("%d/%m/%Y") if deadline else "-",
+            "end_date": end_str,
+            "status": status,
+            "responsible": responsible_str,
+        })
+
+    # Ordenar: primero los fuera de plazo, luego por nombre de vacante
+    items.sort(key=lambda i: (0 if i["status"] == "Fuera de Plazo" else 1, i["vacancy_title"].lower()))
+
+    return {
+        "form": form,
+        "total": len(items),
+        "ok": sum(1 for i in items if i["status"] == "A Tiempo"),
+        "overdue": sum(1 for i in items if i["status"] == "Fuera de Plazo"),
+        "items": items,
     }

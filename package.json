@@ -1,0 +1,25 @@
+{
+  "name": "talento-humano-up-e2e",
+  "private": true,
+  "description": "Pruebas de navegador con Playwright y TypeScript",
+  "engines": {
+    "node": "26.x"
+  },
+  "scripts": {
+    "env:e2e:up": "docker compose --profile e2e up -d --build --wait web-test",
+    "env:e2e:stop": "docker compose --profile e2e stop web-test",
+    "env:e2e:logs": "docker compose --profile e2e logs -f web-test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:list": "playwright test --list",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:typecheck": "tsc --noEmit",
+    "test:e2e:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Gestión de Sedes - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Gestión de Sedes - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -97,7 +97,7 @@
     };
 
     window.deleteSede = async (id) => {
-        if(!confirm('¿Estás seguro de eliminar esta sede? Se eliminarán también sus áreas.')) return;
+        if(!await uiConfirm('¿Estás seguro de eliminar esta sede? Se eliminarán también sus áreas.')) return;
         try {
             await ApiClient.delete(`/organization/api/sedes/${id}`);
             showToast('Sede eliminada');

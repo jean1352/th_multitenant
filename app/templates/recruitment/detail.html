@@ -1,7 +1,7 @@
 {% extends "layouts/base.html" %}
 
 {% block page_title %}Gestión del Proceso{% endblock %}
-{% block title %}{{ vacancy.title }} - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}{{ vacancy.title }} - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
     {# --- HEADER Y ACCIONES --- #}
@@ -15,6 +15,9 @@
 
     {# --- MODALES --- #}
     {% include "recruitment/modals/stage.html" %}
+    {% include "recruitment/modals/add_stage.html" %}
+    {% include "recruitment/modals/delete_stage.html" %}
+    {% include "recruitment/modals/sla_detail.html" %}
     {% include "recruitment/modals/edit_vacancy.html" %}
     {% include "recruitment/modals/close_vacancy.html" %}
     {% include "recruitment/modals/confirm.html" %}

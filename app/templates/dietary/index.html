@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% block title %}Configuración Restricciones Alimenticias{% endblock %}
+{% block title %}Configuración Restricciones Alimenticias - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -107,7 +107,7 @@
     };
 
     window.deleteRestriction = async (id) => {
-        if(!confirm('¿Eliminar esta opción?')) return;
+        if(!await uiConfirm('¿Eliminar esta opción?')) return;
         try {
             await ApiClient.delete(`/dietary/api/${id}`);
             showToast('Eliminado correctamente');

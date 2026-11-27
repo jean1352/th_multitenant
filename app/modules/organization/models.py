@@ -37,7 +37,7 @@ class Area(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String)
     responsible_email: Mapped[str] = mapped_column(
-        String, nullable=False, default="th@sectoruno.com.py"
+        String, nullable=False, default="th@upacifico.edu.py"
     )
     sede_id: Mapped[int] = mapped_column(ForeignKey("sedes.id"))
 
@@ -175,6 +175,40 @@ class ProbationDuration(Base):
     name: Mapped[str] = mapped_column(String, unique=True) # "30 días"
     days: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    stages: Mapped[List["ProbationStage"]] = relationship(
+        back_populates="probation_duration",
+        cascade="all, delete-orphan",
+        order_by="ProbationStage.sort_order",
+    )
+
+
+class ExitCategory(Base):
+    """Catálogo de Categorías de Salida (Despido, Renuncia, etc.)."""
+    __tablename__ = "exit_categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ProbationStage(Base):
+    """Etapa que compone una duración de periodo de prueba (ej: 30, 60, 90 días)."""
+    __tablename__ = "probation_stages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    probation_duration_id: Mapped[int] = mapped_column(
+        ForeignKey("probation_durations.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String)
+    days: Mapped[int] = mapped_column(Integer)  # offset en días desde el inicio del PP
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    probation_duration: Mapped["ProbationDuration"] = relationship(
+        back_populates="stages"
+    )
 
 
 class RelationshipType(Base):

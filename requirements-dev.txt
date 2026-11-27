@@ -1,0 +1,6 @@
+# Dependencias para desarrollo y pruebas (no se incluyen en la imagen de producción)
+-r requirements.txt
+pytest
+pytest-asyncio
+httpx
+aiosqlite

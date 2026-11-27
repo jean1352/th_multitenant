@@ -1,0 +1,256 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Solicitud {{ req.request_code }} - Solo Lectura{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+    <a href="/benefits/requests" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Volver a Solicitudes
+    </a>
+    <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-gray-800">Solicitud <span class="text-blue-600">{{ req.request_code }}</span></h1>
+        {% if req.status == 'Aprobada' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-100 text-green-700 border border-green-200">Aprobada</span>
+        {% elif req.status == 'Rechazada' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-700 border border-red-200">Rechazada</span>
+        {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-200">Pendiente</span>
+        {% endif %}
+    </div>
+</div>
+
+{# Banner de aprobación (solo lectura) #}
+{% if req.status == 'Aprobada' %}
+<div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex flex-col md:flex-row md:items-center gap-3 text-sm">
+    <div class="flex items-center gap-2 text-green-700 font-bold">
+        <i class="fas fa-check-circle text-lg"></i> Solicitud aprobada
+    </div>
+    <div class="flex flex-wrap gap-x-6 gap-y-1 text-gray-700">
+        {% if req.approved_at %}
+        <span><span class="text-gray-400 font-bold uppercase text-[10px]">Fecha de aprobación:</span> <strong>{{ req.approved_at[:19].replace('T', ' ') if req.approved_at is string else req.approved_at }}</strong></span>
+        {% endif %}
+        {% if req.approved_by %}
+        <span><span class="text-gray-400 font-bold uppercase text-[10px]">Aprobado por:</span> <strong>{{ req.approved_by.full_name }}</strong> ({{ req.approved_by.email }})</span>
+        {% endif %}
+        {% if req.authorizer %}
+        <span><span class="text-gray-400 font-bold uppercase text-[10px]">Autorizante:</span> <strong>{{ req.authorizer.full_name }}</strong></span>
+        {% endif %}
+        {% if req.grant_date %}
+        <span><span class="text-gray-400 font-bold uppercase text-[10px]">Fecha de otorgamiento:</span> <strong>{{ req.grant_date }}</strong></span>
+        {% endif %}
+        {% if req.resolution_number %}
+        <span><span class="text-gray-400 font-bold uppercase text-[10px]">Resolución:</span> <strong>{{ req.resolution_number }}</strong></span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    {# --- COLUMNA IZQUIERDA --- #}
+    <div class="lg:col-span-5 space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i class="fas fa-user-circle"></i> Colaborador Beneficiario
+            </h3>
+            <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                <div><span class="block text-[9px] font-bold text-gray-400 uppercase">Cédula</span><span class="font-bold text-gray-700">{{ req.employee.document_id }}</span></div>
+                <div class="col-span-2"><span class="block text-[9px] font-bold text-gray-400 uppercase">Nombre</span><span class="font-bold text-gray-900">{{ req.employee.full_name }}</span></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i class="fas fa-user-edit"></i> Solicitante
+            </h3>
+            <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                <div><span class="block text-[9px] font-bold text-gray-400 uppercase">Cédula</span><span class="font-bold text-gray-700">{{ req.requester.document_id }}</span></div>
+                <div class="col-span-2"><span class="block text-[9px] font-bold text-gray-400 uppercase">Nombre</span><span class="font-bold text-gray-900">{{ req.requester.full_name }}</span></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xs font-black text-purple-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i class="fas fa-file-alt"></i> Tipo de Gestión
+            </h3>
+            <div class="space-y-4 text-sm">
+                <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Tipo de Solicitud</span><span class="font-semibold text-gray-800">{{ req.request_type.name }}</span></div>
+                <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Fecha de Solicitud</span><span class="font-semibold text-gray-800">{{ req.request_date }}</span></div>
+                <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Motivo</span><span class="font-semibold text-gray-800">{{ req.grant_reason.name }}</span></div>
+                <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Justificación</span><span class="text-gray-800">{{ req.justification or '-' }}</span></div>
+            </div>
+        </div>
+    </div>
+
+    {# --- COLUMNA DERECHA --- #}
+    <div class="lg:col-span-7 space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-6 border-b border-gray-100 bg-emerald-50/20">
+                <h3 class="text-xs font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-gift"></i> Beneficios Solicitados
+                </h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 font-black">Beneficio</th>
+                            <th class="px-4 py-3 font-black">Detalle</th>
+                            <th class="px-4 py-3 font-black text-right">Monto Aprobado</th>
+                            <th class="px-4 py-3 font-black">Vigencia</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 text-sm">
+                        {% for item in req['items'] %}
+                        <tr>
+                            <td class="px-4 py-3">
+                                <div class="font-bold text-gray-800">{{ item.benefit_type.name if item.benefit_type else 'Desconocido' }}</div>
+                                {% if item.benefit_subtype %}<div class="text-[10px] text-emerald-600 font-medium">{{ item.benefit_subtype.name }}</div>{% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-xs text-gray-600">{{ item.description_notes or '-' }}</div>
+                                <div class="text-[10px] text-gray-400">
+                                    {% if item.benefit_modality %}Modalidad: {{ item.benefit_modality.name }}{% endif %}
+                                    {% if item.benefit_frequency %} · {{ item.benefit_frequency.name }}{% endif %}
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="font-mono text-xs font-bold text-blue-700">{{ item.currency.symbol if item.currency else '' }} {{ item.approved_amount if item.approved_amount is not none else '0.00' }}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-[10px] text-gray-500">{{ item.validity_start_date or '?' }} al {{ item.validity_end_date or '?' }}</div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400 italic">Sin beneficios registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i class="fas fa-signature"></i> Autorización y Aprobación
+            </h3>
+            <div class="space-y-4 text-sm">
+                {% if req.authorization_level %}
+                <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Nivel de Autorización</span><span class="font-semibold text-gray-800">{{ req.authorization_level.name }}</span></div>
+                {% endif %}
+
+                <div>
+                    <span class="block text-[10px] text-gray-500 font-bold uppercase mb-2">Autorizantes</span>
+                    <div class="space-y-2">
+                        {% for auth in req.authorizers %}
+                        <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">{{ (auth.authorizer.full_name if auth.authorizer else '?')[:1] }}</div>
+                            <div>
+                                <div class="font-bold text-gray-800">{{ auth.authorizer.full_name if auth.authorizer else 'Desconocido' }}</div>
+                                <div class="text-[10px] text-gray-500">{{ auth.authorization_level.name if auth.authorization_level else 'Sin nivel' }}</div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-gray-400 italic text-xs">No se han registrado autorizantes.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Fecha Otorgamiento</span><span class="text-gray-800">{{ req.grant_date or '-' }}</span></div>
+                    <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Nro. Resolución</span><span class="text-gray-800">{{ req.resolution_number or '-' }}</span></div>
+                </div>
+
+                <div><span class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Observaciones</span><span class="text-gray-800">{{ req.approval_comments or '-' }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- ARCHIVOS ADJUNTOS (disponible en cualquier estado) --- #}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+    <h3 class="text-xs font-black text-blue-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+        <i class="fas fa-paperclip"></i> Archivos Adjuntos (PDF, Word, PPT)
+    </h3>
+    <p class="text-xs text-gray-500 mb-4">Adjunta o elimina archivos de esta solicitud. Disponible en cualquier estado.</p>
+
+    <div class="space-y-3 mb-5">
+        {% for att in req.attachments %}
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div class="w-9 h-9 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center">
+                <i class="fas fa-file"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-gray-800 text-sm truncate">{{ att.name }}</div>
+                <div class="text-[10px] text-gray-500">
+                    {% if att.upload_date %}{{ att.upload_date[:19].replace('T', ' ') if att.upload_date is string else att.upload_date }}{% endif %}
+                    {% if att.uploaded_by %} · Subido por {{ att.uploaded_by.full_name }}{% endif %}
+                </div>
+            </div>
+            <a href="{{ att.file_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-bold whitespace-nowrap">Ver</a>
+            <button type="button" onclick="deleteAttachment({{ att.id }})" class="text-red-500 hover:text-red-700 text-xs font-bold whitespace-nowrap">Eliminar</button>
+        </div>
+        {% else %}
+        <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-100">
+            <p class="text-gray-400 font-medium italic">No hay archivos adjuntos en esta solicitud.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form id="attachmentForm" class="flex flex-col md:flex-row gap-3 items-end">
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nombre del archivo</label>
+            <input type="text" name="name" placeholder="Ej: Resolución, Formulario firmado..." class="w-full border border-gray-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
+        </div>
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Archivo (PDF, Word, PPT)</label>
+            <input type="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx" class="w-full border border-gray-300 p-2 rounded-lg text-sm" required>
+        </div>
+        <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-sm transition-all whitespace-nowrap">
+            <i class="fas fa-upload mr-1"></i> Adjuntar
+        </button>
+    </form>
+</div>
+
+<div class="mt-6 flex justify-end gap-4">
+    <a href="/benefits/requests" class="px-6 py-3 text-gray-600 font-medium hover:text-gray-900 transition-colors">Volver</a>
+    {% if req.status == 'Pendiente' %}
+    <a href="/benefits/requests/{{ req.id }}/edit" class="bg-blue-900 hover:bg-blue-800 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all transform active:scale-95">
+        Editar Solicitud
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+
+    window.deleteAttachment = async (id) => {
+        if (!await uiConfirm('¿Eliminar este archivo adjunto?')) return;
+        try {
+            await ApiClient.delete(`/benefits/api/attachments/${id}`);
+            showToast('Archivo eliminado correctamente.');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    };
+
+    document.getElementById('attachmentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const btn = form.querySelector('button[type="submit"]');
+        try {
+            btn.disabled = true; btn.innerHTML = 'Adjuntando...';
+            await ApiClient.post('/benefits/api/requests/{{ req.id }}/attachments', formData);
+            showToast('Archivo adjuntado correctamente.');
+            setTimeout(() => window.location.reload(), 800);
+        } catch (err) {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Adjuntar';
+            showToast(err.message, 'error');
+        }
+    });
+</script>
+{% endblock %}
+

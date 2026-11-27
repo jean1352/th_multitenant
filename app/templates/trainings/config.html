@@ -1,0 +1,147 @@
+{% extends "layouts/base.html" %}
+{% block title %}Configuración - Capacitaciones{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Configuración de Capacitaciones</h1>
+        <p class="text-sm text-gray-500">Parámetros del sistema, plantillas de correo y catálogo de temas.</p>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="syncPersonnel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Sincronizar Personal</button>
+        <button onclick="runAutomation()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Ejecutar Tarea Diaria</button>
+        <a href="/trainings/" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Volver</a>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="border-b border-gray-200 mb-6">
+    <nav class="flex gap-1 -mb-px overflow-x-auto" role="tablist">
+        <button onclick="switchConfigTab('params')" id="tab-params" class="tab-btn active border-b-2 border-blue-600 text-blue-600 px-4 py-2 text-sm font-medium whitespace-nowrap">Parámetros</button>
+        <button onclick="switchConfigTab('templates')" id="tab-templates" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 px-4 py-2 text-sm font-medium whitespace-nowrap">Plantillas de correo</button>
+        <button onclick="switchConfigTab('topics')" id="tab-topics" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 px-4 py-2 text-sm font-medium whitespace-nowrap">Temas</button>
+    </nav>
+</div>
+
+<!-- PARÁMETROS -->
+<div id="content-params" class="config-tab">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for p in parameters %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex flex-col">
+            <span class="font-semibold text-sm text-gray-800">{{ p.label }}</span>
+            <p class="text-xs text-gray-500 mb-2">{{ p.description }}</p>
+            <div class="mt-auto flex items-center gap-2">
+                <input id="param-{{ p.key }}" value="{{ p.value }}" class="border rounded px-2 py-1.5 text-sm w-full min-w-0">
+                {% if current_user.role.value == 'admin' %}
+                <button onclick="saveParam('{{ p.key }}')" class="bg-blue-900 text-white px-3 py-1 rounded text-xs hover:bg-blue-800 shrink-0">Guardar</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- TEMAS -->
+<div id="content-topics" class="config-tab hidden">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <p class="text-xs text-gray-500 mb-3">También puedes administrar <a href="/trainings/providers" class="text-blue-600 underline">Proveedores</a>, <a href="/organization/sedes" class="text-blue-600 underline">Sedes</a> y <a href="/organization/cost-centers" class="text-blue-600 underline">Centros de Costo</a>.</p>
+        <form id="topicForm" class="flex flex-col sm:flex-row gap-2 mb-4">
+            <input name="name" placeholder="Nuevo tema..." class="border p-2 rounded text-sm flex-1" required>
+            <input name="description" placeholder="Descripción opcional..." class="border p-2 rounded text-sm flex-1">
+            <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm">Agregar</button>
+        </form>
+        <div class="flex flex-wrap gap-2">
+            {% for tp in topics %}
+            <span class="bg-slate-100 border rounded-full px-3 py-1 text-sm flex items-center gap-2">
+                {{ tp.name }}
+                <button onclick="deleteTopic({{ tp.id }})" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
+            </span>
+            {% else %}
+            <p class="text-sm text-gray-400">Sin temas registrados aún.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- PLANTILLAS DE CORREO -->
+<div id="content-templates" class="config-tab hidden">
+    <p class="text-xs text-gray-500 mb-4">Variables disponibles: <code>{{ '{{nombre}}' }}</code>, <code>{{ '{{capacitacion}}' }}</code>, <code>{{ '{{fecha_inicio}}' }}</code>, <code>{{ '{{fecha_fin}}' }}</code>, <code>{{ '{{sede_o_enlace}}' }}</code>, <code>{{ '{{porcentaje_asistencia}}' }}</code>, <code>{{ '{{fecha_limite}}' }}</code>, <code>{{ '{{dias_restantes}}' }}</code>, <code>{{ '{{enlace}}' }}</code>.</p>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {% for tpl in email_templates %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-semibold text-sm text-blue-900">{{ tpl.name }}</span>
+                <label class="text-xs flex items-center gap-1">
+                    <input type="checkbox" id="tpl-active-{{ tpl.event_code }}" {% if tpl.is_active %}checked{% endif %}> Activa
+                </label>
+            </div>
+            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Asunto</label>
+            <input id="tpl-subj-{{ tpl.event_code }}" value="{{ tpl.subject_template }}" class="w-full border p-2 rounded text-sm mb-2">
+            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cuerpo (HTML)</label>
+            <textarea id="tpl-body-{{ tpl.event_code }}" class="w-full border p-2 rounded text-xs font-mono h-24">{{ tpl.body_template }}</textarea>
+            {% if current_user.role.value == 'admin' %}
+            <div class="text-right mt-2">
+                <button onclick="saveTemplate('{{ tpl.event_code }}')" class="bg-blue-900 text-white px-3 py-1 rounded text-xs hover:bg-blue-800">Actualizar</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script type="module">
+    import { ApiClient, showToast } from '/static/js/api_client.js';
+    window.switchConfigTab = (tab) => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active', 'border-blue-600', 'text-blue-600');
+            b.classList.add('border-transparent', 'text-gray-500');
+        });
+        const active = document.getElementById(`tab-${tab}`);
+        active.classList.add('active', 'border-blue-600', 'text-blue-600');
+        active.classList.remove('border-transparent', 'text-gray-500');
+        document.querySelectorAll('.config-tab').forEach(t => t.classList.add('hidden'));
+        document.getElementById(`content-${tab}`).classList.remove('hidden');
+    };
+    window.saveParam = async (key) => {
+        const val = document.getElementById(`param-${key}`).value;
+        try {
+            await ApiClient.put(`/trainings/api/parameters/${key}`, { value: val });
+            showToast('Parámetro actualizado');
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+    window.saveTemplate = async (code) => {
+        try {
+            await ApiClient.put(`/trainings/api/templates/${code}`, {
+                subject_template: document.getElementById(`tpl-subj-${code}`).value,
+                body_template: document.getElementById(`tpl-body-${code}`).value,
+                is_active: document.getElementById(`tpl-active-${code}`).checked,
+            });
+            showToast('Plantilla actualizada');
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+    document.getElementById('topicForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await ApiClient.post('/trainings/api/topics', Object.fromEntries(new FormData(e.target)));
+            window.location.reload();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+    window.deleteTopic = async (id) => {
+        try {
+            await ApiClient.delete(`/trainings/api/topics/${id}`);
+            window.location.reload();
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+    window.syncPersonnel = async () => {
+        try {
+            const res = await ApiClient.post('/trainings/api/sync-personnel', {});
+            showToast(`Sincronizado: ${res.active_employees} colaboradores activos, ${res.cancelled_commitments} compromisos anulados por cese.`);
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+    window.runAutomation = async () => {
+        try {
+            const res = await ApiClient.post('/trainings/api/run-daily-automation', {});
+            showToast(`Tarea ejecutada: ${JSON.stringify(res)}`);
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+</script>
+{% endblock %}

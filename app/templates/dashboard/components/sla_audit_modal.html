@@ -1,0 +1,27 @@
+<!-- MODAL AUDITORÍA DE SLA (días contados vs excluidos) -->
+<div id="slaAuditModal" class="fixed inset-0 z-[60] hidden overflow-y-auto" aria-labelledby="sla-audit-title" role="dialog" aria-modal="true">
+    <div class="flex items-start justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeSlaAudit()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
+            <div class="bg-white px-6 pt-5 pb-3 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900" id="sla-audit-title">Auditoría de SLA</h3>
+                        <p class="text-sm text-gray-500 mt-1">Días hábiles contados vs fines de semana y feriados excluidos.</p>
+                    </div>
+                    <button onclick="closeSlaAudit()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                </div>
+                <div id="slaAuditTabs" class="flex gap-2 mt-3">
+                    <button data-scope="global" onclick="switchSlaAudit('global')"
+                        class="sla-audit-tab px-4 py-1.5 rounded text-sm font-medium bg-blue-900 text-white">Global</button>
+                    <button data-scope="rs" onclick="switchSlaAudit('rs')"
+                        class="sla-audit-tab px-4 py-1.5 rounded text-sm font-medium bg-gray-100 text-gray-700">R&amp;S</button>
+                    <button data-scope="area" onclick="switchSlaAudit('area')"
+                        class="sla-audit-tab px-4 py-1.5 rounded text-sm font-medium bg-gray-100 text-gray-700">Área</button>
+                </div>
+            </div>
+            <div id="slaAuditContent" class="px-6 py-4 max-h-[60vh] overflow-y-auto text-sm"></div>
+        </div>
+    </div>
+</div>

@@ -3,7 +3,7 @@ Router para el módulo de Calendario.
 """
 
 from datetime import date, datetime
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 
 from fastapi import (
     APIRouter,
@@ -13,11 +13,10 @@ from fastapi import (
     Request,
 )
 from fastapi.responses import HTMLResponse, StreamingResponse
-from app.core.templates import templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import AsyncSessionLocal, get_db
+from app.core.database import get_db, tenant_db_factory
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 from app.modules.auth.dependencies import is_admin, is_authenticated, is_recruiter, is_manager
@@ -26,6 +25,7 @@ from app.modules.organization.models import Sede, Area
 from app.core.config import settings
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
+from app.core.templates import templates
 
 
 # --- VISTAS ---
@@ -62,6 +62,75 @@ async def view_event_detail(
             "current_user": current_user
         },
     )
+
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+@is_recruiter
+async def view_events_dashboard(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    birth_month: Optional[str] = None,
+    area_id: Optional[str] = None,
+    sede_id: Optional[str] = None,
+    year: Optional[str] = None,
+    page: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Dashboard de Eventos (cumpleaños, eventos, capacitaciones y feriados)."""
+    birth_month_i = _parse_int(birth_month)
+    area_id_i = _parse_int(area_id)
+    sede_id_i = _parse_int(sede_id)
+    year_i = _parse_int(year)
+    page_i = _parse_int(page) or 1
+
+    data = await service.get_events_dashboard_data(db, birth_month_i, area_id_i, sede_id_i, year_i, page_i)
+    sedes = (await db.execute(select(Sede).order_by(Sede.name))).scalars().all()
+    areas = (await db.execute(select(Area).order_by(Area.name))).scalars().all()
+    return templates.TemplateResponse(request=request, name="calendar/dashboard.html", context=
+        {
+            "request": request,
+            "data": data,
+            "sedes": sedes,
+            "areas": areas,
+            "settings": settings,
+            "current_user": current_user
+        },
+    )
+
+
+@router.get("/dashboard/export")
+@is_recruiter
+async def export_events_dashboard(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    birth_month: Optional[str] = None,
+    area_id: Optional[str] = None,
+    sede_id: Optional[str] = None,
+    year: Optional[str] = None,
+):
+    """Descarga en Excel el Dashboard de Eventos (todos los cumpleaños)."""
+    birth_month_i = _parse_int(birth_month)
+    area_id_i = _parse_int(area_id)
+    sede_id_i = _parse_int(sede_id)
+    year_i = _parse_int(year)
+
+    excel_file = await service.generate_events_dashboard_excel(db, birth_month_i, area_id_i, sede_id_i, year_i)
+    filename = f"dashboard_eventos_{year_i or datetime.now().year}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        excel_file,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _parse_int(value: Optional[str]) -> Optional[int]:
+    """Convierte un query param a entero, ignorando cadenas vacías o no numéricas."""
+    if value is None:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return int(value)
+    return None
 
 
 # --- API EVENT TYPES ---
@@ -128,7 +197,7 @@ async def enroll_employee_api(
 ):
     try:
         enroll = await service.enroll_employee_to_event(
-            db, id, data.employee_id, background_tasks, AsyncSessionLocal
+            db, id, data.employee_id, background_tasks, tenant_db_factory()
         )
         return {
             "id": enroll.id,
@@ -177,7 +246,7 @@ async def send_invitations_api(
     background_tasks: BackgroundTasks,
 ):
     count = await service.send_mass_invitations(
-        db, id, payload, request, background_tasks, AsyncSessionLocal
+        db, id, payload, request, background_tasks, tenant_db_factory()
     )
     return {"message": f"Se han encolado {count} invitaciones."}
 

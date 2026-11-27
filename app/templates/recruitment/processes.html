@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% block title %}Procesos de Selección - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
+{% block title %}Procesos de Selección - UP Talento - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -97,7 +97,7 @@
     };
 
     window.deleteProcess = async (id) => {
-        if(!confirm('¿Eliminar este proceso? Esta acción no se puede deshacer.')) return;
+        if(!await uiConfirm('¿Eliminar este proceso? Esta acción no se puede deshacer.')) return;
         try {
             await ApiClient.delete(`/recruitment/api/processes/${id}`);
             showToast('Proceso eliminado');

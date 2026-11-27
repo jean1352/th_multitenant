@@ -62,4 +62,72 @@
         </div>
         {% endfor %}
     </div>
+
+    {# --- HISTORIAL DE SOLICITUDES DE BENEFICIOS (TODOS LOS ESTADOS) --- #}
+    <div class="mt-8">
+        <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-bold text-gray-800">Historial de Solicitudes</h3>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">Todas las solicitudes de beneficios del colaborador y su estado.</p>
+
+        {% if benefit_history %}
+        <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
+            <table class="w-full text-left border-collapse whitespace-nowrap">
+                <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider border-b border-gray-200">
+                    <tr>
+                        <th class="px-4 py-3 font-black">Código</th>
+                        <th class="px-4 py-3 font-black">Beneficio</th>
+                        <th class="px-4 py-3 font-black">Estado</th>
+                        <th class="px-4 py-3 font-black">Solicitante</th>
+                        <th class="px-4 py-3 font-black">Aprobó</th>
+                        <th class="px-4 py-3 font-black">Fecha Solicitud</th>
+                        <th class="px-4 py-3 font-black">Activo desde</th>
+                        <th class="px-4 py-3 font-black text-right">Detalle</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-sm">
+                    {% for req in benefit_history %}
+                    <tr class="hover:bg-blue-50/40 cursor-pointer" onclick="window.location.href='/benefits/requests/{{ req.id }}'">
+                        <td class="px-4 py-3">
+                            <a href="/benefits/requests/{{ req.id }}" class="font-mono font-bold text-blue-900 hover:text-blue-600 hover:underline" onclick="event.stopPropagation();">{{ req.request_code }}</a>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% for item in req['items'] %}
+                            <div class="font-bold text-gray-800">{{ item.benefit_type.name }}</div>
+                            {% if item.benefit_subtype %}<div class="text-[10px] text-emerald-600">{{ item.benefit_subtype.name }}</div>{% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if req.status == 'Aprobada' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-100 text-green-700 border border-green-200">Aprobada</span>
+                            {% elif req.status == 'Rechazada' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-700 border border-red-200">Rechazada</span>
+                            {% elif req.status == 'Anulada' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-gray-100 text-gray-700 border border-gray-200">Anulada</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-200">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-gray-600">{{ req.requester.full_name if req.requester else '-' }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ req.approved_by.full_name if req.approved_by else '-' }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ req.request_date }}</td>
+                        <td class="px-4 py-3 text-gray-500">
+                            {% if req.status == 'Aprobada' %}{{ req.grant_date or (req.approved_at[:10] if req.approved_at else '-') }}{% else %}-{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <a href="/benefits/requests/{{ req.id }}" class="inline-flex items-center gap-1 text-[10px] font-black uppercase text-blue-600 hover:text-blue-800 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap" onclick="event.stopPropagation();">
+                                <i class="fas fa-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-10 bg-white rounded-2xl border-2 border-dashed border-gray-100">
+            <p class="text-gray-400 font-medium italic">No hay solicitudes de beneficios registradas.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>

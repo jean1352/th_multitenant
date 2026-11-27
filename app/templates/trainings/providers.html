@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% block title %}Proveedores de Capacitación{% endblock %}
+{% block title %}Proveedores de Capacitación - {{ tenant.name if tenant else settings.PROJECT_NAME }}{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -139,7 +139,7 @@
     };
 
     window.deleteProvider = async (id) => {
-        if(!confirm('¿Eliminar proveedor?')) return;
+        if(!await uiConfirm('¿Eliminar proveedor?')) return;
         try {
             await ApiClient.delete(`/trainings/api/providers/${id}`);
             showToast('Proveedor eliminado');
