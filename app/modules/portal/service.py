@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fastapi import BackgroundTasks, HTTPException
-from sqlalchemy import desc, func, or_, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -184,16 +184,25 @@ async def get_leader_context(
 
     pending_vacations_count = 0
     active_vacation_emp_ids: Set[int] = set()
-    if subordinate_emp_ids:
-        pending_vacations_count = (
-            await db.scalar(
-                select(func.count(VacationRequest.id)).where(
-                    VacationRequest.employee_id.in_(subordinate_emp_ids),
-                    VacationRequest.status == "Pendiente",
-                )
-            )
-            or 0
+    vac_filter = (
+        or_(
+            VacationRequest.employee_id.in_(subordinate_emp_ids),
+            VacationRequest.assigned_approver_id == employee.id,
         )
+        if subordinate_emp_ids
+        else (VacationRequest.assigned_approver_id == employee.id)
+    )
+    pending_vacations_count = (
+        await db.scalar(
+            select(func.count(VacationRequest.id)).where(
+                vac_filter,
+                VacationRequest.employee_id != employee.id,
+                VacationRequest.status == "Pendiente",
+            )
+        )
+        or 0
+    )
+    if subordinate_emp_ids:
         today = date.today()
         active_vac_rows = (
             await db.execute(
@@ -255,69 +264,97 @@ async def get_employee_superiors_and_emails(
     db: AsyncSession, employee: Employee
 ) -> Tuple[Optional[Employee], List[Employee], List[str]]:
     """
-    Identifica al superior inmediato (subiendo por Position.parent_id hasta hallar un colaborador activo,
-    o líder del área como respaldo) y recopila sus correos + el correo del encargado del área.
+    Identifica a los superiores inmediatos considerando TODOS los cargos activos del colaborador
+    (principal y secundarios), subiendo por Position.parent_id o líder del área, y recopila sus correos
+    más el correo del encargado del área.
     """
     all_positions = (
         await db.execute(select(Position).options(selectinload(Position.area)))
     ).scalars().all()
     pos_map = {p.id: p for p in all_positions}
 
-    current_pos = pos_map.get(employee.position_id)
-    visited: Set[int] = set()
+    active_pos_ids = await get_employee_active_position_ids(db, employee)
     superiors: List[Employee] = []
+    seen_sup_ids: Set[int] = set()
+    area_resp_emails: List[str] = []
 
-    parent_id = current_pos.parent_id if current_pos else None
-    while parent_id and parent_id not in visited:
-        visited.add(parent_id)
-        active_ep_subq = (
-            select(EmployeePosition.employee_id)
-            .where(
-                EmployeePosition.end_date.is_(None),
-                EmployeePosition.position_id == parent_id,
-            )
-            .scalar_subquery()
-        )
-        stmt = (
-            select(Employee)
-            .options(selectinload(Employee.position_obj))
-            .where(
-                Employee.is_active == True,
-                Employee.id != employee.id,
-                or_(
-                    Employee.position_id == parent_id,
-                    Employee.id.in_(active_ep_subq),
-                ),
-            )
-            .order_by(Employee.full_name)
-        )
-        found = (await db.execute(stmt)).scalars().all()
-        if found:
-            superiors = found
-            break
-        parent_pos = pos_map.get(parent_id)
-        parent_id = parent_pos.parent_id if parent_pos else None
+    for pos_id in active_pos_ids:
+        current_pos = pos_map.get(pos_id)
+        if not current_pos:
+            continue
 
-    if not superiors and current_pos and current_pos.area_id:
-        area_leader_pos_ids = [
-            p.id
-            for p in all_positions
-            if p.area_id == current_pos.area_id
-            and p.is_leader
-            and p.id != current_pos.id
-        ]
-        if area_leader_pos_ids:
+        if current_pos.area and current_pos.area.responsible_email:
+            area_resp_emails.append(current_pos.area.responsible_email.strip())
+
+        visited: Set[int] = set()
+        found_for_pos: List[Employee] = []
+        parent_id = current_pos.parent_id
+        while parent_id and parent_id not in visited:
+            visited.add(parent_id)
+            active_ep_subq = (
+                select(EmployeePosition.employee_id)
+                .where(
+                    EmployeePosition.end_date.is_(None),
+                    EmployeePosition.position_id == parent_id,
+                )
+                .scalar_subquery()
+            )
             stmt = (
                 select(Employee)
                 .options(selectinload(Employee.position_obj))
                 .where(
                     Employee.is_active == True,
                     Employee.id != employee.id,
-                    Employee.position_id.in_(area_leader_pos_ids),
+                    or_(
+                        Employee.position_id == parent_id,
+                        Employee.id.in_(active_ep_subq),
+                    ),
                 )
                 .order_by(Employee.full_name)
             )
-            superiors = (await db.execute(stmt)).scalars().all()
+            found = (await db.execute(stmt)).scalars().all()
+            if found:
+                found_for_pos = found
+                break
+            parent_pos = pos_map.get(parent_id)
+            parent_id = parent_pos.parent_id if parent_pos else None
+
+        if not found_for_pos and current_pos.area_id:
+            area_leader_pos_ids = [
+                p.id
+                for p in all_positions
+                if p.area_id == current_pos.area_id
+                and p.is_leader
+                and p.id not in active_pos_ids
+            ]
+            if area_leader_pos_ids:
+                active_leader_ep_subq = (
+                    select(EmployeePosition.employee_id)
+                    .where(
+                        EmployeePosition.end_date.is_(None),
+                        EmployeePosition.position_id.in_(area_leader_pos_ids),
+                    )
+                    .scalar_subquery()
+                )
+                stmt = (
+                    select(Employee)
+                    .options(selectinload(Employee.position_obj))
+                    .where(
+                        Employee.is_active == True,
+                        Employee.id != employee.id,
+                        or_(
+                            Employee.position_id.in_(area_leader_pos_ids),
+                            Employee.id.in_(active_leader_ep_subq),
+                        ),
+                    )
+                    .order_by(Employee.full_name)
+                )
+                found_for_pos = (await db.execute(stmt)).scalars().all()
+
+        for sup in found_for_pos:
+            if sup.id not in seen_sup_ids:
+                seen_sup_ids.add(sup.id)
+                superiors.append(sup)
 
     requester_email = await get_employee_email(db, employee)
     emails: List[str] = []
@@ -329,19 +366,15 @@ async def get_employee_superiors_and_emails(
             seen_emails.add(sup_email.lower())
             emails.append(sup_email)
 
-    area_resp_email = (
-        current_pos.area.responsible_email.strip()
-        if current_pos and current_pos.area and current_pos.area.responsible_email
-        else None
-    )
-    if area_resp_email and area_resp_email.lower() not in seen_emails:
-        if not (
-            requester_email
-            and area_resp_email.lower() == requester_email.lower()
-            and len(emails) > 0
-        ):
-            seen_emails.add(area_resp_email.lower())
-            emails.append(area_resp_email)
+    for area_resp_email in area_resp_emails:
+        if area_resp_email and area_resp_email.lower() not in seen_emails:
+            if not (
+                requester_email
+                and area_resp_email.lower() == requester_email.lower()
+                and len(emails) > 0
+            ):
+                seen_emails.add(area_resp_email.lower())
+                emails.append(area_resp_email)
 
     primary_sup = superiors[0] if superiors else None
     return primary_sup, superiors, emails
@@ -368,9 +401,20 @@ async def list_leader_vacation_requests(
     db: AsyncSession,
     subordinate_employee_ids: Set[int],
     status_filter: Optional[str] = None,
+    leader_emp_id: Optional[int] = None,
 ) -> List[VacationRequest]:
-    if not subordinate_employee_ids:
+    if not subordinate_employee_ids and not leader_emp_id:
         return []
+    conds = []
+    if subordinate_employee_ids:
+        conds.append(VacationRequest.employee_id.in_(subordinate_employee_ids))
+    if leader_emp_id:
+        conds.append(
+            and_(
+                VacationRequest.assigned_approver_id == leader_emp_id,
+                VacationRequest.employee_id != leader_emp_id,
+            )
+        )
     stmt = (
         select(VacationRequest)
         .options(
@@ -381,7 +425,7 @@ async def list_leader_vacation_requests(
             selectinload(VacationRequest.approver),
             selectinload(VacationRequest.reviewer_user),
         )
-        .where(VacationRequest.employee_id.in_(subordinate_employee_ids))
+        .where(or_(*conds))
     )
     if status_filter:
         stmt = stmt.where(VacationRequest.status == status_filter)
@@ -861,6 +905,34 @@ async def get_leader_hierarchy_tree(
     direct_emp_ids = leader_ctx["direct_employee_ids"]
     allowed_emp_ids = {leader_emp.id} | leader_ctx["subordinate_employee_ids"]
 
+    ep_stmt = (
+        select(EmployeePosition)
+        .options(selectinload(EmployeePosition.employee).selectinload(Employee.company))
+        .where(
+            EmployeePosition.end_date.is_(None),
+            EmployeePosition.position_id.in_(allowed_pos_ids),
+        )
+    )
+    active_eps = (await db.execute(ep_stmt)).scalars().all()
+
+    emps_by_pos: Dict[int, List[Employee]] = {}
+    seen_emp_per_pos: Dict[int, Set[int]] = {}
+    for p in positions:
+        bucket = emps_by_pos.setdefault(p.id, [])
+        seen = seen_emp_per_pos.setdefault(p.id, set())
+        for e in p.employees:
+            if e.is_active and e.id in allowed_emp_ids and e.id not in seen:
+                seen.add(e.id)
+                bucket.append(e)
+    for ep in active_eps:
+        e = ep.employee
+        if e and e.is_active and e.id in allowed_emp_ids:
+            bucket = emps_by_pos.setdefault(ep.position_id, [])
+            seen = seen_emp_per_pos.setdefault(ep.position_id, set())
+            if e.id not in seen:
+                seen.add(e.id)
+                bucket.append(e)
+
     def build_positions_subtree(pos: Position, visited: Set[int]) -> Dict[str, Any]:
         visited.add(pos.id)
         node: Dict[str, Any] = {
@@ -870,10 +942,7 @@ async def get_leader_hierarchy_tree(
             "is_leader": pos.is_leader,
             "children": [],
         }
-        for emp in sorted(
-            [e for e in pos.employees if e.is_active and e.id in allowed_emp_ids],
-            key=lambda x: x.full_name,
-        ):
+        for emp in sorted(emps_by_pos.get(pos.id, []), key=lambda x: x.full_name):
             node["children"].append({
                 "name": emp.full_name,
                 "type": "employee",
@@ -902,10 +971,7 @@ async def get_leader_hierarchy_tree(
             if child.id not in visited:
                 sub_nodes.extend(build_people_subtree(child, set(visited)))
 
-        emps = sorted(
-            [e for e in pos.employees if e.is_active and e.id in allowed_emp_ids],
-            key=lambda x: x.full_name,
-        )
+        emps = sorted(emps_by_pos.get(pos.id, []), key=lambda x: x.full_name)
         if not emps:
             if not sub_nodes:
                 return []
@@ -938,17 +1004,55 @@ async def get_leader_hierarchy_tree(
             nodes.append(node)
         return nodes
 
-    primary_pos = pos_map.get(leader_emp.position_id)
+    leader_positions = sorted(
+        [pos_map[pid] for pid in leader_ctx["leader_position_ids"] if pid in pos_map],
+        key=lambda p: (0 if p.id == leader_emp.position_id else 1, p.name),
+    )
+
     if mode == "positions":
-        if primary_pos:
-            return build_positions_subtree(primary_pos, set())
+        if len(leader_positions) == 1:
+            return build_positions_subtree(leader_positions[0], set())
+        if len(leader_positions) > 1:
+            return {
+                "name": leader_emp.full_name,
+                "type": "employee",
+                "id": leader_emp.id,
+                "is_self": True,
+                "position": " / ".join(p.name for p in leader_positions),
+                "area": " / ".join(sorted({p.area.name for p in leader_positions if p.area})),
+                "photo": leader_emp.photo_url,
+                "children": [build_positions_subtree(lp, set()) for lp in leader_positions],
+            }
         return {"name": leader_emp.full_name, "type": "employee", "is_self": True, "value": 1}
 
-    if primary_pos:
-        people_nodes = build_people_subtree(primary_pos, set())
-        self_node = next((n for n in people_nodes if n.get("id") == leader_emp.id), None)
-        if self_node:
-            return self_node
+    if leader_positions:
+        combined_sub_nodes: List[Dict[str, Any]] = []
+        seen_child_pos: Set[int] = set()
+        for lp in leader_positions:
+            for child in sorted(children_by_parent.get(lp.id, []), key=lambda x: x.name):
+                if child.id not in seen_child_pos:
+                    seen_child_pos.add(child.id)
+                    combined_sub_nodes.extend(
+                        build_people_subtree(child, set(leader_ctx["leader_position_ids"]))
+                    )
+        root_node: Dict[str, Any] = {
+            "name": leader_emp.full_name,
+            "type": "employee",
+            "id": leader_emp.id,
+            "is_self": True,
+            "is_direct": False,
+            "on_vacation": leader_emp.id in active_vac_ids,
+            "position": " / ".join(p.name for p in leader_positions),
+            "area": " / ".join(sorted({p.area.name for p in leader_positions if p.area})),
+            "company": leader_emp.company.name if leader_emp.company else "",
+            "photo": leader_emp.photo_url,
+        }
+        if combined_sub_nodes:
+            root_node["children"] = combined_sub_nodes
+        else:
+            root_node["value"] = 1
+        return root_node
+
     return {
         "name": leader_emp.full_name,
         "type": "employee",
@@ -1097,7 +1201,9 @@ async def generate_leader_excel_report(
             (pd.DataFrame(rows) if rows else pd.DataFrame(columns=cols)).to_excel(writer, index=False, sheet_name="Mi Equipo")
 
         if section in ("all", "vacations"):
-            vacs = await list_leader_vacation_requests(db, sub_ids)
+            vacs = await list_leader_vacation_requests(
+                db, sub_ids, leader_emp_id=leader_emp.id
+            )
             rows = [{
                 "Código": v.request_code,
                 "Colaborador": v.employee.full_name if v.employee else "-",

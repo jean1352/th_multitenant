@@ -399,7 +399,9 @@ async def portal_leader_dashboard(
         )
 
     sub_ids = leader_ctx["subordinate_employee_ids"]
-    vacation_requests = await portal_service.list_leader_vacation_requests(db, sub_ids)
+    vacation_requests = await portal_service.list_leader_vacation_requests(
+        db, sub_ids, leader_emp_id=employee.id
+    )
     pending_vacations = [v for v in vacation_requests if v.status == "Pendiente"]
     history_vacations = [v for v in vacation_requests if v.status != "Pendiente"]
 
@@ -551,7 +553,10 @@ async def list_leader_vacations_api(
     if not leader_ctx["is_leader"]:
         raise HTTPException(403, "Acceso exclusivo para líderes.")
     return await portal_service.list_leader_vacation_requests(
-        db, leader_ctx["subordinate_employee_ids"], status_filter=status
+        db,
+        leader_ctx["subordinate_employee_ids"],
+        status_filter=status,
+        leader_emp_id=employee.id,
     )
 
 
