@@ -190,16 +190,43 @@ async def auto_upgrade_db_schema():
                     except Exception as e:
                         print(f"❌ [Auto-Migration] Error agregando {schema_name}.{table_name}.{col_name}: {e}")
 
-    # 2. Función síncrona para migrar la nulidad de rule_type en la tabla automation_rules
+    # 2. Función síncrona para migrar la nulidad y tipos VARCHAR en automation_rules / automation_states
     def migrate_automation_rules_nullability(connection, schema_name: str):
         inspector = inspect(connection)
         existing_tables = inspector.get_table_names(schema=schema_name)
         if "automation_rules" in existing_tables:
             try:
-                connection.execute(text(f'ALTER TABLE "{schema_name}"."automation_rules" ALTER COLUMN "rule_type" DROP NOT NULL'))
+                with connection.begin_nested():
+                    connection.execute(text(f'ALTER TABLE "{schema_name}"."automation_rules" ALTER COLUMN "rule_type" DROP NOT NULL'))
                 print(f"✅ [Auto-Migration] {schema_name}.automation_rules: Removido constraint NOT NULL en 'rule_type'")
             except Exception as e:
                 print(f"⚠️ [Auto-Migration] No se pudo alterar 'rule_type' en {schema_name}: {e}")
+
+        # Alinear columnas enum de scheduler con native_enum=False (VARCHAR) en modelos
+        for tbl, col in [
+            ("automation_rules", "rule_type"),
+            ("automation_rules", "frequency"),
+            ("automation_rules", "trigger_type"),
+            ("automation_states", "status"),
+        ]:
+            if tbl not in existing_tables:
+                continue
+            dt = connection.execute(
+                text(
+                    "SELECT data_type FROM information_schema.columns "
+                    "WHERE table_schema = :s AND table_name = :t AND column_name = :c"
+                ),
+                {"s": schema_name, "t": tbl, "c": col},
+            ).scalar()
+            if dt == "USER-DEFINED":
+                try:
+                    with connection.begin_nested():
+                        connection.execute(
+                            text(f'ALTER TABLE "{schema_name}"."{tbl}" ALTER COLUMN "{col}" TYPE VARCHAR USING "{col}"::text')
+                        )
+                    print(f"✅ [Auto-Migration] {schema_name}.{tbl}.{col}: Convertido ENUM a VARCHAR")
+                except Exception as e:
+                    print(f"⚠️ [Auto-Migration] Error convirtiendo {schema_name}.{tbl}.{col} a VARCHAR: {e}")
 
     # --- PASO 1: Sincronizar el Esquema Público (Global) ---
     async with engine.begin() as conn:

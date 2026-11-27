@@ -225,6 +225,20 @@ class TrainingRead(TrainingBase):
     provider_obj: Optional[ProviderRead] = None
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("modality", mode="before")
+    @classmethod
+    def default_modality_if_none(cls, v):
+        if v is None or v == "":
+            return TrainingModality.PRESENTIAL.value
+        return v
+
+    @field_validator("requires_manager_approval", mode="before")
+    @classmethod
+    def default_approval_if_none(cls, v):
+        if v is None:
+            return False
+        return v
+
 
 # --- ENROLLMENT SCHEMAS ---
 

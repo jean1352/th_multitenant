@@ -116,7 +116,7 @@ def next_business_day(
     siguiente día hábil.
     """
     if holidays is None:
-        holidays = _holidays_cache
+        holidays = get_holidays_cache()
 
     current = start_date + timedelta(days=1)
     while current.weekday() >= 5 or current in holidays:
@@ -138,7 +138,7 @@ def count_business_days(
     entonces count_business_days(start, end) == N.
     """
     if holidays is None:
-        holidays = _holidays_cache
+        holidays = get_holidays_cache()
 
     if end_date < start_date:
         return 0
