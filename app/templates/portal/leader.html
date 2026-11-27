@@ -1,0 +1,826 @@
+{% extends "layouts/portal_base.html" %}
+{% block title %}Panel de Líder - Mi Portal{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="/portal/dashboard" class="text-blue-600 hover:underline text-sm">&larr; Volver al Inicio</a>
+        <div class="flex items-center gap-2 mt-2">
+            <h1 class="text-2xl font-bold text-gray-900">Panel de Líder</h1>
+            <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
+                {{ employee.position_obj.area.name if employee.position_obj and employee.position_obj.area else 'Mi Área' }}
+            </span>
+        </div>
+        <p class="text-gray-500 text-sm">Gestiona tu equipo a cargo, aprueba vacaciones, supervisa reclutamientos y eventos del área.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+        <a href="/portal/api/leader/reports/excel?section=all"
+            class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2">
+            <i class="fas fa-file-excel"></i> Exportar Reporte Completo (.xlsx)
+        </a>
+    </div>
+</div>
+
+<!-- KPIs DEL LÍDER -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase text-gray-400">Colaboradores a Cargo</span>
+        <p class="text-2xl font-extrabold text-blue-900 mt-1">{{ leader_ctx.subordinates|length }}</p>
+        <span class="text-xs text-gray-500">{{ leader_ctx.direct_employee_ids|length }} directos</span>
+    </div>
+    <div class="bg-white rounded-xl border {{ 'border-amber-300 bg-amber-50/40' if pending_vacations|length > 0 else 'border-gray-200' }} p-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase text-gray-400">Vacaciones por Aprobar</span>
+        <p class="text-2xl font-extrabold {{ 'text-amber-600' if pending_vacations|length > 0 else 'text-gray-800' }} mt-1">{{ pending_vacations|length }}</p>
+        <span class="text-xs text-gray-500">{{ pending_benefits|length }} beneficios pend.</span>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase text-gray-400">Reclutamientos del Área</span>
+        <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ area_vacancies|selectattr('status', 'equalto', 'open')|list|length }}</p>
+        <span class="text-xs text-gray-500">{{ area_vacancies|length }} totales</span>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase text-gray-400">Eventos / Capacitaciones</span>
+        <p class="text-2xl font-extrabold text-purple-700 mt-1">{{ team_events|length }}</p>
+        <span class="text-xs text-gray-500">{{ team_trainings|length }} inscripciones cursos</span>
+    </div>
+</div>
+
+<!-- PESTAÑAS -->
+<div class="border-b border-gray-200 mb-6 overflow-x-auto">
+    <nav class="flex space-x-6 min-w-max" aria-label="Tabs">
+        <button type="button" onclick="switchLeaderTab('requests')" id="tab-btn-requests"
+            class="leader-tab-btn border-blue-700 text-blue-900 font-bold py-3 px-1 border-b-2 text-sm flex items-center gap-2">
+            <i class="fas fa-inbox"></i> Solicitudes Pendientes
+            {% if (pending_vacations|length + pending_benefits|length) > 0 %}
+            <span class="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{{ pending_vacations|length + pending_benefits|length }}</span>
+            {% endif %}
+        </button>
+        <button type="button" onclick="switchLeaderTab('team')" id="tab-btn-team"
+            class="leader-tab-btn border-transparent text-gray-500 hover:text-gray-700 font-medium py-3 px-1 border-b-2 text-sm flex items-center gap-2">
+            <i class="fas fa-users"></i> Mi Equipo ({{ leader_ctx.subordinates|length }})
+        </button>
+        <button type="button" onclick="switchLeaderTab('recruitment')" id="tab-btn-recruitment"
+            class="leader-tab-btn border-transparent text-gray-500 hover:text-gray-700 font-medium py-3 px-1 border-b-2 text-sm flex items-center gap-2">
+            <i class="fas fa-user-plus"></i> Reclutamientos ({{ area_vacancies|length }})
+        </button>
+        <button type="button" onclick="switchLeaderTab('events')" id="tab-btn-events"
+            class="leader-tab-btn border-transparent text-gray-500 hover:text-gray-700 font-medium py-3 px-1 border-b-2 text-sm flex items-center gap-2">
+            <i class="fas fa-calendar-alt"></i> Eventos y Capacitaciones
+        </button>
+    </nav>
+</div>
+
+<!-- TAB 1: SOLICITUDES PENDIENTES -->
+<div id="tab-panel-requests" class="leader-tab-panel space-y-8">
+    <!-- VACACIONES POR APROBAR -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div>
+                <h2 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-umbrella-beach text-teal-600"></i> Solicitudes de Vacaciones Pendientes
+                </h2>
+                <p class="text-xs text-gray-500">Aprueba o rechaza con motivo las solicitudes de tu equipo.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/portal/api/leader/reports/excel?section=vacations"
+                    class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+                <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">{{ pending_vacations|length }} pendientes</span>
+            </div>
+        </div>
+
+        <div class="divide-y divide-gray-100">
+            {% for req in pending_vacations %}
+            <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
+                <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-mono text-xs font-bold bg-blue-50 text-blue-900 px-2 py-0.5 rounded border border-blue-100">{{ req.request_code }}</span>
+                        <a href="/portal/leader/employees/{{ req.employee_id }}" class="font-bold text-gray-900 hover:text-blue-700 hover:underline">
+                            {{ req.employee.full_name }}
+                        </a>
+                        <span class="text-xs text-gray-500">&bull; {{ req.employee.position_obj.name if req.employee.position_obj else '' }}</span>
+                    </div>
+                    <p class="text-sm text-gray-700">
+                        <i class="far fa-calendar text-blue-600 mr-1"></i>
+                        <strong>{{ req.start_date.strftime('%d/%m/%Y') }}</strong> al <strong>{{ req.end_date.strftime('%d/%m/%Y') }}</strong>
+                        <span class="text-xs text-gray-500 ml-1">({{ req.days_requested }} días cal. / {{ req.business_days or req.days_requested }} hábiles)</span>
+                    </p>
+                    {% if req.reason %}
+                    <p class="text-xs text-gray-600 bg-gray-50 px-3 py-1.5 rounded border border-gray-100 inline-block">
+                        <strong>Motivo colaborador:</strong> {{ req.reason }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="openDecisionModal({{ req.id }}, '{{ req.request_code }}', '{{ req.employee.full_name|e }}', 'Aprobada')"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5">
+                        <i class="fas fa-check"></i> Aprobar
+                    </button>
+                    <button type="button" onclick="openDecisionModal({{ req.id }}, '{{ req.request_code }}', '{{ req.employee.full_name|e }}', 'Rechazada')"
+                        class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5">
+                        <i class="fas fa-times"></i> Rechazar
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <div class="p-8 text-center text-gray-400 text-sm italic">
+                No tienes solicitudes de vacaciones pendientes por aprobar.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SOLICITUDES DE BENEFICIOS PENDIENTES DEL ÁREA -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div>
+                <h2 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-gift text-emerald-600"></i> Solicitudes de Beneficios Pendientes (Tu Área)
+                </h2>
+                <p class="text-xs text-gray-500">Solicitudes de beneficios pendientes correspondientes a colaboradores a tu cargo.</p>
+            </div>
+            <span class="bg-slate-200 text-slate-800 text-xs font-bold px-2.5 py-1 rounded-full">{{ pending_benefits|length }}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-[11px] uppercase border-b border-gray-200">
+                    <tr>
+                        <th class="px-5 py-3">Código</th>
+                        <th class="px-5 py-3">Colaborador</th>
+                        <th class="px-5 py-3">Beneficio / Tipo</th>
+                        <th class="px-5 py-3">Justificación</th>
+                        <th class="px-5 py-3">Fecha</th>
+                        <th class="px-5 py-3 text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for breq in pending_benefits %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-mono font-bold text-blue-900">{{ breq.request_code }}</td>
+                        <td class="px-5 py-3 font-medium">
+                            <a href="/portal/leader/employees/{{ breq.employee_id }}" class="text-gray-900 hover:text-blue-700 hover:underline">{{ breq.employee.full_name }}</a>
+                        </td>
+                        <td class="px-5 py-3">
+                            {% if breq.items %}
+                            <span class="font-semibold text-gray-800">{{ breq.items[0].benefit_type.name }}</span>
+                            {% if breq.items|length > 1 %}<span class="text-xs text-blue-600">+{{ breq.items|length - 1 }}</span>{% endif %}
+                            {% endif %}
+                            <span class="block text-[11px] text-gray-400">{{ breq.request_type.name if breq.request_type else '' }}</span>
+                        </td>
+                        <td class="px-5 py-3 text-xs text-gray-600 max-w-xs truncate" title="{{ breq.justification }}">{{ breq.justification }}</td>
+                        <td class="px-5 py-3 text-xs text-gray-500">{{ breq.request_date.strftime('%d/%m/%Y') }}</td>
+                        <td class="px-5 py-3 text-center">
+                            <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">{{ breq.status }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="px-5 py-8 text-center text-gray-400 italic">No hay solicitudes de beneficios pendientes en tu equipo.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if history_vacations %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h3 class="font-bold text-gray-800 text-sm">Historial Reciente de Vacaciones Revisadas</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50 text-gray-500 uppercase border-b border-gray-200">
+                    <tr>
+                        <th class="px-5 py-3">Código</th>
+                        <th class="px-5 py-3">Colaborador</th>
+                        <th class="px-5 py-3">Período</th>
+                        <th class="px-5 py-3">Estado</th>
+                        <th class="px-5 py-3">Motivo de Decisión</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for h in history_vacations[:15] %}
+                    <tr>
+                        <td class="px-5 py-3 font-mono font-bold text-blue-900">{{ h.request_code }}</td>
+                        <td class="px-5 py-3 font-medium text-gray-900">{{ h.employee.full_name }}</td>
+                        <td class="px-5 py-3 text-gray-600">{{ h.start_date.strftime('%d/%m/%Y') }} - {{ h.end_date.strftime('%d/%m/%Y') }} ({{ h.days_requested }}d)</td>
+                        <td class="px-5 py-3">
+                            {% if h.status == 'Aprobada' %}<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Aprobada</span>
+                            {% elif h.status == 'Rechazada' %}<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">Rechazada</span>
+                            {% else %}<span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-bold">{{ h.status }}</span>{% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-gray-600">{{ h.decision_reason or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+<!-- TAB 2: MI EQUIPO (SOLO ABAJO) -->
+<div id="tab-panel-team" class="leader-tab-panel hidden space-y-4">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col lg:flex-row gap-3 justify-between items-center">
+        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs">
+                <button type="button" onclick="switchTeamView('cards')" id="view-btn-cards"
+                    class="px-3 py-1.5 rounded-md font-bold bg-white text-blue-900 shadow-sm flex items-center gap-1.5">
+                    <i class="fas fa-th-large"></i> Tarjetas
+                </button>
+                <button type="button" onclick="switchTeamView('hierarchy')" id="view-btn-hierarchy"
+                    class="px-3 py-1.5 rounded-md font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1.5">
+                    <i class="fas fa-sitemap"></i> Jerarquía Visual
+                </button>
+            </div>
+            <a href="/portal/api/leader/reports/excel?section=team"
+                class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                <i class="fas fa-download"></i> Excel Equipo
+            </a>
+        </div>
+
+        <div id="teamCardControls" class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+            <div class="relative w-full sm:w-72">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                <input type="text" id="teamSearchInput" oninput="filterTeamCards()" placeholder="Buscar por nombre, cargo o documento..."
+                    class="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="flex items-center gap-1.5 text-xs shrink-0">
+                <button type="button" onclick="setTeamFilter('all')" class="team-filter-btn bg-blue-900 text-white px-3 py-1.5 rounded-lg font-bold" data-filter="all">Todos ({{ leader_ctx.subordinates|length }})</button>
+                <button type="button" onclick="setTeamFilter('direct')" class="team-filter-btn bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg font-semibold" data-filter="direct">Directos ({{ leader_ctx.direct_employee_ids|length }})</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VISTA JERARQUÍA VISUAL D3 -->
+    <div id="teamHierarchyBox" class="hidden bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-5 py-3 bg-slate-50 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2 text-xs">
+                <span class="font-bold text-gray-700">Modo:</span>
+                <button type="button" onclick="setHierarchyMode('people')" id="hier-mode-people" class="px-2.5 py-1 rounded bg-blue-900 text-white font-bold">Personas</button>
+                <button type="button" onclick="setHierarchyMode('positions')" id="hier-mode-positions" class="px-2.5 py-1 rounded bg-gray-200 text-gray-700 font-semibold">Cargos</button>
+                <span class="text-gray-400 ml-2 hidden sm:inline">Haz clic en un colaborador para abrir su legajo. Arrastra o usa la rueda para hacer zoom.</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs">
+                <button type="button" onclick="zoomLeaderTree(1.2)" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold" title="Acercar">+</button>
+                <button type="button" onclick="zoomLeaderTree(0.8)" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold" title="Alejar">-</button>
+                <button type="button" onclick="resetLeaderTreeZoom()" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 font-semibold">Centrar</button>
+            </div>
+        </div>
+        <div id="leaderChartContainer" class="relative w-full h-[65vh] bg-slate-50/70 overflow-hidden">
+            <div id="leaderChartTooltip" class="hidden absolute bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg pointer-events-none z-30 max-w-xs"></div>
+            <div id="leaderChartLoading" class="hidden absolute inset-0 flex items-center justify-center bg-white/70 z-20">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-900"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="teamGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% for sub in leader_ctx.subordinates %}
+        {% set is_direct = sub.id in leader_ctx.direct_employee_ids %}
+        {% set on_vacation = sub.id in leader_ctx.active_vacation_emp_ids %}
+        <div class="team-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-all flex flex-col justify-between"
+            data-search="{{ sub.full_name|lower }} {{ sub.document_id|lower }} {{ (sub.position_obj.name if sub.position_obj else '')|lower }}"
+            data-direct="{{ 'true' if is_direct else 'false' }}">
+            <div>
+                <div class="flex items-start gap-3.5">
+                    {% if sub.photo_url %}
+                    <img src="{{ sub.photo_url }}" class="w-12 h-12 rounded-full object-cover border border-gray-200 shrink-0">
+                    {% else %}
+                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm shrink-0 border border-blue-200">
+                        {{ (sub.first_name or sub.full_name)[0]|upper }}{{ (sub.last_name or '')[:1]|upper }}
+                    </div>
+                    {% endif %}
+                    <div class="min-w-0 flex-1">
+                        <h3 class="font-bold text-gray-900 truncate">{{ sub.full_name }}</h3>
+                        <p class="text-xs font-medium text-blue-800 truncate">{{ sub.position_obj.name if sub.position_obj else '-' }}</p>
+                        <p class="text-[11px] text-gray-500 truncate">{{ sub.position_obj.area.name if sub.position_obj and sub.position_obj.area else '-' }} &bull; {{ sub.position_obj.area.sede.name if sub.position_obj and sub.position_obj.area and sub.position_obj.area.sede else '-' }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-1.5">
+                    {% if is_direct %}
+                    <span class="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-full">Reporte Directo</span>
+                    {% else %}
+                    <span class="bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded-full">Indirecto</span>
+                    {% endif %}
+                    {% if on_vacation %}
+                    <span class="bg-teal-100 text-teal-800 border border-teal-200 text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fas fa-umbrella-beach mr-1"></i>En Vacaciones</span>
+                    {% endif %}
+                </div>
+
+                <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 space-y-1">
+                    <p class="truncate"><i class="fas fa-id-card w-4 text-gray-400"></i> Doc: {{ sub.document_id }}</p>
+                    <p class="truncate"><i class="fas fa-envelope w-4 text-gray-400"></i> {{ sub.institutional_email or sub.personal_email or '-' }}</p>
+                    <p class="truncate"><i class="fas fa-phone w-4 text-gray-400"></i> {{ sub.phone or '-' }}</p>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+                <a href="/portal/leader/employees/{{ sub.id }}"
+                    class="w-full text-center bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors">
+                    <i class="fas fa-folder-open mr-1"></i> Ver Legajo e Info
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
+            <i class="fas fa-users text-3xl mb-2 text-gray-300"></i>
+            <p class="text-sm">No tienes colaboradores asignados debajo de tu cargo en el organigrama.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+
+<!-- TAB 3: RECLUTAMIENTOS DEL ÁREA -->
+<div id="tab-panel-recruitment" class="leader-tab-panel hidden space-y-4">
+    <div class="flex justify-end">
+        <a href="/portal/api/leader/reports/excel?section=recruitment"
+            class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+            <i class="fas fa-file-excel"></i> Exportar Reclutamientos (.xlsx)
+        </a>
+    </div>
+    {% for vac in area_vacancies %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="font-bold text-gray-900 text-lg">{{ vac.title }}</h3>
+                        {% if vac.status.value == 'open' %}
+                            <span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">Abierta</span>
+                        {% elif vac.status.value == 'closed' %}
+                            <span class="bg-blue-100 text-blue-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">Cerrada</span>
+                        {% else %}
+                            <span class="bg-gray-200 text-gray-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full">Cancelada</span>
+                        {% endif %}
+                        {% if vac.global_sla_status == 'overdue' %}
+                            <span class="bg-red-100 text-red-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full">SLA Retrasado</span>
+                        {% else %}
+                            <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full">En Tiempo</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">
+                        {{ vac.area_name or '' }} &bull; Proceso: {{ vac.process_name or '-' }}
+                        {% if vac.recruiter %} &bull; Reclutador: <strong>{{ vac.recruiter.full_name }}</strong>{% endif %}
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-6 text-right">
+                    <div>
+                        <span class="block text-[10px] uppercase font-bold text-gray-400">Tiempo / SLA</span>
+                        <span class="text-sm font-bold {{ 'text-red-600' if vac.global_sla_status == 'overdue' else 'text-gray-800' }}">
+                            {{ vac.total_days_elapsed }} / {{ vac.total_sla_days }} días
+                        </span>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] uppercase font-bold text-gray-400">Avance</span>
+                        <span class="text-sm font-bold text-blue-900">{{ vac.progress_percent }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full {{ 'bg-red-500' if vac.global_sla_status == 'overdue' else 'bg-blue-700' }}" style="width: {{ vac.progress_percent }}%"></div>
+                </div>
+                <div class="flex flex-wrap justify-between items-center mt-3 gap-2 text-xs">
+                    <span class="text-gray-600">
+                        {% if vac.current_stage %}
+                            Etapa actual: <strong class="text-blue-900">{{ vac.current_stage.name }}</strong>
+                            {% if vac.current_stage.deadline_date %}(Límite: {{ vac.current_stage.deadline_date.strftime('%d/%m/%Y') }}){% endif %}
+                        {% else %}
+                            Proceso finalizado
+                        {% endif %}
+                    </span>
+                    <button type="button" onclick="document.getElementById('vac-stages-{{ vac.id }}').classList.toggle('hidden')"
+                        class="text-blue-700 hover:text-blue-900 font-semibold">
+                        Ver etapas ({{ vac.stages|length }}) <i class="fas fa-chevron-down ml-1 text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="vac-stages-{{ vac.id }}" class="hidden bg-slate-50 border-t border-gray-200 p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {% for st in vac.stages %}
+                <div class="bg-white p-3 rounded-lg border border-gray-200 text-xs">
+                    <div class="flex justify-between items-start gap-2">
+                        <span class="font-bold text-gray-800">{{ st.order_index }}. {{ st.name }}</span>
+                        {% if st.end_date %}
+                            <span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-bold">Completada</span>
+                        {% elif st.sla_status == 'overdue' %}
+                            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Atrasada</span>
+                        {% else %}
+                            <span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold">En curso</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-gray-500 mt-1">Resp: {{ st.responsible.full_name if st.responsible else st.owner.value }}</p>
+                    <p class="text-gray-400 mt-0.5">Inicio: {{ st.start_date.strftime('%d/%m/%Y') }} &bull; Fin: {{ st.end_date.strftime('%d/%m/%Y') if st.end_date else 'Pendiente' }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
+        <i class="fas fa-briefcase text-3xl mb-2 text-gray-300"></i>
+        <p class="text-sm">No hay procesos de reclutamiento registrados en tu área.</p>
+    </div>
+    {% endfor %}
+</div>
+
+
+<!-- TAB 4: EVENTOS Y CAPACITACIONES -->
+<div id="tab-panel-events" class="leader-tab-panel hidden space-y-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div>
+                <h2 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-calendar-check text-purple-600"></i> Participación en Eventos Institucionales
+                </h2>
+                <p class="text-xs text-gray-500">Asistencia e invitaciones a eventos de las personas a tu cargo.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/portal/api/leader/reports/excel?section=events"
+                    class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+                <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-1 rounded-full">{{ team_events|length }}</span>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-[11px] uppercase border-b border-gray-200">
+                    <tr>
+                        <th class="px-5 py-3">Colaborador</th>
+                        <th class="px-5 py-3">Evento</th>
+                        <th class="px-5 py-3">Categoría</th>
+                        <th class="px-5 py-3">Fecha</th>
+                        <th class="px-5 py-3 text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for ev in team_events %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium">
+                            <a href="/portal/leader/employees/{{ ev.employee_id }}" class="text-gray-900 hover:text-blue-700 hover:underline">{{ ev.employee.full_name }}</a>
+                            <span class="block text-[11px] text-gray-400">{{ ev.employee.position_obj.name if ev.employee.position_obj else '' }}</span>
+                        </td>
+                        <td class="px-5 py-3 font-semibold text-gray-800">{{ ev.event.title }}</td>
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold text-white" style="background-color: {{ ev.event.event_type.color }}">{{ ev.event.event_type.name }}</span>
+                        </td>
+                        <td class="px-5 py-3 text-xs text-gray-600">{{ ev.event.date.strftime('%d/%m/%Y') }}</td>
+                        <td class="px-5 py-3 text-center">
+                            {% if ev.status.value == 'confirmed' %}<span class="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs font-bold">Confirmado</span>
+                            {% elif ev.status.value == 'invited' %}<span class="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full text-xs font-bold">Invitado</span>
+                            {% elif ev.status.value == 'declined' %}<span class="bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full text-xs font-bold">Rechazado</span>
+                            {% else %}<span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{{ ev.status.value }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">No hay participaciones en eventos registradas para tu equipo.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div>
+                <h2 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-graduation-cap text-orange-600"></i> Capacitaciones del Equipo
+                </h2>
+                <p class="text-xs text-gray-500">Cursos inscritos y estado de asistencia.</p>
+            </div>
+            <span class="bg-orange-100 text-orange-800 text-xs font-bold px-2.5 py-1 rounded-full">{{ team_trainings|length }}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-[11px] uppercase border-b border-gray-200">
+                    <tr>
+                        <th class="px-5 py-3">Colaborador</th>
+                        <th class="px-5 py-3">Capacitación</th>
+                        <th class="px-5 py-3">Fechas</th>
+                        <th class="px-5 py-3 text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for tr in team_trainings %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium">
+                            <a href="/portal/leader/employees/{{ tr.employee_id }}" class="text-gray-900 hover:text-blue-700 hover:underline">{{ tr.employee.full_name }}</a>
+                        </td>
+                        <td class="px-5 py-3 font-semibold text-gray-800">{{ tr.training.name }}</td>
+                        <td class="px-5 py-3 text-xs text-gray-600">{{ tr.training.start_date.strftime('%d/%m/%Y') }} - {{ tr.training.end_date.strftime('%d/%m/%Y') }}</td>
+                        <td class="px-5 py-3 text-center">
+                            {% if tr.status.value == 'attended' %}<span class="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs font-bold">Asistió / Aprobado</span>
+                            {% elif tr.status.value == 'enrolled' %}<span class="bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-xs font-bold">Inscrito</span>
+                            {% elif tr.status.value == 'invited' %}<span class="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full text-xs font-bold">Invitado</span>
+                            {% else %}<span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{{ tr.status.value }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="px-5 py-8 text-center text-gray-400 italic">No hay capacitaciones registradas para tu equipo.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DECISIÓN VACACIONES -->
+<div id="decisionModal" class="fixed inset-0 bg-gray-900/60 hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+        <div id="decisionModalHeader" class="px-6 py-4 text-white flex justify-between items-center bg-blue-900">
+            <h3 id="decisionModalTitle" class="font-bold text-lg">Responder Solicitud</h3>
+            <button type="button" onclick="closeDecisionModal()" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="decisionForm" class="p-6 space-y-4">
+            <input type="hidden" id="decisionReqId">
+            <input type="hidden" id="decisionStatus">
+            <p class="text-sm text-gray-700" id="decisionSummary"></p>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Motivo / Comentarios <span id="decisionRequiredTag" class="text-red-600 hidden">* (Obligatorio al rechazar)</span>
+                </label>
+                <textarea id="decisionReason" rows="3" maxlength="1000"
+                    placeholder="Indica el motivo o comentarios para el colaborador..."
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeDecisionModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
+                <button type="submit" id="decisionSubmitBtn" class="px-5 py-2 text-sm text-white font-bold rounded-lg shadow-sm">Confirmar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+    let leaderHierarchyMode = 'people';
+    let leaderSvg = null;
+    let leaderZoomBehavior = null;
+
+    window.switchTeamView = function(view) {
+        const grid = document.getElementById('teamGrid');
+        const hier = document.getElementById('teamHierarchyBox');
+        const controls = document.getElementById('teamCardControls');
+        const btnCards = document.getElementById('view-btn-cards');
+        const btnHier = document.getElementById('view-btn-hierarchy');
+
+        if (view === 'hierarchy') {
+            grid.classList.add('hidden');
+            controls.classList.add('hidden');
+            hier.classList.remove('hidden');
+            btnHier.className = 'px-3 py-1.5 rounded-md font-bold bg-white text-blue-900 shadow-sm flex items-center gap-1.5';
+            btnCards.className = 'px-3 py-1.5 rounded-md font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1.5';
+            loadLeaderHierarchy();
+        } else {
+            hier.classList.add('hidden');
+            grid.classList.remove('hidden');
+            controls.classList.remove('hidden');
+            btnCards.className = 'px-3 py-1.5 rounded-md font-bold bg-white text-blue-900 shadow-sm flex items-center gap-1.5';
+            btnHier.className = 'px-3 py-1.5 rounded-md font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1.5';
+        }
+    };
+
+    window.setHierarchyMode = function(mode) {
+        leaderHierarchyMode = mode;
+        const pBtn = document.getElementById('hier-mode-people');
+        const cBtn = document.getElementById('hier-mode-positions');
+        if (mode === 'people') {
+            pBtn.className = 'px-2.5 py-1 rounded bg-blue-900 text-white font-bold';
+            cBtn.className = 'px-2.5 py-1 rounded bg-gray-200 text-gray-700 font-semibold';
+        } else {
+            cBtn.className = 'px-2.5 py-1 rounded bg-blue-900 text-white font-bold';
+            pBtn.className = 'px-2.5 py-1 rounded bg-gray-200 text-gray-700 font-semibold';
+        }
+        loadLeaderHierarchy();
+    };
+
+    window.zoomLeaderTree = function(factor) {
+        if (leaderSvg && leaderZoomBehavior) {
+            leaderSvg.transition().duration(250).call(leaderZoomBehavior.scaleBy, factor);
+        }
+    };
+
+    window.resetLeaderTreeZoom = function() {
+        const container = document.getElementById('leaderChartContainer');
+        if (leaderSvg && leaderZoomBehavior && container) {
+            const w = container.clientWidth || 800;
+            leaderSvg.transition().duration(350).call(
+                leaderZoomBehavior.transform,
+                d3.zoomIdentity.translate(w / 2, 40).scale(0.85)
+            );
+        }
+    };
+    async function loadLeaderHierarchy() {
+        const container = document.getElementById('leaderChartContainer');
+        const loader = document.getElementById('leaderChartLoading');
+        const tooltip = document.getElementById('leaderChartTooltip');
+        loader.classList.remove('hidden');
+        d3.select('#leaderChartContainer svg').remove();
+        try {
+            const data = await portalFetch(`/portal/api/leader/hierarchy?mode=${leaderHierarchyMode}`);
+            const width = container.clientWidth || 900;
+            const height = container.clientHeight || 520;
+            const root = d3.hierarchy(data);
+            d3.tree().nodeSize([270, 145])(root);
+
+            leaderSvg = d3.select('#leaderChartContainer').append('svg')
+                .attr('width', width).attr('height', height).style('cursor', 'grab');
+            const g = leaderSvg.append('g');
+            leaderZoomBehavior = d3.zoom().scaleExtent([0.2, 2]).on('zoom', e => g.attr('transform', e.transform));
+            leaderSvg.call(leaderZoomBehavior);
+            leaderSvg.call(leaderZoomBehavior.transform, d3.zoomIdentity.translate(width / 2, 40).scale(0.85));
+
+            const linkGen = d3.linkVertical().x(d => d.x).y(d => d.y);
+            g.selectAll('.leader-link').data(root.links()).join('path')
+                .attr('fill', 'none').attr('stroke', '#cbd5e1').attr('stroke-width', 1.8)
+                .attr('d', d => linkGen({ source: { x: d.source.x, y: d.source.y + 82 }, target: { x: d.target.x, y: d.target.y } }));
+
+            const node = g.selectAll('.leader-node').data(root.descendants()).join('g')
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .style('cursor', d => (d.data.type === 'employee' && !d.data.is_self) ? 'pointer' : 'default')
+                .on('mouseenter', (event, d) => {
+                    let html = `<div class="font-bold text-sm">${d.data.name}</div>`;
+                    if (d.data.position) html += `<div class="text-blue-200">${d.data.position}</div>`;
+                    if (d.data.area) html += `<div class="text-gray-300 mt-0.5">${d.data.area}</div>`;
+                    if (d.data.on_vacation) html += `<div class="text-teal-300 font-bold mt-1">En vacaciones</div>`;
+                    if (d.data.type === 'employee' && !d.data.is_self) html += `<div class="text-amber-300 mt-1">Clic para abrir legajo</div>`;
+                    tooltip.innerHTML = html;
+                    const rect = container.getBoundingClientRect();
+                    tooltip.style.left = Math.min(event.clientX - rect.left + 12, rect.width - 200) + 'px';
+                    tooltip.style.top = (event.clientY - rect.top + 12) + 'px';
+                    tooltip.classList.remove('hidden');
+                })
+                .on('mouseleave', () => tooltip.classList.add('hidden'))
+                .on('click', (event, d) => {
+                    if (d.data.type === 'employee' && d.data.id && !d.data.is_self) {
+                        window.location.href = `/portal/leader/employees/${d.data.id}`;
+                    }
+                });
+
+            node.append('rect').attr('x', -120).attr('y', 0).attr('width', 240).attr('height', 82).attr('rx', 10)
+                .attr('fill', d => d.data.is_self ? '#eff6ff' : '#ffffff')
+                .attr('stroke', d => d.data.is_self ? '#1d4ed8' : (d.data.type === 'vacancy' ? '#ef4444' : '#cbd5e1'))
+                .attr('stroke-width', d => d.data.is_self ? 2 : 1.2)
+                .attr('stroke-dasharray', d => d.data.type === 'vacancy' ? '4' : '0');
+
+            node.append('circle').attr('cx', -88).attr('cy', 41).attr('r', 19)
+                .attr('fill', d => d.data.is_self ? '#1e3a8a' : (d.data.type === 'vacancy' ? '#fee2e2' : '#dbeafe'));
+
+            node.append('text').attr('x', -88).attr('y', 45).attr('text-anchor', 'middle')
+                .style('font-size', '12px').style('font-weight', '700')
+                .style('fill', d => d.data.is_self ? '#ffffff' : (d.data.type === 'vacancy' ? '#991b1b' : '#1e3a8a'))
+                .text(d => {
+                    if (d.data.type === 'vacancy') return 'V';
+                    const parts = (d.data.name || '').trim().split(' ');
+                    return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+                });
+
+            node.append('text').attr('x', -60).attr('y', 30)
+                .style('font-size', '12px').style('font-weight', '700').style('fill', '#0f172a')
+                .text(d => d.data.name.length > 22 ? d.data.name.slice(0, 20) + '…' : d.data.name);
+
+            node.append('text').attr('x', -60).attr('y', 48)
+                .style('font-size', '10px').style('fill', '#1d4ed8').style('font-weight', '600')
+                .text(d => {
+                    const txt = d.data.type === 'position' ? (d.data.area || '') : (d.data.position || '');
+                    return txt.length > 26 ? txt.slice(0, 24) + '…' : txt;
+                });
+
+            node.append('text').attr('x', -60).attr('y', 65)
+                .style('font-size', '9px').style('fill', d => d.data.on_vacation ? '#0d9488' : '#64748b')
+                .style('font-weight', d => d.data.on_vacation ? '700' : '400')
+                .text(d => {
+                    if (d.data.is_self) return 'Tú (Líder)';
+                    if (d.data.on_vacation) return 'En Vacaciones';
+                    if (d.data.type === 'employee') return d.data.is_direct ? 'Reporte Directo' : 'Reporte Indirecto';
+                    return d.data.area || '';
+                });
+        } catch (err) {
+            showPortalToast(err.message, 'error');
+        } finally {
+            loader.classList.add('hidden');
+        }
+    }
+    window.switchLeaderTab = function(tabName) {
+        document.querySelectorAll('.leader-tab-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.leader-tab-btn').forEach(b => {
+            b.classList.remove('border-blue-700', 'text-blue-900', 'font-bold');
+            b.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+        });
+        const panel = document.getElementById(`tab-panel-${tabName}`);
+        const btn = document.getElementById(`tab-btn-${tabName}`);
+        if (panel) panel.classList.remove('hidden');
+        if (btn) {
+            btn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            btn.classList.add('border-blue-700', 'text-blue-900', 'font-bold');
+        }
+        if (history.replaceState) {
+            history.replaceState(null, '', `#${tabName}`);
+        }
+    };
+
+    const initialHash = (window.location.hash || '').replace('#', '');
+    if (['requests', 'team', 'recruitment', 'events'].includes(initialHash)) {
+        switchLeaderTab(initialHash);
+    }
+
+    let teamFilterMode = 'all';
+    window.setTeamFilter = function(mode) {
+        teamFilterMode = mode;
+        document.querySelectorAll('.team-filter-btn').forEach(btn => {
+            if (btn.dataset.filter === mode) {
+                btn.classList.remove('bg-gray-100', 'text-gray-700');
+                btn.classList.add('bg-blue-900', 'text-white');
+            } else {
+                btn.classList.remove('bg-blue-900', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        });
+        filterTeamCards();
+    };
+
+    window.filterTeamCards = function() {
+        const q = (document.getElementById('teamSearchInput')?.value || '').trim().toLowerCase();
+        document.querySelectorAll('.team-card').forEach(card => {
+            const matchesText = !q || card.dataset.search.includes(q);
+            const matchesDirect = teamFilterMode === 'all' || card.dataset.direct === 'true';
+            card.classList.toggle('hidden', !(matchesText && matchesDirect));
+        });
+    };
+
+    window.openDecisionModal = function(reqId, code, empName, status) {
+        document.getElementById('decisionReqId').value = reqId;
+        document.getElementById('decisionStatus').value = status;
+        document.getElementById('decisionReason').value = '';
+
+        const header = document.getElementById('decisionModalHeader');
+        const submitBtn = document.getElementById('decisionSubmitBtn');
+        const reqTag = document.getElementById('decisionRequiredTag');
+        const reasonInput = document.getElementById('decisionReason');
+
+        if (status === 'Rechazada') {
+            header.className = 'px-6 py-4 text-white flex justify-between items-center bg-red-600';
+            submitBtn.className = 'px-5 py-2 text-sm text-white font-bold rounded-lg shadow-sm bg-red-600 hover:bg-red-700';
+            submitBtn.innerText = 'Confirmar Rechazo';
+            document.getElementById('decisionModalTitle').innerText = `Rechazar ${code}`;
+            document.getElementById('decisionSummary').innerHTML = `Vas a <strong>rechazar</strong> la solicitud <strong>${code}</strong> de <strong>${empName}</strong>.`;
+            reqTag.classList.remove('hidden');
+            reasonInput.required = true;
+        } else {
+            header.className = 'px-6 py-4 text-white flex justify-between items-center bg-emerald-600';
+            submitBtn.className = 'px-5 py-2 text-sm text-white font-bold rounded-lg shadow-sm bg-emerald-600 hover:bg-emerald-700';
+            submitBtn.innerText = 'Confirmar Aprobación';
+            document.getElementById('decisionModalTitle').innerText = `Aprobar ${code}`;
+            document.getElementById('decisionSummary').innerHTML = `Vas a <strong>aprobar</strong> la solicitud <strong>${code}</strong> de <strong>${empName}</strong>.`;
+            reqTag.classList.add('hidden');
+            reasonInput.required = false;
+        }
+        document.getElementById('decisionModal').classList.remove('hidden');
+    };
+
+    window.closeDecisionModal = function() {
+        document.getElementById('decisionModal').classList.add('hidden');
+    };
+
+    document.getElementById('decisionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const reqId = document.getElementById('decisionReqId').value;
+        const status = document.getElementById('decisionStatus').value;
+        const decisionReason = document.getElementById('decisionReason').value.trim();
+
+        if (status === 'Rechazada' && !decisionReason) {
+            showPortalToast('Debes ingresar un motivo para rechazar la solicitud.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('decisionSubmitBtn');
+        btn.disabled = true;
+        try {
+            await portalFetch(`/portal/api/leader/vacations/${reqId}/decision`, {
+                method: 'POST',
+                body: JSON.stringify({ status, decision_reason: decisionReason || null })
+            });
+            showPortalToast(`Solicitud marcada como ${status} y notificada por correo.`, 'success');
+            closeDecisionModal();
+            setTimeout(() => window.location.reload(), 900);
+        } catch (err) {
+            showPortalToast(err.message, 'error');
+            btn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}
+

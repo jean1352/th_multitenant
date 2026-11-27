@@ -20,7 +20,18 @@
             <p class="text-blue-200 text-sm mt-2">Bienvenido a tu portal de autogestión.</p>
         </div>
         <div class="flex-1"></div>
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-3 justify-center">
+            <a href="/portal/vacations" class="bg-amber-400 hover:bg-amber-300 text-blue-950 px-4 py-2 rounded-lg transition-all text-sm font-bold shadow-sm flex items-center gap-2">
+                <i class="fas fa-umbrella-beach"></i> Solicitar Vacaciones
+            </a>
+            {% if leader_ctx and leader_ctx.is_leader %}
+            <a href="/portal/leader" class="bg-white text-blue-900 hover:bg-blue-50 px-4 py-2 rounded-lg transition-all text-sm font-bold shadow-sm flex items-center gap-2">
+                <i class="fas fa-users-cog"></i> Panel de Líder
+                {% if leader_ctx.pending_vacations_count > 0 %}
+                <span class="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ leader_ctx.pending_vacations_count }}</span>
+                {% endif %}
+            </a>
+            {% endif %}
             <a href="/portal/profile" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg backdrop-blur-sm transition-all text-sm font-medium border border-white/20">
                 Ver Mi Legajo
             </a>
@@ -32,30 +43,79 @@
     <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-blue-500/20 rounded-full blur-2xl"></div>
 </div>
 
+{% if leader_ctx and leader_ctx.is_leader %}
+<!-- RESUMEN PARA LÍDERES DE ÁREA -->
+<div class="mb-8 bg-white rounded-2xl shadow-sm border border-blue-100 p-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                <i class="fas fa-crown mr-1"></i> Gestión de Líder
+            </span>
+            <h2 class="text-lg font-bold text-gray-900 mt-2">Resumen de tu Área y Equipo</h2>
+        </div>
+        <a href="/portal/leader" class="text-sm font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1">
+            Ir al Panel Completo <i class="fas fa-arrow-right text-xs"></i>
+        </a>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="/portal/leader#team" class="p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 transition-colors">
+            <span class="text-xs text-gray-500 font-semibold uppercase">A tu cargo</span>
+            <p class="text-2xl font-extrabold text-blue-900 mt-1">{{ leader_ctx.subordinates|length }}</p>
+            <span class="text-xs text-blue-600 font-medium">Colaboradores</span>
+        </a>
+        <a href="/portal/leader#requests" class="p-4 rounded-xl {{ 'bg-amber-50 border-amber-200' if leader_ctx.pending_vacations_count > 0 else 'bg-slate-50 border-slate-200' }} hover:bg-amber-100/60 border transition-colors">
+            <span class="text-xs text-gray-500 font-semibold uppercase">Pendientes</span>
+            <p class="text-2xl font-extrabold {{ 'text-amber-700' if leader_ctx.pending_vacations_count > 0 else 'text-gray-800' }} mt-1">{{ leader_ctx.pending_vacations_count + pending_benefits_count }}</p>
+            <span class="text-xs text-gray-600">{{ leader_ctx.pending_vacations_count }} vac. &bull; {{ pending_benefits_count }} benef.</span>
+        </a>
+        <a href="/portal/leader#recruitment" class="p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 transition-colors">
+            <span class="text-xs text-gray-500 font-semibold uppercase">Reclutamiento</span>
+            <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ open_vacancies_count }}</p>
+            <span class="text-xs text-gray-600">Vacantes abiertas</span>
+        </a>
+        <a href="/portal/leader#events" class="p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 transition-colors">
+            <span class="text-xs text-gray-500 font-semibold uppercase">Eventos Equipo</span>
+            <p class="text-2xl font-extrabold text-purple-700 mt-1">{{ team_events_count }}</p>
+            <span class="text-xs text-gray-600">Participaciones</span>
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
     <!-- COLUMNA IZQUIERDA: ACCESOS Y RESUMEN -->
     <div class="lg:col-span-2 space-y-8">
         
         <!-- ACCESOS RÁPIDOS -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <a href="/portal/trainings" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
-                <div class="bg-orange-50 w-14 h-14 rounded-xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <a href="/portal/vacations" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
+                <div class="bg-teal-50 w-12 h-12 rounded-xl flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-umbrella-beach text-xl"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-gray-800 text-lg">Capacitaciones</h3>
-                    <p class="text-sm text-gray-500">Mis cursos y asistencia</p>
+                    <h3 class="font-bold text-gray-800 text-base">Vacaciones</h3>
+                    <p class="text-xs text-gray-500">Solicitar y consultar</p>
                 </div>
             </a>
 
-            <a href="/portal/events" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
-                <div class="bg-purple-50 w-14 h-14 rounded-xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <a href="/portal/trainings" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
+                <div class="bg-orange-50 w-12 h-12 rounded-xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                 </div>
                 <div>
-                    <h3 class="font-bold text-gray-800 text-lg">Eventos</h3>
-                    <p class="text-sm text-gray-500">Calendario institucional</p>
+                    <h3 class="font-bold text-gray-800 text-base">Capacitaciones</h3>
+                    <p class="text-xs text-gray-500">Mis cursos y asistencia</p>
+                </div>
+            </a>
+
+            <a href="/portal/events" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
+                <div class="bg-purple-50 w-12 h-12 rounded-xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-800 text-base">Eventos</h3>
+                    <p class="text-xs text-gray-500">Calendario institucional</p>
                 </div>
             </a>
         </div>
@@ -106,6 +166,42 @@
 
     <!-- COLUMNA DERECHA: RESUMEN PERSONAL -->
     <div class="space-y-6">
+
+        <!-- MIS VACACIONES RECIENTES -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-teal-100 text-teal-700 rounded-lg">
+                        <i class="fas fa-umbrella-beach"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-800">Mis Vacaciones</h3>
+                </div>
+                <a href="/portal/vacations" class="text-xs font-bold text-blue-600 hover:underline">Solicitar</a>
+            </div>
+            {% if my_vacations %}
+            <div class="space-y-2.5">
+                {% for vac in my_vacations %}
+                <div class="flex justify-between items-center text-xs bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    <div>
+                        <span class="font-mono font-bold text-blue-900">{{ vac.request_code }}</span>
+                        <span class="text-gray-600 ml-1">{{ vac.start_date.strftime('%d/%m') }} - {{ vac.end_date.strftime('%d/%m/%Y') }}</span>
+                    </div>
+                    {% if vac.status == 'Aprobada' %}
+                        <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">Aprobada</span>
+                    {% elif vac.status == 'Rechazada' %}
+                        <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">Rechazada</span>
+                    {% elif vac.status == 'Cancelada' %}
+                        <span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-bold">Cancelada</span>
+                    {% else %}
+                        <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Pendiente</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">No tienes solicitudes recientes.</p>
+            {% endif %}
+        </div>
         
         <!-- BENEFICIOS -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

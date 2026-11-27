@@ -34,6 +34,7 @@ import app.modules.disciplinary.models
 import app.modules.dietary.models
 import app.modules.scheduler.models
 import app.modules.tenants.models
+import app.modules.portal.models
 
 # Importar Routers
 from app.modules.auth.router import router as auth_router

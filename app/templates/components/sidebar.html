@@ -49,14 +49,26 @@
                     <i class="fas fa-home w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path == '/portal/dashboard' else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Inicio</span> </a>
                 <a href="/portal/profile" class="sidebar-link flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group {{ 'bg-white shadow-sm border border-slate-200 text-blue-700' if request.url.path == '/portal/profile' else 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent' }}">
                     <i class="fas fa-id-badge w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path == '/portal/profile' else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Mi Legajo</span> </a>
+                <a href="/portal/vacations" class="sidebar-link flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group {{ 'bg-white shadow-sm border border-slate-200 text-blue-700' if request.url.path.startswith('/portal/vacations') else 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent' }}">
+                    <i class="fas fa-umbrella-beach w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path.startswith('/portal/vacations') else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Vacaciones</span> </a>
                 <a href="/portal/trainings" class="sidebar-link flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group {{ 'bg-white shadow-sm border border-slate-200 text-blue-700' if request.url.path == '/portal/trainings' else 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent' }}">
                     <i class="fas fa-graduation-cap w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path == '/portal/trainings' else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Capacitaciones</span> </a>
                 <a href="/portal/events" class="sidebar-link flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group {{ 'bg-white shadow-sm border border-slate-200 text-blue-700' if request.url.path == '/portal/events' else 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent' }}">
-                    <i class="fas fa-calendar-star w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path == '/portal/events' else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Eventos</span> </a>
+                    <i class="fas fa-calendar-alt w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path == '/portal/events' else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Eventos</span> </a>
             </div>
         </div>
 
         {% else %}
+        {# --- SECCIÓN PORTAL SI TIENE EMPLEADO --- #}
+        {% if current_user.employee_id %}
+        <div>
+            <p class="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest sidebar-section-title"><span class="sidebar-text">Mi Espacio</span></p>
+            <div class="space-y-1">
+                <a href="/portal/dashboard" class="sidebar-link flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group {{ 'bg-white shadow-sm border border-slate-200 text-blue-700' if request.url.path.startswith('/portal') else 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent' }}">
+                    <i class="fas fa-user-circle w-5 text-center mr-3 sidebar-icon {{ 'text-blue-600' if request.url.path.startswith('/portal') else 'text-gray-400 group-hover:text-gray-600' }}"></i> <span class="sidebar-text whitespace-nowrap">Portal Colaborador</span> </a>
+            </div>
+        </div>
+        {% endif %}
         {# --- SECCIÓN DASHBOARD --- #}
         <div>
             <p class="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest sidebar-section-title"><span class="sidebar-text">Análisis</span></p>
