@@ -319,17 +319,23 @@ async def get_report_rows(
     employee_id: Optional[int] = None,
     area_id: Optional[int] = None,
     allowed_area_ids: Optional[List[int]] = None,
+    q: Optional[str] = None,
+    status_filter: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Genera filas estructuradas para los 5 reportes exportables (RF-36)."""
     eff_areas = set(allowed_area_ids) if allowed_area_ids is not None else None
     if area_id:
         eff_areas = {area_id} if eff_areas is None else (eff_areas & {area_id})
+    search_term = (q or "").strip().lower()
+    st_filter = (status_filter or "").strip().lower()
+    if st_filter in ("", "all", "todos"):
+        st_filter = ""
 
     if report_type == "attendance_list":
         stmt = (
             select(TrainingEnrollment)
-            .join(Training)
-            .join(Employee)
+            .join(TrainingEnrollment.training)
+            .join(TrainingEnrollment.employee)
             .options(
                 selectinload(TrainingEnrollment.training).selectinload(Training.sessions),
                 selectinload(TrainingEnrollment.employee)
@@ -346,10 +352,15 @@ async def get_report_rows(
             emp_area = e.employee.position_obj.area_id if e.employee and e.employee.position_obj else None
             if eff_areas is not None and emp_area not in eff_areas:
                 continue
+            t_name = e.training.name if e.training else "-"
+            emp_name = e.employee.full_name if e.employee else "-"
+            doc_id = e.employee.document_id if e.employee else "-"
+            if search_term and search_term not in t_name.lower() and search_term not in emp_name.lower() and search_term not in doc_id.lower():
+                continue
             rows.append({
-                "Capacitación": e.training.name if e.training else "-",
-                "Documento": e.employee.document_id if e.employee else "-",
-                "Colaborador": e.employee.full_name if e.employee else "-",
+                "Capacitación": t_name,
+                "Documento": doc_id,
+                "Colaborador": emp_name,
                 "Área": e.employee.position_obj.area.name if e.employee and e.employee.position_obj and e.employee.position_obj.area else "-",
                 "Estado": e.status.value,
                 "% Asistencia": round(e.attendance_pct or 0.0, 1),
@@ -361,8 +372,8 @@ async def get_report_rows(
     if report_type == "employee_history":
         stmt = (
             select(TrainingEnrollment)
-            .join(Training)
-            .join(Employee)
+            .join(TrainingEnrollment.training)
+            .join(TrainingEnrollment.employee)
             .options(
                 selectinload(TrainingEnrollment.training),
                 selectinload(TrainingEnrollment.employee)
@@ -378,10 +389,15 @@ async def get_report_rows(
             emp_area = e.employee.position_obj.area_id if e.employee and e.employee.position_obj else None
             if eff_areas is not None and emp_area not in eff_areas:
                 continue
+            emp_name = e.employee.full_name if e.employee else "-"
+            doc_id = e.employee.document_id if e.employee else "-"
+            t_name = e.training.name if e.training else "-"
+            if search_term and search_term not in emp_name.lower() and search_term not in doc_id.lower() and search_term not in t_name.lower():
+                continue
             rows.append({
-                "Colaborador": e.employee.full_name if e.employee else "-",
+                "Colaborador": emp_name,
                 "Área": e.employee.position_obj.area.name if e.employee and e.employee.position_obj and e.employee.position_obj.area else "-",
-                "Capacitación": e.training.name if e.training else "-",
+                "Capacitación": t_name,
                 "Tipo": e.training.type.value if e.training else "-",
                 "Horas": e.training.hours if e.training else 0,
                 "Inicio": e.training.start_date.isoformat() if e.training else "-",
@@ -409,13 +425,20 @@ async def get_report_rows(
             emp_area = c.employee.position_obj.area_id if c.employee and c.employee.position_obj else None
             if eff_areas is not None and emp_area not in eff_areas:
                 continue
+            emp_name = c.employee.full_name if c.employee else "-"
+            src_name = c.source_training.name if c.source_training else "-"
+            tl = compute_traffic_light(c, today)
+            if st_filter and c.status.lower() != st_filter and tl.lower() != st_filter:
+                continue
+            if search_term and search_term not in emp_name.lower() and search_term not in src_name.lower():
+                continue
             eff_due = c.extended_due_date or c.due_date
             rows.append({
-                "Colaborador": c.employee.full_name if c.employee else "-",
+                "Colaborador": emp_name,
                 "Área": c.employee.position_obj.area.name if c.employee and c.employee.position_obj and c.employee.position_obj.area else "-",
-                "Capacitación Origen": c.source_training.name if c.source_training else "-",
+                "Capacitación Origen": src_name,
                 "Estado": c.status,
-                "Semáforo": compute_traffic_light(c, today),
+                "Semáforo": tl,
                 "Fecha Límite": eff_due.isoformat(),
                 "Prórroga": c.extended_due_date.isoformat() if c.extended_due_date else "-",
                 "Fecha Cumplimiento": c.completed_at.isoformat() if c.completed_at else "-",
@@ -453,9 +476,14 @@ async def get_report_rows(
                 }
                 if not (area_ids_in_t & eff_areas) and t.target_area_id not in eff_areas:
                     continue
+            prov_name = t.provider_obj.business_name if t.provider_obj else "-"
+            if st_filter and t.status.value.lower() != st_filter:
+                continue
+            if search_term and search_term not in t.name.lower() and search_term not in prov_name.lower():
+                continue
             rows.append({
                 "Capacitación": t.name,
-                "Proveedor": t.provider_obj.business_name if t.provider_obj else "-",
+                "Proveedor": prov_name,
                 "Centro de Costo": t.cost_center_obj.name if t.cost_center_obj else "-",
                 "Moneda": t.currency or (t.currency_obj.name if t.currency_obj else "-"),
                 "Costo Total": float(t.cost or t.company_cost or 0.0),
@@ -469,10 +497,17 @@ async def get_report_rows(
         stmt = select(TrainingNotification).order_by(TrainingNotification.created_at.desc())
         rows = []
         for n in (await db.execute(stmt)).scalars().all():
+            if st_filter and (n.status or "").lower() != st_filter:
+                continue
+            subj = n.subject or "-"
+            rec = n.recipient_email or ""
+            ev = n.event_code or ""
+            if search_term and search_term not in rec.lower() and search_term not in subj.lower() and search_term not in ev.lower():
+                continue
             rows.append({
-                "Evento": n.event_code,
-                "Destinatario": n.recipient_email,
-                "Asunto": n.subject or "-",
+                "Evento": ev,
+                "Destinatario": rec,
+                "Asunto": subj,
                 "Fecha Programada": n.scheduled_date.isoformat(),
                 "Fecha Envío": n.sent_at.strftime("%Y-%m-%d %H:%M") if n.sent_at else "-",
                 "Estado": n.status,
@@ -491,9 +526,13 @@ async def export_report_excel(
     employee_id: Optional[int] = None,
     area_id: Optional[int] = None,
     allowed_area_ids: Optional[List[int]] = None,
+    q: Optional[str] = None,
+    status_filter: Optional[str] = None,
 ) -> io.BytesIO:
-    report = await get_report_rows(db, report_type, training_id, employee_id, area_id, allowed_area_ids)
-    df = pd.DataFrame(report["rows"])
+    report = await get_report_rows(
+        db, report_type, training_id, employee_id, area_id, allowed_area_ids, q=q, status_filter=status_filter
+    )
+    df = pd.DataFrame(report["rows"]) if report["rows"] else pd.DataFrame([{"Información": "Sin registros para los filtros seleccionados"}])
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Reporte")
@@ -508,8 +547,12 @@ async def export_report_pdf(
     employee_id: Optional[int] = None,
     area_id: Optional[int] = None,
     allowed_area_ids: Optional[List[int]] = None,
+    q: Optional[str] = None,
+    status_filter: Optional[str] = None,
 ) -> io.BytesIO:
-    report = await get_report_rows(db, report_type, training_id, employee_id, area_id, allowed_area_ids)
+    report = await get_report_rows(
+        db, report_type, training_id, employee_id, area_id, allowed_area_ids, q=q, status_filter=status_filter
+    )
     rows = report["rows"]
     headers = list(rows[0].keys()) if rows else ["Información"]
     th_html = "".join(f"<th>{h}</th>" for h in headers)

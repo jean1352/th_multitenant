@@ -1,38 +1,46 @@
 {% extends "layouts/base.html" %}
 {% block title %}Tablero KPIs - Capacitaciones{% endblock %}
 {% block content %}
-<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+<!-- HEADER CORPORATIVO -->
+<div class="bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-900 rounded-2xl p-6 mb-6 text-white shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
     <div>
-        <h1 class="text-2xl font-bold text-gray-800">Tablero de Capacitaciones e Indicadores</h1>
-        <p class="text-sm text-gray-500">Métricas de asistencia, aprobación, alertas, réplicas, inversión y satisfacción.</p>
+        <div class="flex items-center gap-2 text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">
+            <i class="fas fa-chart-line"></i> Analítica y Control
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">Tablero de Capacitaciones e Indicadores</h1>
+        <p class="text-sm text-blue-100/80 mt-0.5">Métricas de asistencia, aprobación, alertas, réplicas, inversión y satisfacción.</p>
     </div>
-    <div class="flex gap-2">
-        <a href="/trainings/" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Plan de Capacitaciones</a>
-        <a href="/trainings/replicas" class="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800">Bandeja de Réplicas</a>
+    <div class="flex flex-wrap gap-2.5">
+        <a href="/trainings/" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2">
+            <i class="fas fa-chalkboard-teacher"></i> Plan de Capacitaciones
+        </a>
+        <a href="/trainings/replicas" class="bg-amber-400 hover:bg-amber-300 text-blue-950 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center gap-2">
+            <i class="fas fa-retweet"></i> Bandeja de Réplicas
+        </a>
     </div>
 </div>
 
 <!-- FILTROS -->
-<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-    <form method="GET" class="flex flex-wrap gap-3 items-end">
+<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+    <form method="GET" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
         <div>
-            <label class="block text-xs text-gray-500">Desde</label>
-            <input type="date" name="start_date" value="{{ filters.start_date }}" class="border p-2 rounded text-sm">
+            <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Desde</label>
+            <input type="date" name="start_date" value="{{ filters.start_date }}" class="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
         </div>
         <div>
-            <label class="block text-xs text-gray-500">Hasta</label>
-            <input type="date" name="end_date" value="{{ filters.end_date }}" class="border p-2 rounded text-sm">
+            <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Hasta</label>
+            <input type="date" name="end_date" value="{{ filters.end_date }}" class="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
         </div>
         <div>
-            <label class="block text-xs text-gray-500">Área</label>
-            <select name="area_id" class="border p-2 rounded text-sm bg-white">
+            <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Área</label>
+            <select name="area_id" class="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
                 <option value="">Todas las áreas</option>
                 {% for a in areas %}<option value="{{ a.id }}" {% if filters.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
             </select>
         </div>
         <div>
-            <label class="block text-xs text-gray-500">Tipo</label>
-            <select name="training_type" class="border p-2 rounded text-sm bg-white">
+            <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Tipo</label>
+            <select name="training_type" class="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
                 <option value="all">Todos</option>
                 <option value="internal" {% if filters.training_type == 'internal' %}selected{% endif %}>Interna</option>
                 <option value="external" {% if filters.training_type == 'external' %}selected{% endif %}>Externa</option>
@@ -40,170 +48,368 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs text-gray-500">Modalidad</label>
-            <select name="modality" class="border p-2 rounded text-sm bg-white">
+            <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Modalidad</label>
+            <select name="modality" class="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
                 <option value="all">Todas</option>
                 <option value="presencial" {% if filters.modality == 'presencial' %}selected{% endif %}>Presencial</option>
                 <option value="virtual" {% if filters.modality == 'virtual' %}selected{% endif %}>Virtual</option>
                 <option value="hibrida" {% if filters.modality == 'hibrida' %}selected{% endif %}>Híbrida</option>
             </select>
         </div>
-        <button type="submit" class="bg-blue-900 text-white px-4 py-2 rounded text-sm">Aplicar Filtros</button>
+        <div class="flex gap-2">
+            <button type="submit" class="flex-1 bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors">
+                <i class="fas fa-filter mr-1"></i> Filtrar
+            </button>
+            <a href="/trainings/dashboard" class="px-3 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 text-sm flex items-center" title="Limpiar filtros">
+                <i class="fas fa-times"></i>
+            </a>
+        </div>
     </form>
 </div>
 
 <!-- 9 TARJETAS KPI (SECCIÓN 8) -->
 {% set k = dashboard.kpis %}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">% de Asistencia</p>
-        <p class="text-3xl font-black text-blue-900 mt-1">{{ k.attendance_rate }}%</p>
-        <p class="text-xs text-gray-500 mt-1">{{ k.present_records }} presentes de {{ k.scheduled_records }} programados</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">% de Asistencia</p>
+            <p class="text-3xl font-black text-blue-900 mt-1">{{ k.attendance_rate }}%</p>
+            <p class="text-xs text-slate-500 mt-1">{{ k.present_records }} presentes de {{ k.scheduled_records }} programados</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-lg"><i class="fas fa-user-check"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">% Participantes Aprobados</p>
-        <p class="text-3xl font-black text-emerald-700 mt-1">{{ k.approval_rate }}%</p>
-        <p class="text-xs text-gray-500 mt-1">{{ k.approved_count }} aprobados de {{ k.closed_enrollments_count }} cerradas</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">% Participantes Aprobados</p>
+            <p class="text-3xl font-black text-emerald-700 mt-1">{{ k.approval_rate }}%</p>
+            <p class="text-xs text-slate-500 mt-1">{{ k.approved_count }} aprobados de {{ k.closed_enrollments_count }} cerradas</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-lg"><i class="fas fa-award"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">% Alertas Enviadas a Tiempo</p>
-        <p class="text-3xl font-black text-indigo-700 mt-1">{{ k.alerts_ontime_rate }}%</p>
-        <p class="text-xs text-gray-500 mt-1">{{ k.ontime_notifs }} a tiempo de {{ k.total_notifs }} programadas</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">% Alertas Enviadas a Tiempo</p>
+            <p class="text-3xl font-black text-indigo-700 mt-1">{{ k.alerts_ontime_rate }}%</p>
+            <p class="text-xs text-slate-500 mt-1">{{ k.ontime_notifs }} a tiempo de {{ k.total_notifs }} programadas</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-lg"><i class="fas fa-bell"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">% Cumplimiento de Réplicas</p>
-        <p class="text-3xl font-black text-teal-700 mt-1">{{ k.replica_compliance_rate }}%</p>
-        <p class="text-xs text-gray-500 mt-1">{{ k.replicas_completed_on_time }} cumplidas en plazo</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">% Cumplimiento de Réplicas</p>
+            <p class="text-3xl font-black text-teal-700 mt-1">{{ k.replica_compliance_rate }}%</p>
+            <p class="text-xs text-slate-500 mt-1">{{ k.replicas_completed_on_time }} cumplidas en plazo</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center text-lg"><i class="fas fa-retweet"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">Réplicas Vencidas (Meta: 0)</p>
-        <p class="text-3xl font-black {% if k.replicas_overdue > 0 %}text-red-600{% else %}text-green-600{% endif %} mt-1">{{ k.replicas_overdue }}</p>
-        <p class="text-xs text-gray-500 mt-1">Compromisos en estado Vencida</p>
+    <div class="bg-white p-5 rounded-2xl border {{ 'border-red-200 bg-red-50/20' if k.replicas_overdue > 0 else 'border-slate-200' }} shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Réplicas Vencidas (Meta: 0)</p>
+            <p class="text-3xl font-black {% if k.replicas_overdue > 0 %}text-red-600{% else %}text-emerald-600{% endif %} mt-1">{{ k.replicas_overdue }}</p>
+            <p class="text-xs text-slate-500 mt-1">Compromisos en estado Vencida</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl {{ 'bg-red-100 text-red-600' if k.replicas_overdue > 0 else 'bg-emerald-50 text-emerald-600' }} flex items-center justify-center text-lg"><i class="fas fa-exclamation-circle"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">Personas Alcanzadas por Réplicas</p>
-        <p class="text-3xl font-black text-purple-700 mt-1">{{ k.people_reached_replicas }}</p>
-        <p class="text-xs text-gray-500 mt-1">Asistentes únicos en réplicas</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Personas Alcanzadas por Réplicas</p>
+            <p class="text-3xl font-black text-purple-700 mt-1">{{ k.people_reached_replicas }}</p>
+            <p class="text-xs text-slate-500 mt-1">Asistentes únicos en réplicas</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-lg"><i class="fas fa-users"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">Horas por Colaborador</p>
-        <p class="text-3xl font-black text-slate-800 mt-1">{{ k.hours_per_employee }} h</p>
-        <p class="text-xs text-gray-500 mt-1">{{ k.total_approved_hours }} horas aprobadas totales</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Horas por Colaborador</p>
+            <p class="text-3xl font-black text-slate-800 mt-1">{{ k.hours_per_employee }} h</p>
+            <p class="text-xs text-slate-500 mt-1">{{ k.total_approved_hours }} horas aprobadas totales</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg"><i class="fas fa-clock"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">Inversión en Externas Cerradas</p>
-        <p class="text-3xl font-black text-orange-600 mt-1">${{ '{:,.2f}'.format(k.total_investment) }}</p>
-        <p class="text-xs text-gray-500 mt-1">${{ k.investment_per_employee }}/part. &bull; ${{ k.investment_per_hour }}/hora</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Inversión en Externas Cerradas</p>
+            <p class="text-3xl font-black text-orange-600 mt-1">${{ '{:,.2f}'.format(k.total_investment) }}</p>
+            <p class="text-xs text-slate-500 mt-1">${{ k.investment_per_employee }}/part. &bull; ${{ k.investment_per_hour }}/hora</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-lg"><i class="fas fa-coins"></i></div>
     </div>
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <p class="text-xs uppercase font-bold text-gray-400">Satisfacción Promedio (1-5)</p>
-        <p class="text-3xl font-black text-amber-500 mt-1">{{ k.avg_satisfaction }}</p>
-        <p class="text-xs text-gray-500 mt-1">{{ k.surveys_count }} encuestas respondidas</p>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+        <div>
+            <p class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Satisfacción Promedio (1-5)</p>
+            <p class="text-3xl font-black text-amber-500 mt-1">{{ k.avg_satisfaction }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ k.surveys_count }} encuestas respondidas</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg"><i class="fas fa-star"></i></div>
     </div>
 </div>
 
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
     <!-- SEMÁFORO DE RÉPLICAS POR ÁREA -->
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <h2 class="font-bold text-gray-800 mb-3">Semáforo de Réplicas por Área</h2>
-        <div class="space-y-2 text-sm">
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <i class="fas fa-traffic-light text-teal-600"></i> Semáforo de Réplicas por Área
+        </h2>
+        <div class="space-y-2.5 text-sm">
             {% for area_name, counts in dashboard.replica_traffic_by_area.items() %}
-            <div class="flex justify-between items-center border-b pb-2">
-                <span class="font-medium">{{ area_name }}</span>
-                <div class="flex gap-2 text-xs font-bold">
-                    <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">{{ counts.green }}</span>
-                    <span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">{{ counts.yellow }}</span>
-                    <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded">{{ counts.red }}</span>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0">
+                <span class="font-medium text-slate-700">{{ area_name }}</span>
+                <div class="flex gap-1.5 text-xs font-bold">
+                    <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full" title="Al día / Cumplidas">{{ counts.green }}</span>
+                    <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full" title="Próximas a vencer">{{ counts.yellow }}</span>
+                    <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full" title="Vencidas">{{ counts.red }}</span>
                 </div>
             </div>
             {% else %}
-            <p class="text-gray-400 text-xs">Sin compromisos en el periodo.</p>
+            <p class="text-slate-400 text-xs italic">Sin compromisos en el periodo.</p>
             {% endfor %}
         </div>
     </div>
 
     <!-- RANKING DE ÁREAS POR ASISTENCIA -->
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <h2 class="font-bold text-gray-800 mb-3">Ranking de Áreas por Asistencia</h2>
-        <div class="space-y-2 text-sm">
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <i class="fas fa-trophy text-amber-500"></i> Ranking de Áreas por Asistencia
+        </h2>
+        <div class="space-y-2.5 text-sm">
             {% for row in dashboard.area_ranking %}
-            <div class="flex justify-between items-center border-b pb-2">
-                <span>{{ row.area }}</span>
-                <span class="font-bold text-blue-900">{{ row.rate }}% <span class="text-xs text-gray-400">({{ row.present }}/{{ row.total }})</span></span>
+            <div class="border-b border-slate-100 pb-2 last:border-0">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-medium text-slate-700">{{ row.area }}</span>
+                    <span class="font-bold text-blue-900">{{ row.rate }}% <span class="text-xs text-slate-400 font-normal">({{ row.present }}/{{ row.total }})</span></span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-1.5">
+                    <div class="bg-blue-700 h-1.5 rounded-full" style="width: {{ row.rate }}%"></div>
+                </div>
             </div>
             {% else %}
-            <p class="text-gray-400 text-xs">Sin registros de asistencia.</p>
+            <p class="text-slate-400 text-xs italic">Sin registros de asistencia.</p>
             {% endfor %}
         </div>
     </div>
 
     <!-- PRÓXIMAS A INICIAR / CONCLUIR -->
-    <div class="bg-white p-5 rounded-xl border shadow-sm">
-        <h2 class="font-bold text-gray-800 mb-3">Próximas Capacitaciones</h2>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <i class="fas fa-calendar-day text-blue-700"></i> Próximas Capacitaciones
+        </h2>
         <div class="space-y-2 text-sm">
             {% for t in dashboard.upcoming_trainings %}
-            <a href="/trainings/{{ t.id }}" class="block border-b pb-2 hover:bg-slate-50 rounded px-1">
+            <a href="/trainings/{{ t.id }}" class="block border-b border-slate-100 pb-2 hover:bg-slate-50 rounded-lg px-2 py-1 transition-colors last:border-0">
                 <p class="font-semibold text-blue-800">{{ t.name }}</p>
-                <p class="text-xs text-gray-500">{{ t.start_date }} - {{ t.end_date }} &bull; {{ t.status | translate_status }}</p>
+                <p class="text-xs text-slate-500">{{ t.start_date }} - {{ t.end_date }} &bull; {{ t.status | translate_status }}</p>
             </a>
             {% else %}
-            <p class="text-gray-400 text-xs">Sin capacitaciones próximas.</p>
+            <p class="text-slate-400 text-xs italic">Sin capacitaciones próximas.</p>
             {% endfor %}
         </div>
     </div>
 </div>
 
-<div class="bg-white p-6 rounded-xl border shadow-sm mb-6">
-    <h2 class="text-lg font-bold text-gray-800 mb-3">Asistencia por Área (%)</h2>
+<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
+    <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+        <i class="fas fa-chart-bar text-blue-800"></i> Asistencia por Área (%)
+    </h2>
     <canvas id="areaAttendanceChart" height="90"></canvas>
 </div>
 
 <!-- REPORTES EXPORTABLES -->
-<div class="bg-white p-6 rounded-xl border shadow-sm">
-    <h2 class="text-lg font-bold text-gray-800 mb-4">Reportes Exportables (Excel y PDF)</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-        <div class="border rounded-lg p-4 space-y-2">
-            <p class="font-bold">1. Lista de asistencia por capacitación</p>
-            <select id="repTrainingId" class="w-full border p-1.5 rounded text-xs bg-white">
-                <option value="">Todas las capacitaciones</option>
-                {% for t in trainings_all %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
-            </select>
-            <div class="flex gap-2">
-                <button onclick="downloadRep('attendance_list', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
-                <button onclick="downloadRep('attendance_list', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+        <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <i class="fas fa-file-export text-blue-800"></i> Reportes Exportables (Excel y PDF)
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Busca y filtra antes de exportar cada reporte en formato Excel o PDF.</p>
+        </div>
+        <div class="relative w-full sm:w-72">
+            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+            <input type="text" id="reportCardFilter" oninput="filterReportCards(this.value)" placeholder="Buscar tipo de reporte..."
+                class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-sm">
+        <!-- 1. LISTA DE ASISTENCIA -->
+        <div class="report-card border border-slate-200 rounded-2xl p-5 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between gap-4" data-report-title="lista asistencia capacitacion">
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 leading-tight">1. Lista de asistencia por capacitación</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Inscritos, % asistencia, nota y resultado.</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                        <input type="text" id="repTrainingSearch" oninput="filterSelectOptions('repTrainingSearch', 'repTrainingId')"
+                            placeholder="Buscar capacitación o colaborador..."
+                            class="w-full pl-7 pr-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="repTrainingId" class="w-full border border-slate-300 p-1.5 rounded-lg text-xs bg-white">
+                        <option value="">Todas las capacitaciones ({{ trainings_all|length }})</option>
+                        {% for t in trainings_all %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t border-slate-200/70">
+                <button type="button" onclick="downloadRep('attendance_list', 'excel')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="downloadRep('attendance_list', 'pdf')" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
             </div>
         </div>
-        <div class="border rounded-lg p-4 space-y-2">
-            <p class="font-bold">2. Historial por colaborador</p>
-            <select id="repEmployeeId" class="w-full border p-1.5 rounded text-xs bg-white">
-                <option value="">Todos los colaboradores</option>
-                {% for e in employees_all %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
-            </select>
-            <div class="flex gap-2">
-                <button onclick="downloadRep('employee_history', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
-                <button onclick="downloadRep('employee_history', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+        <!-- 2. HISTORIAL POR COLABORADOR -->
+        <div class="report-card border border-slate-200 rounded-2xl p-5 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between gap-4" data-report-title="historial colaborador empleado">
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 leading-tight">2. Historial por colaborador</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Cursos realizados, horas y certificados.</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                        <input type="text" id="repEmployeeSearch" oninput="filterSelectOptions('repEmployeeSearch', 'repEmployeeId')"
+                            placeholder="Buscar colaborador por nombre o CI..."
+                            class="w-full pl-7 pr-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="repEmployeeId" class="w-full border border-slate-300 p-1.5 rounded-lg text-xs bg-white">
+                        <option value="">Todos los colaboradores ({{ employees_all|length }})</option>
+                        {% for e in employees_all %}<option value="{{ e.id }}">{{ e.full_name }} ({{ e.document_id }})</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t border-slate-200/70">
+                <button type="button" onclick="downloadRep('employee_history', 'excel')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="downloadRep('employee_history', 'pdf')" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
             </div>
         </div>
-        <div class="border rounded-lg p-4 space-y-2">
-            <p class="font-bold">3. Estado de réplicas</p>
-            <div class="flex gap-2 pt-2">
-                <button onclick="downloadRep('replicas_status', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
-                <button onclick="downloadRep('replicas_status', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+
+        <!-- 3. ESTADO DE RÉPLICAS -->
+        <div class="report-card border border-slate-200 rounded-2xl p-5 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between gap-4" data-report-title="estado replicas compromisos">
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
+                        <i class="fas fa-retweet"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 leading-tight">3. Estado de réplicas</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Semáforo, plazos y prórrogas por colaborador.</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                        <input type="text" id="repReplicaSearch" placeholder="Buscar colaborador o capacitación..."
+                            class="w-full pl-7 pr-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="repReplicaStatus" class="w-full border border-slate-300 p-1.5 rounded-lg text-xs bg-white">
+                        <option value="">Todos los estados / semáforos</option>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Propuesta">Propuesta</option>
+                        <option value="Cumplida">Cumplida</option>
+                        <option value="Vencida">Vencida</option>
+                        <option value="red">Semáforo Rojo</option>
+                        <option value="yellow">Semáforo Amarillo</option>
+                        <option value="green">Semáforo Verde</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t border-slate-200/70">
+                <button type="button" onclick="downloadRep('replicas_status', 'excel')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="downloadRep('replicas_status', 'pdf')" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
             </div>
         </div>
-        <div class="border rounded-lg p-4 space-y-2">
-            <p class="font-bold">4. Inversión en externas</p>
-            <div class="flex gap-2 pt-2">
-                <button onclick="downloadRep('external_investment', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
-                <button onclick="downloadRep('external_investment', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+        <!-- 4. INVERSIÓN EN EXTERNAS -->
+        <div class="report-card border border-slate-200 rounded-2xl p-5 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between gap-4" data-report-title="inversion externas costos proveedor">
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center shrink-0">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 leading-tight">4. Inversión en externas</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Costos, proveedores, centros de costo y áreas.</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                        <input type="text" id="repInvestSearch" placeholder="Buscar capacitación o proveedor..."
+                            class="w-full pl-7 pr-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="repInvestStatus" class="w-full border border-slate-300 p-1.5 rounded-lg text-xs bg-white">
+                        <option value="">Todos los estados</option>
+                        <option value="draft">Borrador</option>
+                        <option value="planned">Planificada</option>
+                        <option value="in_progress">En curso</option>
+                        <option value="completed">Finalizada</option>
+                        <option value="closed">Cerrada</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t border-slate-200/70">
+                <button type="button" onclick="downloadRep('external_investment', 'excel')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="downloadRep('external_investment', 'pdf')" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
             </div>
         </div>
-        <div class="border rounded-lg p-4 space-y-2">
-            <p class="font-bold">5. Registro de alertas enviadas</p>
-            <div class="flex gap-2 pt-2">
-                <button onclick="downloadRep('notifications_log', 'excel')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs">Excel</button>
-                <button onclick="downloadRep('notifications_log', 'pdf')" class="bg-red-600 text-white px-3 py-1 rounded text-xs">PDF</button>
+
+        <!-- 5. REGISTRO DE ALERTAS ENVIADAS -->
+        <div class="report-card border border-slate-200 rounded-2xl p-5 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between gap-4" data-report-title="registro alertas enviadas notificaciones correos">
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                        <i class="fas fa-envelope-open-text"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 leading-tight">5. Registro de alertas enviadas</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Trazabilidad de notificaciones, envíos y fallos.</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                        <input type="text" id="repNotifSearch" placeholder="Buscar destinatario, asunto o código (N-01)..."
+                            class="w-full pl-7 pr-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="repNotifStatus" class="w-full border border-slate-300 p-1.5 rounded-lg text-xs bg-white">
+                        <option value="">Todos los estados</option>
+                        <option value="sent">Enviado (sent)</option>
+                        <option value="pending">Pendiente (pending)</option>
+                        <option value="failed">Fallido (failed)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t border-slate-200/70">
+                <button type="button" onclick="downloadRep('notifications_log', 'excel')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="downloadRep('notifications_log', 'pdf')" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
             </div>
         </div>
     </div>
@@ -223,16 +429,64 @@
             options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
         });
     }
+
+    function filterReportCards(query) {
+        const term = (query || '').trim().toLowerCase();
+        document.querySelectorAll('.report-card').forEach(card => {
+            const title = (card.dataset.reportTitle || '').toLowerCase();
+            card.classList.toggle('hidden', term !== '' && !title.includes(term));
+        });
+    }
+
+    function filterSelectOptions(inputId, selectId) {
+        const term = (document.getElementById(inputId)?.value || '').trim().toLowerCase();
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        Array.from(sel.options).forEach((opt, idx) => {
+            if (idx === 0) {
+                opt.hidden = false;
+                return;
+            }
+            const match = !term || opt.text.toLowerCase().includes(term);
+            opt.hidden = !match;
+        });
+        if (sel.selectedIndex > 0 && sel.options[sel.selectedIndex].hidden) {
+            sel.selectedIndex = 0;
+        }
+    }
+
     function downloadRep(type, fmt) {
         const params = new URLSearchParams();
+        const activeArea = document.querySelector('select[name="area_id"]')?.value;
+        if (activeArea) params.append('area_id', activeArea);
+
         if (type === 'attendance_list') {
-            const tid = document.getElementById('repTrainingId').value;
+            const tid = document.getElementById('repTrainingId')?.value;
+            const q = document.getElementById('repTrainingSearch')?.value.trim();
             if (tid) params.append('training_id', tid);
-        }
-        if (type === 'employee_history') {
-            const eid = document.getElementById('repEmployeeId').value;
+            else if (q) params.append('q', q);
+        } else if (type === 'employee_history') {
+            const eid = document.getElementById('repEmployeeId')?.value;
+            const q = document.getElementById('repEmployeeSearch')?.value.trim();
             if (eid) params.append('employee_id', eid);
+            else if (q) params.append('q', q);
+        } else if (type === 'replicas_status') {
+            const q = document.getElementById('repReplicaSearch')?.value.trim();
+            const st = document.getElementById('repReplicaStatus')?.value;
+            if (q) params.append('q', q);
+            if (st) params.append('status_filter', st);
+        } else if (type === 'external_investment') {
+            const q = document.getElementById('repInvestSearch')?.value.trim();
+            const st = document.getElementById('repInvestStatus')?.value;
+            if (q) params.append('q', q);
+            if (st) params.append('status_filter', st);
+        } else if (type === 'notifications_log') {
+            const q = document.getElementById('repNotifSearch')?.value.trim();
+            const st = document.getElementById('repNotifStatus')?.value;
+            if (q) params.append('q', q);
+            if (st) params.append('status_filter', st);
         }
+
         const qs = params.toString() ? `?${params.toString()}` : '';
         window.location.href = `/trainings/api/reports/${type}/${fmt}${qs}`;
     }

@@ -1562,12 +1562,14 @@ async def export_report_excel_api(
     training_id: Optional[int] = None,
     employee_id: Optional[int] = None,
     area_id: Optional[int] = None,
+    q: Optional[str] = None,
+    status_filter: Optional[str] = None,
     current_user: User = Depends(get_current_user),
 ):
     allowed = await _scoped_area_ids(db, current_user)
     try:
         buf = await analytics_service.export_report_excel(
-            db, report_type, training_id, employee_id, area_id, allowed_area_ids=allowed
+            db, report_type, training_id, employee_id, area_id, allowed_area_ids=allowed, q=q, status_filter=status_filter
         )
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -1586,12 +1588,14 @@ async def export_report_pdf_api(
     training_id: Optional[int] = None,
     employee_id: Optional[int] = None,
     area_id: Optional[int] = None,
+    q: Optional[str] = None,
+    status_filter: Optional[str] = None,
     current_user: User = Depends(get_current_user),
 ):
     allowed = await _scoped_area_ids(db, current_user)
     try:
         buf = await analytics_service.export_report_pdf(
-            db, report_type, training_id, employee_id, area_id, allowed_area_ids=allowed
+            db, report_type, training_id, employee_id, area_id, allowed_area_ids=allowed, q=q, status_filter=status_filter
         )
     except ValueError as e:
         raise HTTPException(400, str(e))
