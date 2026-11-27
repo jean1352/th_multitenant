@@ -54,20 +54,20 @@
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-sm">
                 <div>
-                    <span class="block text-gray-500 text-xs uppercase font-semibold">Cargo Actual</span>
-                    <span class="font-medium text-gray-900">{{ employee.position_obj.name }}</span>
+                    <span class="block text-gray-500 text-xs uppercase font-semibold">Cargo Principal</span>
+                    <span class="font-medium text-gray-900">{{ employee.position_obj.name if employee.position_obj else '-' }}</span>
                 </div>
                 <div>
                     <span class="block text-gray-500 text-xs uppercase font-semibold">Área / Departamento</span>
-                    <span class="font-medium text-gray-900">{{ employee.position_obj.area.name }}</span>
+                    <span class="font-medium text-gray-900">{{ employee.position_obj.area.name if employee.position_obj and employee.position_obj.area else '-' }}</span>
                 </div>
                 <div>
                     <span class="block text-gray-500 text-xs uppercase font-semibold">Sede</span>
-                    <span class="font-medium text-gray-900">{{ employee.position_obj.area.sede.name }}</span>
+                    <span class="font-medium text-gray-900">{{ employee.position_obj.area.sede.name if employee.position_obj and employee.position_obj.area and employee.position_obj.area.sede else '-' }}</span>
                 </div>
                 <div>
                     <span class="block text-gray-500 text-xs uppercase font-semibold">Email Institucional</span>
-                    <span class="font-medium text-gray-900">{{ employee.institutional_email }}</span>
+                    <span class="font-medium text-gray-900">{{ employee.institutional_email or '-' }}</span>
                 </div>
                 <div>
                     <span class="block text-gray-500 text-xs uppercase font-semibold">Interno</span>
@@ -78,6 +78,118 @@
                     <span class="font-medium text-gray-900">{{ employee.office_location or '-' }}</span>
                 </div>
             </div>
+        </div>
+
+        <!-- MIS CONTRATOS, CARGOS Y HORARIOS ACTIVOS -->
+        <div id="contracts" class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div class="flex items-center justify-between border-b pb-2 mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Mis Contratos, Cargos y Horarios
+                </h3>
+                <span class="text-xs font-semibold text-gray-500">{{ active_positions|length }} activo{{ '' if active_positions|length == 1 else 's' }}</span>
+            </div>
+            {% if active_positions %}
+            <div class="space-y-4">
+                {% for pos in active_positions %}
+                <div class="border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2">
+                        <div>
+                            <h4 class="font-bold text-gray-900 text-base">{{ pos.position.name if pos.position else '-' }}</h4>
+                            <p class="text-xs text-gray-500">
+                                {{ pos.company.name if pos.company else (employee.company.name if employee.company else 'Sin Empresa') }}
+                                {% if pos.position and pos.position.area %} &bull; {{ pos.position.area.name }}{% endif %}
+                                &bull; Inicio: {{ pos.start_date.strftime('%d/%m/%Y') if pos.start_date else '-' }}
+                            </p>
+                        </div>
+                        {% if pos.is_primary %}
+                        <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2.5 py-0.5 rounded uppercase border border-blue-200">Principal</span>
+                        {% else %}
+                        <span class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2.5 py-0.5 rounded uppercase border border-gray-300">Secundario</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="block text-[10px] font-bold text-gray-400 uppercase">Tipo de Contrato</span>
+                                    <span class="font-semibold text-gray-800">{{ pos.contract_type.name if pos.contract_type else 'No definido' }}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] font-bold text-gray-400 uppercase">Fin de Contrato</span>
+                                    <span class="font-semibold text-gray-800">{{ pos.contract_end_date.strftime('%d/%m/%Y') if pos.contract_end_date else 'Indefinido' }}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] font-bold text-gray-400 uppercase">Tipo de Jornada</span>
+                                    <span class="font-semibold text-gray-800">{{ pos.working_day_type.name if pos.working_day_type else 'No definido' }}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] font-bold text-gray-400 uppercase">Días Laborales</span>
+                                    <span class="font-semibold text-gray-800">{{ pos.work_days or '-' }}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Horario y Modalidad Semanal</span>
+                                <div class="schedule-display text-xs text-gray-700" data-schedule="{{ pos.work_schedule or '' }}">
+                                    <span class="font-medium text-gray-800">{{ pos.work_schedule or 'No definido' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="bg-emerald-50/50 border border-emerald-100 rounded-lg p-3.5">
+                                <span class="block text-[10px] font-black text-emerald-700 uppercase tracking-wider mb-2">Remuneración y Pagos</span>
+                                <div class="flex items-baseline justify-between border-b border-emerald-100 pb-2 mb-2">
+                                    <div>
+                                        <span class="block text-[10px] font-bold text-gray-400 uppercase">Salario Base</span>
+                                        <span class="text-lg font-black text-emerald-700">{{ pos.currency.symbol if pos.currency else '' }} {{ "{:,.0f}".format(pos.base_salary or 0) }}</span>
+                                    </div>
+                                    <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                        {{ pos.salary_type.name if pos.salary_type else 'Fijo' }}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div><span class="block text-[10px] font-bold text-gray-400 uppercase">Forma de Pago</span><span class="font-semibold text-gray-700">{{ pos.payment_method.name if pos.payment_method else 'No definido' }}</span></div>
+                                    <div><span class="block text-[10px] font-bold text-gray-400 uppercase">Banco</span><span class="font-semibold text-gray-700">{{ pos.bank.name if pos.bank else 'No definido' }}</span></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50/40 border border-blue-100 rounded-lg p-3.5 text-xs">
+                                <span class="block text-[10px] font-black text-blue-900 uppercase tracking-wider mb-2">Periodo de Prueba</span>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div><span class="block text-[10px] text-blue-500 font-bold uppercase">Duración</span><span class="font-semibold text-gray-800">{{ pos.probation_duration.name if pos.probation_duration else 'No definido' }}</span></div>
+                                    <div><span class="block text-[10px] text-blue-500 font-bold uppercase">Vencimiento</span><span class="font-semibold text-gray-800">{{ pos.probation_end_date.strftime('%d/%m/%Y') if pos.probation_end_date else '-' }}</span></div>
+                                    <div><span class="block text-[10px] text-blue-500 font-bold uppercase">Evaluación</span><span class="font-semibold text-gray-800">{{ pos.probation_evaluation or 'Pendiente' }}</span></div>
+                                    <div><span class="block text-[10px] text-blue-500 font-bold uppercase">Estado</span><span class="font-semibold text-gray-800">{{ pos.probation_status or '-' }}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm italic">No tienes contratos o cargos activos registrados.</p>
+            {% endif %}
+            {% if ended_positions %}
+            <div class="mt-5 pt-4 border-t border-gray-100">
+                <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Contratos / Cargos Anteriores</h4>
+                <div class="space-y-2">
+                    {% for prev in ended_positions %}
+                    <div class="flex flex-wrap justify-between items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs">
+                        <div>
+                            <span class="font-bold text-gray-800">{{ prev.position.name if prev.position else '-' }}</span>
+                            <span class="text-gray-500"> &bull; {{ prev.contract_type.name if prev.contract_type else 'Contrato' }}</span>
+                            {% if prev.company %}<span class="text-gray-500"> &bull; {{ prev.company.name }}</span>{% endif %}
+                        </div>
+                        <span class="text-gray-500 font-medium">
+                            {{ prev.start_date.strftime('%d/%m/%Y') if prev.start_date else '-' }} - {{ prev.end_date.strftime('%d/%m/%Y') if prev.end_date else '-' }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- BENEFICIOS (NUEVO) -->
@@ -205,4 +317,27 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('.schedule-display').forEach(container => {
+        const raw = container.getAttribute('data-schedule');
+        if (!raw) return;
+        try {
+            const data = JSON.parse(raw);
+            const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            let html = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1">';
+            let count = 0;
+            days.forEach(d => {
+                if (data[d] && data[d].active) {
+                    count++;
+                    html += `<div class="bg-gray-50 px-2.5 py-1 rounded border border-gray-200 flex justify-between gap-2"><strong>${d}</strong><span>${data[d].start} - ${data[d].end}${data[d].modality ? ' (' + data[d].modality + ')' : ''}</span></div>`;
+                }
+            });
+            html += '</div>';
+            if (count > 0) container.innerHTML = html;
+        } catch (e) {}
+    });
+</script>
 {% endblock %}

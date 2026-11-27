@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.core.exceptions import RolePermissionError
 from app.modules.auth.dependencies import is_authenticated
 from app.modules.auth.models import User, UserRole
-from app.modules.employees.models import Employee
+from app.modules.employees.models import Employee, EmployeePosition
 from app.modules.employees import schemas as emp_schemas
 from app.modules.portal import schemas as portal_schemas
 from app.modules.portal import service as portal_service
@@ -51,6 +51,20 @@ async def get_current_employee(db: AsyncSession, user: User) -> Employee:
             selectinload(Employee.position_obj)
             .selectinload(Position.area)
             .selectinload(Area.sede),
+            selectinload(Employee.company),
+            selectinload(Employee.positions_history)
+            .selectinload(EmployeePosition.position)
+            .selectinload(Position.area)
+            .selectinload(Area.sede),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.company),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.contract_type),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.working_day_type),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.salary_type),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.currency),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.payment_method),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.bank),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.cost_center),
+            selectinload(Employee.positions_history).selectinload(EmployeePosition.probation_duration),
             
             selectinload(Employee.dietary_restrictions),
             
@@ -166,6 +180,14 @@ async def portal_profile(
     visible_documents = [
         d for d in employee.documents if (d.visibility or "all") == "all"
     ]
+    active_positions = sorted(
+        [ep for ep in employee.positions_history if ep.end_date is None],
+        key=lambda ep: (0 if ep.is_primary else 1, -(ep.start_date.toordinal() if ep.start_date else 0), ep.id),
+    )
+    ended_positions = sorted(
+        [ep for ep in employee.positions_history if ep.end_date is not None],
+        key=lambda ep: (-(ep.end_date.toordinal()), ep.id),
+    )
 
     return templates.TemplateResponse(request=request, name="portal/profile.html", context=
         {
@@ -173,6 +195,8 @@ async def portal_profile(
             "current_user": current_user,
             "employee": employee,
             "visible_documents": visible_documents,
+            "active_positions": active_positions,
+            "ended_positions": ended_positions,
             "benefit_history": benefit_history,
             "leader_ctx": leader_ctx,
             "settings": settings
