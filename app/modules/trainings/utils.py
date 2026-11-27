@@ -28,9 +28,21 @@ os.makedirs(UPLOADS_BASE_DIR, exist_ok=True)
 
 
 def ensure_upload_dir(subdir: str = "") -> str:
-    path = os.path.join(UPLOADS_BASE_DIR, subdir) if subdir else UPLOADS_BASE_DIR
+    """Directorio de cargas aislado por esquema de tenant."""
+    from app.core.tenants import get_current_tenant
+    tenant = get_current_tenant()
+    tenant_dir = tenant.schema_name if tenant else "public"
+    parts = [UPLOADS_BASE_DIR, tenant_dir]
+    if subdir:
+        parts.append(subdir)
+    path = os.path.join(*parts)
     os.makedirs(path, exist_ok=True)
     return path
+
+
+def legacy_upload_dir(subdir: str = "") -> str:
+    """Ruta heredada previa al aislamiento por tenant (solo lectura tras validar BD)."""
+    return os.path.join(UPLOADS_BASE_DIR, subdir) if subdir else UPLOADS_BASE_DIR
 
 
 def add_calendar_months(source_date: date, months: int) -> date:

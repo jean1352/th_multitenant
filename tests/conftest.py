@@ -69,7 +69,7 @@ async def recruiter_token(db_session: AsyncSession) -> str:
     await db_session.commit()
     await db_session.refresh(user)
     
-    return create_access_token({"sub": user.email, "id": user.id, "role": user.role.value})
+    return create_access_token({"sub": user.email, "id": user.id, "role": user.role.value, "tenant": "public"})
 
 @pytest.fixture
 async def admin_token(db_session: AsyncSession) -> str:
@@ -84,4 +84,4 @@ async def admin_token(db_session: AsyncSession) -> str:
     await db_session.commit()
     await db_session.refresh(user)
     
-    return create_access_token({"sub": user.email, "id": user.id, "role": user.role.value})
+    return create_access_token({"sub": user.email, "id": user.id, "role": user.role.value, "tenant": "public"})

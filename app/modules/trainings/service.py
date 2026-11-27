@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -1726,10 +1727,14 @@ async def upload_evidence_file(
     user_id: Optional[int] = None,
 ) -> TrainingEvidence:
     upload_dir = ensure_upload_dir(entity_type)
-    ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "bin"
+    raw_ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "bin"
+    ext = re.sub(r"[^a-zA-Z0-9]", "", raw_ext)[:10] or "bin"
     stored_name = f"{entity_type}_{entity_id}_{uuid.uuid4().hex}.{ext}"
     abs_path = os.path.join(upload_dir, stored_name)
     content = await file.read()
+    max_bytes = 15 * 1024 * 1024
+    if len(content) > max_bytes:
+        raise ValueError("El archivo supera el tamaño máximo permitido (15 MB).")
     with open(abs_path, "wb") as f:
         f.write(content)
 

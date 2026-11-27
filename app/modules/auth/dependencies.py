@@ -44,6 +44,13 @@ async def get_current_user(
     if not payload:
         raise NeedsLoginException("No has iniciado sesión.")
 
+    # Verificar que el token pertenezca exactamente al tenant (o esquema público) del Host actual
+    from app.core.tenants import get_current_tenant
+    current_tenant = get_current_tenant()
+    expected_tenant = current_tenant.schema_name if current_tenant else "public"
+    if payload.get("tenant") != expected_tenant:
+        raise RolePermissionError("Token inválido para este entorno o inquilino.")
+
     user_id = payload.get("id")
     
     # 3. Validar usuario en el contexto del tenant actual

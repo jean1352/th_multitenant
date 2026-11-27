@@ -61,11 +61,15 @@ async def lifespan(app: FastAPI):
     # Sincronización automática de base de datos (público y tenants)
     await auto_upgrade_db_schema()
     
-    start_scheduler()
-    logger.info("✅ Scheduler iniciado.")
+    if settings.RUN_SCHEDULER:
+        start_scheduler()
+        logger.info("✅ Scheduler iniciado.")
+    else:
+        logger.info("⏸️ Scheduler deshabilitado en este worker (RUN_SCHEDULER=False).")
     
     async with AsyncSessionLocal() as db:
-        await sync_jobs_from_db(db)
+        if settings.RUN_SCHEDULER:
+            await sync_jobs_from_db(db)
         # Cargar días no laborables (feriados) al cache para el contador de días hábiles (SLA).
         await refresh_holidays_cache(db)
         from app.modules.auth.service import ensure_superadmin

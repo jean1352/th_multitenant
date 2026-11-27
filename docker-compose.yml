@@ -34,5 +34,55 @@ services:
     # Comando para desarrollo con reload activo
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+  # Crear la base E2E también cuando el volumen PostgreSQL ya existe.
+  db-test-init:
+    image: postgres:15-alpine
+    profiles: [e2e]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.db
+    environment:
+      PGHOST: db
+      PGDATABASE: postgres
+    volumes:
+      - ./docker/create-test-db.sh:/create-test-db.sh:ro
+    entrypoint: ["/bin/sh", "/create-test-db.sh"]
+
+  # Mismo código e imagen; configuración y datos exclusivos para Playwright.
+  web-test:
+    build: .
+    container_name: talento_up_app_test
+    profiles: [e2e]
+    restart: unless-stopped
+    depends_on:
+      db-test-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8007:8000"
+    env_file:
+      - .env
+      - .env.test
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: talento_up_test
+      BASE_URL: http://localhost:8007
+      SMTP_ENABLED: "False"
+      RUN_SCHEDULER: "False"
+    volumes:
+      - .:/app
+      - test_uploads:/app/app/static/uploads
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/login', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
+
 volumes:
   postgres_data:
+  test_uploads:

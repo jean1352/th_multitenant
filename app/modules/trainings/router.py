@@ -61,6 +61,7 @@ from app.modules.trainings.utils import (
     ensure_upload_dir,
     get_manager_area_ids,
     is_facilitator_of_training,
+    legacy_upload_dir,
 )
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
@@ -1204,15 +1205,35 @@ async def delete_evidence_api(
 async def download_protected_evidence(
     entity_type: str,
     filename: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_user: User = Depends(get_current_user),
 ):
-    """RNF-07: Archivos adjuntos protegidos (no accesibles por enlace público)."""
+    """RNF-07: Archivos adjuntos protegidos y verificados en la BD del tenant actual."""
     if entity_type not in ("training", "enrollment", "commitment"):
         raise HTTPException(400, "Tipo de entidad inválido")
     safe_name = os.path.basename(filename)
+    expected_url = f"/trainings/api/evidences/download/{entity_type}/{safe_name}"
+
+    ev_id = await db.scalar(
+        select(TrainingEvidence.id).where(TrainingEvidence.file_url == expected_url)
+    )
+    if not ev_id and entity_type == "enrollment":
+        ev_id = await db.scalar(
+            select(TrainingEnrollment.id).where(
+                (TrainingEnrollment.certificate_file == safe_name)
+                | (TrainingEnrollment.certificate_file.like(f"%/{safe_name}"))
+            )
+        )
+    if not ev_id:
+        raise HTTPException(404, "Archivo no encontrado")
+
     abs_path = os.path.join(ensure_upload_dir(entity_type), safe_name)
     if not os.path.exists(abs_path):
-        raise HTTPException(404, "Archivo no encontrado")
+        legacy_path = os.path.join(legacy_upload_dir(entity_type), safe_name)
+        if os.path.exists(legacy_path):
+            abs_path = legacy_path
+        else:
+            raise HTTPException(404, "Archivo no encontrado")
     return FileResponse(abs_path, filename=safe_name)
 
 

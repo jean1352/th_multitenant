@@ -4,7 +4,8 @@ from datetime import date, datetime
 from typing import Optional
 
 import matplotlib
-import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 import pandas as pd
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import desc, or_, select
@@ -119,31 +120,32 @@ async def generate_excel_report(
 
 
 def generate_chart_base64(data: dict, title: str, chart_type="bar"):
-    """Genera un gráfico en base64 para incrustar en PDF."""
-    plt.figure(figsize=(6, 4))
+    """Genera un gráfico thread-safe en base64 para incrustar en PDF."""
+    fig = Figure(figsize=(6, 4))
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
     labels = list(data.keys())
     values = list(data.values())
     if sum(values) == 0:
-        plt.text(
+        ax.text(
             0.5, 0.5, "Sin datos", ha="center", va="center", color="gray"
         )
-        plt.axis("off")
+        ax.axis("off")
     else:
         if chart_type == "bar":
-            plt.barh(labels, values, color="#003366")
-            plt.xlabel("Cantidad")
+            ax.barh(labels, values, color="#003366")
+            ax.set_xlabel("Cantidad")
         elif chart_type == "pie":
-            plt.pie(
+            ax.pie(
                 values,
                 labels=labels,
                 autopct="%1.1f%%",
                 colors=["#10B981", "#EF4444", "#F59E0B"],
             )
-    plt.title(title)
-    plt.tight_layout()
+    ax.set_title(title)
+    fig.tight_layout()
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    plt.close()
+    fig.savefig(buffer, format="png")
     buffer.seek(0)
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 

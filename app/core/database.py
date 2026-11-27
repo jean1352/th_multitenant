@@ -1,3 +1,4 @@
+import re
 import sys
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -40,15 +41,26 @@ AsyncSessionLocal = async_sessionmaker(
 class Base(DeclarativeBase):
     pass
 
+_VALID_SCHEMA_RE = re.compile(r"^(public|tenant_[a-z0-9_]+)$")
+
+
+def validate_schema_name(schema_name: str) -> str:
+    """Valida que el nombre de esquema sea seguro antes de interpolarlo en SQL."""
+    if not _VALID_SCHEMA_RE.fullmatch(schema_name or ""):
+        raise ValueError(f"Nombre de esquema inválido: {schema_name!r}")
+    return schema_name
+
+
 # Dependencia para FastAPI
 async def get_db():
     from app.core.tenants import get_current_tenant
     async with AsyncSessionLocal() as session:
         tenant = get_current_tenant()
         if tenant:
+            schema = validate_schema_name(tenant.schema_name)
             # Seteamos el search_path para que las consultas se dirijan al esquema del tenant
             # Incluimos 'public' al final para que las tablas globales (como 'tenants') sigan siendo accesibles
-            await session.execute(text(f'SET search_path TO "{tenant.schema_name}", public'))
+            await session.execute(text(f'SET search_path TO "{schema}", public'))
         else:
             # Si no hay tenant, nos aseguramos de que la conexión use el esquema público
             await session.execute(text('SET search_path TO public'))
@@ -67,7 +79,8 @@ async def get_tenant_db(schema_name: Optional[str] = None):
         schema_name = tenant.schema_name if tenant else None
     async with AsyncSessionLocal() as session:
         if schema_name:
-            await session.execute(text(f'SET search_path TO "{schema_name}", public'))
+            schema = validate_schema_name(schema_name)
+            await session.execute(text(f'SET search_path TO "{schema}", public'))
         else:
             await session.execute(text('SET search_path TO public'))
         try:
