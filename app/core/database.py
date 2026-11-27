@@ -221,11 +221,14 @@ async def auto_upgrade_db_schema():
                         # Manejo de claves foráneas
                         if column.foreign_keys:
                             for fk in column.foreign_keys:
-                                fk_table_schema = fk.column.table.schema or "public"
-                                if schema_name != "public" and fk_table_schema != "public":
-                                    alter_query += f' REFERENCES "{schema_name}"."{fk.column.table.name}"("{fk.column.name}")'
+                                explicit_schema = fk.column.table.schema
+                                if explicit_schema:
+                                    target_schema = explicit_schema
+                                elif schema_name != "public":
+                                    target_schema = schema_name
                                 else:
-                                    alter_query += f' REFERENCES "{fk_table_schema}"."{fk.column.table.name}"("{fk.column.name}")'
+                                    target_schema = "public"
+                                alter_query += f' REFERENCES "{target_schema}"."{fk.column.table.name}"("{fk.column.name}")'
                                     
                         connection.execute(text(alter_query))
                         print(f"✅ [Auto-Migration] {schema_name}.{table_name}: Añadida columna '{col_name}'")
@@ -286,6 +289,57 @@ async def auto_upgrade_db_schema():
                 except Exception as e:
                     print(f"⚠️ [Auto-Migration] Backfill {schema_name}.{tbl}.{col}: {e}")
 
+    def repair_tenant_foreign_keys(connection, schema_name: str):
+        """
+        Corrige claves foráneas en esquemas de tenant que fueron creadas por error
+        apuntando a `public.*` cuando el modelo destino es por-tenant (table.schema is None).
+        """
+        if schema_name == "public":
+            return
+        tenant_scoped_tables = {
+            t_name for t_name, tbl in Base.metadata.tables.items() if (tbl.schema or None) is None
+        }
+        rows = connection.execute(
+            text(
+                """
+                SELECT
+                    cl.relname AS tbl_name,
+                    c.conname AS con_name,
+                    a.attname AS col_name,
+                    cl2.relname AS ref_tbl,
+                    a2.attname AS ref_col
+                FROM pg_constraint c
+                JOIN pg_class cl ON cl.oid = c.conrelid
+                JOIN pg_namespace n ON n.oid = c.connamespace
+                JOIN pg_class cl2 ON cl2.oid = c.confrelid
+                JOIN pg_namespace n2 ON n2.oid = cl2.relnamespace
+                JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+                JOIN pg_attribute a2 ON a2.attrelid = c.confrelid AND a2.attnum = c.confkey[1]
+                WHERE c.contype = 'f'
+                  AND n.nspname = :schema_name
+                  AND n2.nspname = 'public'
+                  AND array_length(c.conkey, 1) = 1
+                """
+            ),
+            {"schema_name": schema_name},
+        ).all()
+        for tbl_name, con_name, col_name, ref_tbl, ref_col in rows:
+            if ref_tbl not in tenant_scoped_tables:
+                continue
+            try:
+                with connection.begin_nested():
+                    connection.execute(text(f'ALTER TABLE "{schema_name}"."{tbl_name}" DROP CONSTRAINT "{con_name}"'))
+                    connection.execute(
+                        text(
+                            f'ALTER TABLE "{schema_name}"."{tbl_name}" '
+                            f'ADD CONSTRAINT "{con_name}" FOREIGN KEY ("{col_name}") '
+                            f'REFERENCES "{schema_name}"."{ref_tbl}"("{ref_col}")'
+                        )
+                    )
+                print(f"✅ [Auto-Migration] {schema_name}.{tbl_name}.{con_name}: FK corregida hacia {schema_name}.{ref_tbl}")
+            except Exception as e:
+                print(f"⚠️ [Auto-Migration] Error corrigiendo FK {schema_name}.{tbl_name}.{con_name}: {e}")
+
     # --- PASO 1: Sincronizar el Esquema Público (Global) ---
     async with engine.begin() as conn:
         print("🌍 Sincronizando esquema público (global)...")
@@ -321,6 +375,7 @@ async def auto_upgrade_db_schema():
             await conn.execute(text(f'SET search_path TO "{schema}", public'))
             await conn.run_sync(lambda connection: sync_enum_values_for_schema(connection, schema))
             await conn.run_sync(lambda connection: sync_schema_columns(connection, schema))
+            await conn.run_sync(lambda connection: repair_tenant_foreign_keys(connection, schema))
             await conn.run_sync(lambda connection: migrate_automation_rules_nullability(connection, schema))
             
             # Restablecer el search_path
