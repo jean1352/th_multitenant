@@ -42,6 +42,7 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     """Esquema para actualizar un usuario existente."""
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None

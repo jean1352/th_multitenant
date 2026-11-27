@@ -36,6 +36,8 @@
                     <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded">ADMIN</span>
                     {% elif user.role.value == 'th' %}
                     <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">TH</span>
+                    {% elif user.role.value == 'manager' %}
+                    <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded">MANAGER</span>
                     {% else %}
                     <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded">EMPLEADO</span>
                     {% endif %}

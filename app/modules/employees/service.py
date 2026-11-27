@@ -451,6 +451,25 @@ async def update_employee(
             user.full_name = data["full_name"]
             db.add(user)
 
+    if "institutional_email" in data and data["institutional_email"]:
+        new_inst_email = data["institutional_email"].strip().lower()
+        data["institutional_email"] = new_inst_email
+        user = await db.scalar(select(User).where(User.employee_id == emp.id))
+        if user and user.email.lower() != new_inst_email:
+            conflict = await db.scalar(
+                select(User).where(
+                    func.lower(User.email) == new_inst_email,
+                    User.id != user.id,
+                )
+            )
+            if conflict:
+                raise HTTPException(
+                    400,
+                    f"El correo {new_inst_email} ya está siendo utilizado por otro usuario.",
+                )
+            user.email = new_inst_email
+            db.add(user)
+
     if "dietary_restriction_ids" in data:
         r_ids = data.pop("dietary_restriction_ids")
         if r_ids is not None:

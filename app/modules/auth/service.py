@@ -6,7 +6,8 @@ Maneja la verificación de credenciales, hashing y operaciones CRUD.
 from datetime import timedelta
 from typing import List, Optional
 
-from sqlalchemy import select
+from fastapi import HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,7 +27,8 @@ async def authenticate_user(
     db: AsyncSession, credentials: UserLogin
 ) -> Optional[User]:
     """Verifica email y contraseña de un usuario."""
-    stmt = select(User).where(User.email == credentials.email)
+    normalized_email = credentials.email.strip().lower()
+    stmt = select(User).where(func.lower(User.email) == normalized_email)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
@@ -67,15 +69,20 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     """Busca un usuario por su Email."""
-    stmt = select(User).where(User.email == email)
+    stmt = select(User).where(func.lower(User.email) == email.strip().lower())
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
 async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
     """Crea un nuevo usuario en la base de datos."""
+    normalized_email = user_in.email.strip().lower()
+    existing = await get_user_by_email(db, normalized_email)
+    if existing:
+        raise HTTPException(400, "Ya existe un usuario con ese correo electrónico.")
+
     hashed_password = get_password_hash(user_in.password)
     db_user = User(
-        email=user_in.email,
+        email=normalized_email,
         full_name=user_in.full_name,
         hashed_password=hashed_password,
         role=user_in.role,
@@ -94,12 +101,32 @@ async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
 async def update_user(
     db: AsyncSession, user_id: int, user_in: UserUpdate
 ) -> Optional[User]:
-    """Actualiza los datos de un usuario."""
+    """Actualiza los datos de un usuario y sincroniza su email con el empleado vinculado."""
     db_user = await get_user_by_id(db, user_id)
     if not db_user:
         return None
 
     update_data = user_in.model_dump(exclude_unset=True)
+
+    if "email" in update_data and update_data["email"]:
+        new_email = update_data["email"].strip().lower()
+        conflict = await db.scalar(
+            select(User).where(
+                func.lower(User.email) == new_email,
+                User.id != user_id,
+            )
+        )
+        if conflict:
+            raise HTTPException(400, "Ya existe otro usuario con ese correo electrónico.")
+        update_data["email"] = new_email
+        if db_user.employee_id:
+            from app.modules.employees.models import Employee
+            emp = await db.get(Employee, db_user.employee_id)
+            if emp:
+                emp.institutional_email = new_email
+                db.add(emp)
+    elif "email" in update_data:
+        update_data.pop("email")
 
     # Si envían password, lo hasheamos. Si es None o vacío, lo ignoramos.
     if "password" in update_data:
