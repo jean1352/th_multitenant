@@ -39,7 +39,8 @@ COPY . /app
 
 # Creamos usuario no-root
 RUN adduser --disabled-password --gecos '' appuser
-RUN chown -R appuser:appuser /app
+RUN mkdir -p /app/app/static/uploads \
+    && chown -R appuser:appuser /app
 USER appuser
 
 # Exponemos el puerto
