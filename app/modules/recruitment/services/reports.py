@@ -71,9 +71,17 @@ async def generate_excel_report(
         .join(RecruitmentProcess, Vacancy.process_id == RecruitmentProcess.id)
         .options(
             selectinload(Vacancy.stages).selectinload(VacancyStage.responsible),
+            selectinload(Vacancy.process),
+            selectinload(Vacancy.area).options(
+                selectinload(Area.sede),
+                selectinload(Area.positions).selectinload(Position.parent),
+                selectinload(Area.positions).selectinload(Position.area),
+            ),
             selectinload(Vacancy.position).selectinload(Position.parent),
             selectinload(Vacancy.position).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Vacancy.audits).selectinload(RecruitmentAudit.user),
+            selectinload(Vacancy.hiring_reason),
+            selectinload(Vacancy.recruiter),
         )
     )
     stmt = _apply_report_filters(stmt, area_id, status, start_date, end_date)
@@ -157,10 +165,16 @@ async def generate_pdf_report(
         .options(
             selectinload(Vacancy.stages).selectinload(VacancyStage.responsible),
             selectinload(Vacancy.process),
-            selectinload(Vacancy.area),
+            selectinload(Vacancy.area).options(
+                selectinload(Area.sede),
+                selectinload(Area.positions).selectinload(Position.parent),
+                selectinload(Area.positions).selectinload(Position.area),
+            ),
             selectinload(Vacancy.position).selectinload(Position.parent),
             selectinload(Vacancy.position).selectinload(Position.area).selectinload(Area.sede),
             selectinload(Vacancy.audits).selectinload(RecruitmentAudit.user),
+            selectinload(Vacancy.hiring_reason),
+            selectinload(Vacancy.recruiter),
         )
     )
     stmt = _apply_report_filters(stmt, area_id, status, start_date, end_date)

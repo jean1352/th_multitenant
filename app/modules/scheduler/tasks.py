@@ -19,6 +19,7 @@ from app.modules.calendar.models import CalendarEvent, EventEnrollment, Enrollme
 from app.modules.notifications.models import NotificationLog
 from app.modules.notifications.service import send_email_notification
 from app.modules.employees.models import Employee, EmployeeDocument, EmployeePosition, DocumentCategory
+from app.modules.organization.models import Position
 from app.modules.trainings.models import Training
 
 logger = logging.getLogger(__name__)
@@ -175,7 +176,7 @@ async def run_contract_expiration(rule_id: int, param_value: int = 30, **kwargs)
             .options(
                 selectinload(EmployeeDocument.employee)
                 .selectinload(Employee.position_obj)
-                .selectinload(Employee.position_obj.area)
+                .selectinload(Position.area)
             )
             .where(
                 EmployeeDocument.category == DocumentCategory.CONTRACT,
@@ -215,7 +216,7 @@ async def run_probation_end(rule_id: int, param_value: int = 90, **kwargs):
             .join(Employee)
             .options(
                 selectinload(EmployeePosition.employee),
-                selectinload(EmployeePosition.position).selectinload(Employee.position_obj.area)
+                selectinload(EmployeePosition.position).selectinload(Position.area)
             )
             .where(
                 EmployeePosition.is_primary == True,
